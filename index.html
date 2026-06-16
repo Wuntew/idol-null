@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IDOL.NULL // cosmic horror survivor sim</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root{ --green:#55a355; --cyan:#4a9090; --yellow:#a0983a; --red:#a03838; --purple:#7a45a8; --amber:#a07030; }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; background:#000; }
+  body{
+    font-family:'Courier New', ui-monospace, monospace;
+    color:var(--green);
+    letter-spacing:.02em;
+    overflow-x:hidden;
+  }
+  ::selection{ background:#0d1f0d; color:#7ab07a; }
+  /* ---- ANSI text colors ---- */
+  .c-green{color:var(--green)} .c-cyan{color:var(--cyan)} .c-yellow{color:var(--yellow)}
+  .c-red{color:var(--red)} .c-purple{color:var(--purple)} .c-amber{color:var(--amber)}
+  .c-dim{color:#3a6a3a; text-shadow:none} .c-white{color:#c8d8c8}
+  /* ---- blocky double-border panels, no rounded corners ---- */
+  .panel{ background:#000; border:3px double var(--green); }
+  .p-cyan{ border-color:var(--cyan);}
+  .p-purple{ border-color:var(--purple);}
+  .p-amber{ border-color:var(--amber);}
+  .p-red{ border-color:var(--red);}
+  .p-yellow{ border-color:var(--yellow);}
+  .hdr{ background:#001a00; border-bottom:3px double var(--green); padding:1px 6px; font-weight:bold; letter-spacing:.12em;}
+  .hdr.cyan{background:#001a1a;border-color:var(--cyan)} .hdr.purple{background:#16001a;border-color:var(--purple)}
+  .hdr.amber{background:#1a1200;border-color:var(--amber)} .hdr.red{background:#1a0000;border-color:var(--red)}
+  /* ---- pixel canvas ---- */
+  canvas.port{ image-rendering:pixelated; image-rendering:crisp-edges; width:46px; height:46px; background:#000; border:1px solid #0a4a0a; }
+  /* ---- CRT scanlines + flicker ---- */
+  #crt{ position:fixed; inset:0; z-index:9999; pointer-events:none; mix-blend-mode:overlay; }
+  #crt::before{ content:""; position:absolute; inset:0;
+    background:repeating-linear-gradient(0deg, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,.35) 3px, rgba(0,0,0,.35) 3px);
+    animation:scan 7s linear infinite; }
+  #crt::after{ content:""; position:absolute; inset:0;
+    background:radial-gradient(ellipse at center, rgba(0,40,0,0) 55%, rgba(0,0,0,.55) 100%);
+    animation:flick .12s steps(2) infinite; }
+  @keyframes scan{ from{transform:translateY(0)} to{transform:translateY(6px)} }
+  @keyframes flick{ 0%{opacity:.92} 50%{opacity:1} 100%{opacity:.95} }
+  .glitchtxt{ animation:gl .9s steps(3) infinite; }
+  @keyframes gl{ 0%{opacity:1;transform:translateX(0)} 33%{opacity:.7;transform:translateX(.5px)} 66%{opacity:1;transform:translateX(-.5px)} }
+  /* ---- blocky range sliders ---- */
+  input[type=range]{ -webkit-appearance:none; appearance:none; height:14px; background:#001500; border:2px solid var(--green); outline:none; }
+  input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; width:12px; height:18px; background:var(--green); border:2px solid #1a3a1a; cursor:pointer; }
+  input[type=range]::-moz-range-thumb{ width:10px; height:16px; background:var(--green); border:2px solid #1a3a1a; cursor:pointer; }
+  input[type=range].amber{ border-color:var(--amber);} input[type=range].amber::-webkit-slider-thumb{background:var(--amber);}
+  input[type=text], textarea, select{ background:#000; border:2px solid var(--amber); color:var(--amber); font-family:inherit; padding:2px 5px; outline:none; }
+  textarea::placeholder, input::placeholder{ color:#5a3a10; }
+  button{ font-family:inherit; cursor:pointer; transition:all .08s; }
+  .btn{ background:#001500; border:2px solid var(--green); color:var(--green); padding:2px 8px; font-weight:bold; }
+  .btn:hover{ background:var(--green); color:#000; text-shadow:none; }
+  .btn.cyan{ border-color:var(--cyan); color:var(--cyan);} .btn.cyan:hover{ background:var(--cyan); color:#000;}
+  .btn.purple{ border-color:var(--purple); color:var(--purple);} .btn.purple:hover{ background:var(--purple); color:#000;}
+  .btn.amber{ border-color:var(--amber); color:var(--amber);} .btn.amber:hover{ background:var(--amber); color:#000;}
+  .btn.red{ border-color:var(--red); color:var(--red);} .btn.red:hover{ background:var(--red); color:#000;}
+  .btn.on{ background:var(--green); color:#000; text-shadow:none;}
+  .btn.amber.on{ background:var(--amber); color:#000;}
+  .btn.red.on{ background:var(--red); color:#000;}
+  /* ---- scrollbars ---- */
+  .scroll{ overflow-y:auto; scrollbar-width:thin; scrollbar-color:#1a3a1a #000; }
+  .scroll::-webkit-scrollbar{ width:8px; } .scroll::-webkit-scrollbar-track{ background:#000; }
+  .scroll::-webkit-scrollbar-thumb{ background:#1a3a1a; border:1px solid #2a5a2a; }
+  .logline{ animation:fadein .25s ease-out; padding:1px 0; border-bottom:1px dotted #0e1a0e; }
+  @keyframes fadein{ from{opacity:0; transform:translateX(-4px)} to{opacity:1; transform:translateX(0)} }
+  .bar{ height:7px; background:#001500; border:1px solid #1a3a1a; position:relative; }
+  .bar > i{ display:block; height:100%; }
+  .blink{ animation:bl 1s steps(2) infinite; } @keyframes bl{ 50%{opacity:.25} }
+  .tag{ font-size:10px; padding:0 3px; border:1px solid currentColor; }
+  .grid-stat{ display:grid; grid-template-columns:auto 1fr; gap:2px 5px; align-items:center; }
+  .nowrap{ white-space:nowrap; }
+  /* ---- click-to-expand interactivity ---- */
+  .castaway-card{ cursor:pointer; transition:background .08s; }
+  .castaway-card:hover{ background:#050f05; }
+  details.hist-entry{ user-select:none; }
+  details.hist-entry > summary{ cursor:pointer; list-style:none; padding:3px; }
+  details.hist-entry > summary::-webkit-details-marker{ display:none; }
+  details.hist-entry > summary:hover{ background:#0a000d; }
+  .log-filter{ display:flex; flex-wrap:wrap; gap:3px; padding:3px 6px; align-items:center; border-top:1px solid #052005; }
+  .lfbtn{ font-size:9px; padding:0 4px; border:1px solid currentColor; cursor:pointer; background:transparent; font-family:inherit; opacity:.4; transition:opacity .08s; }
+  .lfbtn.on{ opacity:1; }
+  /* ---- responsive dense grid ---- */
+  .mgrid{ display:grid; gap:4px; grid-template-columns:320px minmax(340px,1fr) 300px; align-items:start; }
+  @media (max-width:1040px){ .mgrid{ grid-template-columns:1fr; } .mgrid #roster{ max-height:42vh; } }
+</style>
+</head>
+<body class="text-[13px] leading-tight">
+<div id="crt"></div>
+
+<!-- ===================== HUD ===================== -->
+<header class="panel" style="margin:4px; padding:0;">
+  <div class="flex flex-wrap items-stretch">
+    <div class="hdr flex items-center gap-2" style="flex:1 1 auto; border-bottom:none; border-right:3px double var(--green);">
+      <span class="c-red glitchtxt text-lg">▓</span>
+      <span class="text-lg tracking-widest c-green">IDOL<span class="c-red">.</span>NULL</span>
+      <span class="c-dim text-[10px]">// the matrix has spoken</span>
+    </div>
+    <div class="flex items-center gap-3 px-2 flex-wrap text-[12px]">
+      <span class="nowrap c-purple">SEASON <b id="hSeason">1</b></span>
+      <span class="nowrap c-cyan">DAY <b id="hDay">1</b></span>
+      <span class="nowrap c-yellow">RATINGS <b id="hCur">500</b><span class="c-dim">pts</span></span>
+      <span class="nowrap c-amber">PHASE <b id="hPhase">CAMP</b></span>
+    </div>
+  </div>
+  <div class="flex flex-wrap items-center gap-2 px-2 py-1" style="border-top:2px solid #052005;">
+    <button id="btnPlay" class="btn">❚❚ PAUSE</button>
+    <button id="btnStep" class="btn cyan">▶ STEP</button>
+    <span class="c-dim">|</span>
+    <span class="c-cyan text-[11px]">SPEED</span>
+    <input id="rngSpeed" type="range" min="1" max="10" value="4" style="width:120px">
+    <span id="lblSpeed" class="c-cyan w-6 text-center">4x</span>
+    <span class="c-dim">|</span>
+    <button id="btnFilter" class="btn amber on">[FILTER: ON]</button>
+    <button id="btnMute" class="btn">[AUDIO: ON]</button>
+    <button id="btnAnomaly" class="btn red">⚠ INJECT ANOMALY</button>
+    <button id="btnWork" class="btn purple">SHOWRUNNER WORKBENCH ▾</button>
+  </div>
+</header>
+
+<!-- ===================== MAIN GRID ===================== -->
+<main class="mgrid px-1">
+
+  <!-- LEFT: ROSTER / TRIBES -->
+  <section class="panel p-cyan" style="display:flex; flex-direction:column; min-height:0;">
+    <div class="hdr cyan flex justify-between"><span>▣ CASTAWAY ROSTER</span><span id="aliveCount" class="c-white">—</span></div>
+    <div id="roster" class="scroll p-1" style="flex:1 1 auto; max-height:78vh;"></div>
+  </section>
+
+  <!-- CENTER: LOG + COUNCIL/BETTING -->
+  <section style="display:flex; flex-direction:column; gap:4px; min-height:0;">
+    <div class="panel" style="display:flex; flex-direction:column; min-height:0;">
+      <div class="hdr flex justify-between items-center">
+        <span>▶ LIVE FEED // confessional log</span>
+        <span id="phaseBadge" class="tag c-amber">CAMP LIFE</span>
+      </div>
+      <div class="log-filter">
+        <span class="c-dim" style="font-size:9px">SHOW:</span>
+        <button class="lfbtn c-green on" data-lf="camp">CAMP</button>
+        <button class="lfbtn c-cyan on" data-lf="host">HOST</button>
+        <button class="lfbtn c-amber on" data-lf="trait">TRAIT</button>
+        <button class="lfbtn c-dim on" data-lf="ghost">GHOST</button>
+        <button class="lfbtn c-yellow on" data-lf="vote">VOTE</button>
+        <button class="lfbtn c-red on" data-lf="elim">ELIM</button>
+        <button class="lfbtn c-purple on" data-lf="anomaly">ANOMALY</button>
+        <button class="lfbtn c-cyan on" data-lf="system">SYS</button>
+        <button class="lfbtn c-amber on" data-lf="bet">BET</button>
+        <button class="lfbtn c-yellow on" data-lf="win">WIN</button>
+      </div>
+      <div id="log" class="scroll p-2 text-[12px]" style="flex:1 1 auto; height:42vh;"></div>
+    </div>
+    <div id="council" class="panel p-amber" style="min-height:0;">
+      <div class="hdr amber flex justify-between"><span>◈ THE SCRAMBLE // dynamic betting window</span><span id="betState" class="c-dim text-[11px]">closed</span></div>
+      <div id="councilBody" class="p-2 text-[12px]"></div>
+    </div>
+  </section>
+
+  <!-- RIGHT: HALL OF HORRORS / TALLY -->
+  <section style="display:flex; flex-direction:column; gap:4px; min-height:0;">
+    <div class="panel p-red">
+      <div class="hdr red">☠ DEATH TALLY // this season</div>
+      <div id="tally" class="p-2 text-[12px]"></div>
+    </div>
+    <div class="panel p-purple" style="display:flex; flex-direction:column; min-height:0;">
+      <div class="hdr purple">⛧ HALL OF HORRORS // archive</div>
+      <div id="history" class="scroll p-2 text-[12px]" style="flex:1 1 auto; max-height:52vh;"></div>
+    </div>
+  </section>
+</main>
+
+<!-- ===================== SHOWRUNNER WORKBENCH ===================== -->
+<section id="workbench" class="panel p-purple" style="margin:4px; display:none;">
+  <div class="hdr purple flex justify-between">
+    <span class="glitchtxt">▚▞ SHOWRUNNER CORE // CORRUPTED MAINFRAME ADMIN ▞▚</span>
+    <span class="c-dim text-[11px]">root@idol.null:~#</span>
+  </div>
+  <div class="grid gap-2 p-2" style="grid-template-columns: 1fr 1.2fr;">
+    <!-- PROMPT SIDE -->
+    <div>
+      <div class="c-purple mb-1">&gt; PROMPT SHOWRUNNER CORE AI</div>
+      <textarea id="wbPrompt" rows="4" class="w-full" style="border-color:var(--purple); color:var(--purple)"
+        placeholder="e.g. 'a paranoid fungal trait that rots trust' / 'an acid cosmic storm weather' / 'a violent pageant queen archetype'"></textarea>
+      <div class="flex gap-2 mt-1 flex-wrap">
+        <button id="wbExec" class="btn purple">⚙ EXECUTE SYSTEM GENERATION</button>
+        <button id="wbRand" class="btn cyan">⟳ RANDOM SEED</button>
+      </div>
+      <div class="c-dim text-[10px] mt-1">parser scans keywords → infers TYPE / COLOR / STAT-BIAS / FLAVOR. edit below, then inject.</div>
+    </div>
+    <!-- RESULT / EDIT SIDE -->
+    <div id="wbResult" class="panel" style="border-color:#3a004a; padding:6px; min-height:120px;">
+      <div class="c-dim">// awaiting EXECUTE SYSTEM GENERATION...</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== FULL DOSSIER MODAL ===================== -->
+<div id="profileModal" style="display:none; position:fixed; inset:0; z-index:200; background:rgba(0,0,0,.82); align-items:center; justify-content:center; padding:16px;">
+  <div class="panel p-cyan" style="width:min(640px,94vw); max-height:88vh; display:flex; flex-direction:column;">
+    <div class="hdr cyan flex justify-between items-center">
+      <span>▣ FULL DOSSIER // confidential casting file</span>
+      <button id="profileClose" class="btn red" style="padding:0 7px;">✕ CLOSE</button>
+    </div>
+    <div id="profileBody" class="scroll p-2 text-[12px]" style="overflow-y:auto;"></div>
+  </div>
+</div>
+
+<footer class="c-dim text-[10px] px-2 pb-3 pt-1">
+  IDOL.NULL is an automated cosmic-horror parody simulation. No real persons. Profanity filter replaces swears with ░▒▓ glitch blocks. Web Audio generates all sound. Portraits are procedural 16×16 canvas pixel-art.
+</footer>
+
+<script>
+/* ============================================================================
+   IDOL.NULL — single-file cosmic-horror survivor simulation
+   ============================================================================ */
+
+/* ---------- tiny RNG helpers (gameplay = Math.random; portraits = seeded) -- */
+const ri=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const chance=p=>Math.random()<p;
+const clamp=(v,a=0,b=100)=>v<a?a:v>b?b:v;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+/* ---------- DATA MATRICES (token-efficient flavor; ${a}/${b}/${x} tokens) -- */
+const FIRST=['Garbage Kevin','Babs','Trent','DeShawn','Moonpie','Brad','Crystal','Nguyen','Skylar','Hoss','Patches','Vex','Ramona','Cleetus','Bex','Tofu Greg','Sister Mary','Gizz','Lurleen','Chadwick','Mama Sue','Pixel','Worm','Daphne','Roach','Bunny','Tank','Esmerelda'];
+let ARCHETYPES=['The Schemer','The Golden Retriever','The Villain Edit','The Floater','The Provider','The Wildcard','The Pageant Queen','The Conspiracy Guy','The Gym Bro','The Sweetheart','The Goblin','The Saboteur'];
+const INSULTS=['snake','rat','clown','gremlin','liar','ghoul','freak','weasel','goblin','worm'];
+
+/* trait registry: accent color + stat bias on drift */
+const TRAITS={
+  Cannibalistic:{accent:'#a03838', bias:{moxie:1.2, likeability:-1.0, physical:.6}},
+  Glitched:{accent:'#7a45a8', bias:{gaslighting:1.0, paranoia:.8}},
+  Paranoid:{accent:'#4a9090', bias:{paranoia:1.6, likeability:-.5}},
+  Narcissistic:{accent:'#a0983a', bias:{gaslighting:1.4, moxie:.8, likeability:-.6}},
+  Feral:{accent:'#a07030', bias:{physical:1.4, likeability:-.8, paranoia:.4}},
+  Hollow:{accent:'#55a355', bias:{paranoia:.6, moxie:-.6, likeability:-.4}}
+};
+let SPAWN_TRAITS=Object.keys(TRAITS);
+
+/* ---------- backstory matrices (age/hometown/job/education/family/audition tape) ---- */
+const HOMETOWNS=['Lower Moose Jaw','Spittlefield','New Caustic','Bismuth Creek','Salt Forks','Drywell','Cinderlick','Hog Valley','Backwater Bend','Toad Suck Annex','Grayrot','Static Hollow','Bleak Ridge','Cooper\'s Drain','Mossbarrow','Lostlight'];
+const JOBS=['discount mattress salesman','third-shift gas station clerk','competitive eater','failed cult leader','substitute gym teacher','repo man','wedding DJ','crime scene cleaner','daycare worker','insurance fraud investigator','retired exotic bird smuggler','funeral home cosmetician','crab boat deckhand','tarot reader at the mall','unlicensed tattoo artist','foreclosure auctioneer','beekeeper','community theater villain'];
+const EDUCATIONS=['dropped out of community college to "find clarity"','online ordained minister certificate','GED, earned twice for reasons unclear','self-taught, mostly from late-night infomercials','expelled from culinary school for "the incident"','correspondence degree in criminal justice','high school diploma, valedictorian of a class of nine','two semesters of art school before the funding ran out','homeschooled by a parent who distrusted institutions','vocational certificate in small engine repair','some college, didn\'t finish, doesn\'t want to talk about it','PhD dropout, ABD in a field nobody can pronounce','trade school welding certificate','military service, discharge status classified'];
+const FAMILIES=['raised by a single mother who ran a tarot hotline','oldest of seven, none of whom are speaking right now','estranged from a twin nobody else knew about','married into a family that owns a regional waterpark','parents run a roadside attraction nobody visits anymore','grandmother claims to have invented a popular condiment','has a stepfather currently incarcerated for "civil reasons"','comes from a long line of competitive yodelers','raised in a trailer behind the family\'s failing drive-in theater','youngest of four, the designated "normal one" until now','parents divorced live on local cable access television','family runs a struggling exotic pet rescue out of their garage','engaged twice, married zero times, no comment beyond that','has a brother who is "basically" famous, by his own account','raised by grandparents after a family situation nobody explains on camera','only child, overcorrected for it in every relationship since'];
+const AUDITION_TAPES={
+ Cannibalistic:[
+  '[AUDITION TAPE] ${a} stares into the lens and says, calmly: "I don\'t think I\'d eat someone. Probably not first." The crew laughs. ${a} does not.',
+  '[AUDITION TAPE] ${a} brought their own knife set to the audition. Production asked them to leave it in the car. They did not leave it in the car.',
+  '[AUDITION TAPE] Asked why they want to play, ${a} licks their lips and says: "I\'ve always wanted to see what people taste like under pressure."'],
+ Glitched:[
+  '[AUDITION TAPE] The footage of ${a}\'s audition cuts out four times in ninety seconds. Each time it resumes, ${a} is sitting somewhere slightly different.',
+  '[AUDITION TAPE] ${a} answers every question a half-second before it is asked. Nobody on the crew will explain how the tape shows this.',
+  '[AUDITION TAPE] ${a} introduces themselves three times, with three different names, in the same unbroken breath.'],
+ Paranoid:[
+  '[AUDITION TAPE] ${a} insists the casting office is bugged, then asks - sincerely - if the application itself was a test.',
+  '[AUDITION TAPE] ${a} brought a printed list of "people who might be working against me." The list includes their own name, crossed out and rewritten twice.',
+  '[AUDITION TAPE] ${a} will not sit with their back to the door. Production reshoots the whole interview from the hallway.'],
+ Narcissistic:[
+  '[AUDITION TAPE] ${a} spends the full ten minutes describing the show as something that is "lucky to have" them.',
+  '[AUDITION TAPE] Asked about weaknesses, ${a} pauses for a long, thoughtful moment, then says: "I don\'t think that question is for me."',
+  '[AUDITION TAPE] ${a} requests a copy of the audition tape "for my reel," before the audition has actually started.'],
+ Feral:[
+  '[AUDITION TAPE] ${a} conducts the entire interview barefoot, standing, and refuses the chair twice.',
+  '[AUDITION TAPE] ${a} answers "why do you want to play" by baring their teeth and grinning. The casting director writes something down quickly.',
+  '[AUDITION TAPE] ${a} brought no resume, no references, and a duffel bag the crew was specifically asked not to open.'],
+ Hollow:[
+  '[AUDITION TAPE] ${a} answers every question correctly, pleasantly, and with absolutely nothing behind the eyes.',
+  '[AUDITION TAPE] ${a} is asked to describe themselves in three words. There is a forty-second silence before they say: "still deciding."',
+  '[AUDITION TAPE] The tape is technically complete, properly lit, fully in focus. Nobody who has watched it can recall a single thing ${a} said.']
+};
+const AUDITION_GENERIC=[
+ '[AUDITION TAPE] ${a} stares at the camera for a long moment before saying, "I\'m ready for whatever this is." Nobody believes them, including the crew.',
+ '[AUDITION TAPE] ${a} answers every casting question with another question. Production keeps the tape anyway.',
+ '[AUDITION TAPE] ${a} brought a single duffel bag and a binder labeled "STRATEGY" that turns out to be empty.',
+ '[AUDITION TAPE] ${a} cries on cue, recovers instantly, and asks if that was "what you were looking for."',
+ '[AUDITION TAPE] ${a} spends the whole audition talking about a hometown rival who isn\'t auditioning and was never going to.',
+ '[AUDITION TAPE] ${a} says, unprompted, that they\'ve "been preparing for this their entire life," and won\'t elaborate on what "this" means.'];
+
+const GENERIC_CAMP=[
+ '${a} accuses ${b} of rigging the matrix while everyone pretends to sleep.',
+ '${a} and ${b} forge a fragile alliance over a fire that will not stop whispering.',
+ '${a} hides the machete and blames the static for ${b} losing it.',
+ '${a} eats the last ration and tells ${b} the island took it.',
+ '${a} carves ${b}\'s name into the confessional wall. Nobody asked them to.',
+ '${a} swears on live signal that ${b} is the snake of this whole damn tribe.',
+ '${a} loses their shit and flips the rice pot over ${b}.',
+ '${a} starts a rumor that ${b} is not actually human. The rumor is gaining votes.',
+ '${a} cries to the cameras that ${b} is gaslighting the entire beach.',
+ '${a} and ${b} pinky-swear final two, both already drafting the betrayal.'
+];
+const TRAIT_CAMP={
+ Cannibalistic:[
+  '${a}\'s Cannibalistic trait triggers; they stare hungrily at ${b} across the fire.',
+  '${a} licks their lips when ${b} faints from hunger. The crew keeps filming.',
+  '${a} suggests ${b} would feed the whole tribe. It was not a joke.'],
+ Glitched:[
+  '${a} flickers out of frame; when the feed returns ${b} has three fewer memories.',
+  '${a}\'s outline corrupts into static and the audio devours ${b}\'s name.',
+  '${a} desyncs from reality and accuses ${b} of being a rendering error.'],
+ Paranoid:[
+  '${a}\'s Paranoid trait spikes; they are certain ${b} hid an idol inside their skull.',
+  '${a} refuses to sleep, convinced ${b} and the trees are voting together.',
+  '${a} whispers that ${b} is wearing somebody else\'s face this morning.'],
+ Narcissistic:[
+  '${a} reminds the tribe, again, that ${b} could never carry this damn season.',
+  '${a} stages a confessional about how ${b} is simply jealous of the lighting.',
+  '${a} insists the island chose them and ${b} is merely set dressing.'],
+ Feral:[
+  '${a} goes feral and marks the shelter as territory; ${b} is not welcome.',
+  '${a} drags ${b}\'s belongings into the tree line, growling at the booms.',
+  '${a} bites the immunity idol to check if ${b} poisoned it.'],
+ Hollow:[
+  '${a} stares at the ocean for nine hours. ${b} swears ${a} did not blink once.',
+  '${a} forgets their own name but remembers exactly how ${b} betrayed them.',
+  '${a} hums a song no one taught them while ${b} backs slowly away.']
+};
+const GHOST_LINES=[
+ 'The Ghost of ${a} drags cold fingers down ${b}\'s spine. ${b} loses their nerve.',
+ '${a}\'s Ghost rearranges the alliance charts at 3AM. ${b} wakes up terrified.',
+ 'Static spells out ${a} on the dead monitor. ${b} stops trusting the live feed.',
+ 'The Ghost of ${a} whispers the votes before they happen. ${b} cannot unhear it.'];
+const HOST_LINES=[
+ 'Idol.Null leans in: is it worth playing for?',
+ 'The host-construct grins through forty broken pixels. Worth playing for?',
+ 'Come on in, guys. The island is hungry today.',
+ 'Drop your buffs. Or your spines. The signal does not care.',
+ 'Somewhere on this beach, a vote is already corrupted.'];
+const VOTE_LINES=[
+ '${a} scrawls ${b}. "Nothing personal, you paranoid ${x}."',
+ '${a} votes ${b}. "You gaslit the wrong damn ghost."',
+ '${a} writes ${b}. "The island told me to, I swear."',
+ '${a} marks ${b}. "I trusted you. That was my mistake, ${x}."',
+ '${a} votes ${b} and refuses to show the camera why.',
+ '${a} writes ${b}. "Burn in hell, you backstabbing ${x}."'];
+const SNUFF_LINES=[
+ 'The host raises the snuffer. "${a}, the matrix has spoken." Darkness.',
+ '"${a}... your signal is terminated." The torch gutters out cold.',
+ '"The tribe has spoken, ${a}." Forty cameras blink off at once.'];
+const CONSUMED_LINES=[
+ 'The island does not snuff ${a}. It SWALLOWS them. The feed screams and deletes the file.',
+ '${a} is unwritten from the season. Even the Ghosts refuse to remember them.',
+ 'Where ${a} stood there is only a humming square of corrupted ███ pixels.'];
+const ANOMALY_LINES=[
+ 'ANOMALY INJECTED: the sky inverts and every relationship flips its sign.',
+ 'ANOMALY: a second moon casts a vote. Stats scramble across the beach.',
+ 'ANOMALY: the confessional booth starts confessing back to the castaways.',
+ 'ANOMALY: time stutters. Two castaways briefly share one body and hate it.'];
+
+/* ---------- PROFANITY / GLITCH FILTER ------------------------------------- */
+const SWEARS=['shit','fuck','fucking','damn','dammit','ass','asshole','bitch','bastard','crap','piss','dick','hell','bullshit','prick','douche'];
+const swearRe=new RegExp('\\b('+SWEARS.join('|')+')\\b','gi');
+const GBLOCKS='░▒▓█';
+function glitchBlock(n){let s='';const len=Math.max(3,n);for(let i=0;i<len;i++)s+=GBLOCKS[Math.floor(Math.random()*GBLOCKS.length)];return s;}
+function censor(t){ if(!GameState.censorFilter) return t; return t.replace(swearRe, m=>glitchBlock(m.length)); }
+
+/* ---------- token injector ------------------------------------------------ */
+function fill(tpl,a,b,x){
+  return tpl.replace(/\$\{a\}|\$\{name\}/g, a||'')
+            .replace(/\$\{b\}|\$\{target\}/g, b||'')
+            .replace(/\$\{x\}/g, x||pick(INSULTS));
+}
+
+/* ============================================================================
+   WEB AUDIO ENGINE — procedural 8-bit SFX
+   ============================================================================ */
+let AC=null;
+function ensureAudio(){ try{ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended') AC.resume(); }catch(e){} }
+function tone(type,f,dur,gain,slideTo){ if(!AC||GameState.muted)return; const o=AC.createOscillator(),g=AC.createGain(); o.type=type;o.frequency.setValueAtTime(f,AC.currentTime); if(slideTo)o.frequency.exponentialRampToValueAtTime(slideTo,AC.currentTime+dur); g.gain.setValueAtTime(gain,AC.currentTime); g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+dur); o.connect(g).connect(AC.destination); o.start(); o.stop(AC.currentTime+dur); }
+function blip(){ tone('square',1300,0.035,0.035); }                    // log scroll beep
+function distCurve(amount){ const n=256,c=new Float32Array(n); for(let i=0;i<n;i++){const x=i*2/n-1; c[i]=(3+amount)*x*20*Math.PI/180/(Math.PI+amount*Math.abs(x));} return c; }
+function boom(){ if(!AC||GameState.muted)return; const o=AC.createOscillator(),g=AC.createGain(),ws=AC.createWaveShaper(); o.type='sine'; o.frequency.setValueAtTime(130,AC.currentTime); o.frequency.exponentialRampToValueAtTime(32,AC.currentTime+0.85); ws.curve=distCurve(70); g.gain.setValueAtTime(0.55,AC.currentTime); g.gain.exponentialRampToValueAtTime(0.0001,AC.currentTime+0.95); o.connect(ws).connect(g).connect(AC.destination); o.start(); o.stop(AC.currentTime+1.0); }
+function siren(){ if(!AC||GameState.muted)return; let t=AC.currentTime; for(let i=0;i<8;i++){ const o=AC.createOscillator(),g=AC.createGain(); o.type='sawtooth'; o.frequency.setValueAtTime(i%2?900:430,t); g.gain.setValueAtTime(0.11,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.13); o.connect(g).connect(AC.destination); o.start(t); o.stop(t+0.13); t+=0.12; } }
+
+/* ============================================================================
+   GLOBAL STATE
+   ============================================================================ */
+const GameState={
+  castaways:[], tribes:[[],[]], merged:false,
+  currency:500, activeBets:[],
+  gameLog:[], historyLog:[],
+  phase:'CAMP', season:1, day:1, running:true, muted:false, censorFilter:true,
+  council:null, betting:{open:false,odds:{}}, eliminatedId:null,
+  tally:{ghosts:0,consumed:0}, weather:null,
+  draft:null, _idc:0, _logShown:0,
+  expandedCards:new Set(),
+  logFilters:new Set(['camp','host','trait','ghost','vote','elim','anomaly','system','bet','win'])
+};
+let byId={};
+function rebuildIndex(){ byId={}; GameState.castaways.forEach(c=>byId[c.id]=c); }
+const aliveList=()=>GameState.castaways.filter(c=>c.status==='Alive');
+const ghostList=()=>GameState.castaways.filter(c=>c.status==='Ghost');
+const tribeAlive=i=>GameState.tribes[i].map(id=>byId[id]).filter(c=>c&&c.status==='Alive');
+
+/* ---------- castaway factory --------------------------------------------- */
+function makeCastaway(name){
+  const trait=pick(SPAWN_TRAITS);
+  return {
+    id:'C'+(GameState._idc++), name, archetype:pick(ARCHETYPES), trait,
+    status:'Alive', condition:'Healthy',
+    stats:{ paranoia:ri(20,60), gaslighting:ri(20,60), likeability:ri(25,75), physical:ri(20,80), moxie:ri(25,75) },
+    relationships:{}, idolCount: chance(0.22)?1:0, seed: ri(1,2**31),
+    age:ri(19,58), hometown:pick(HOMETOWNS), job:pick(JOBS), education:pick(EDUCATIONS), family:pick(FAMILIES),
+    auditionTape: fill(pick(AUDITION_TAPES[trait]||AUDITION_GENERIC), name)
+  };
+}
+function newSeason(){
+  GameState.season++; GameState.day=1; GameState.merged=false;
+  GameState.castaways=[]; GameState._idc=0; GameState.tally={ghosts:0,consumed:0};
+  GameState.activeBets=[]; GameState.betting={open:false,odds:{}}; GameState.council=null; GameState.eliminatedId=null;
+  const names=FIRST.slice().sort(()=>Math.random()-.5).slice(0,8);
+  names.forEach(n=>GameState.castaways.push(makeCastaway(n)));
+  rebuildIndex();
+  // relationships
+  const ids=GameState.castaways.map(c=>c.id);
+  ids.forEach(a=>ids.forEach(b=>{ if(a!==b) byId[a].relationships[b]=ri(-3,4); }));
+  // split tribes 4/4
+  GameState.tribes=[ ids.slice(0,4), ids.slice(4,8) ];
+  GameState.phase='CAMP';
+  logEvent('—— SEASON '+GameState.season+' SPINS UP. 8 souls. 2 tribes. 1 signal. ——','system');
+  logEvent(pick(HOST_LINES),'host');
+}
+
+/* ============================================================================
+   LOGGING
+   ============================================================================ */
+function logEvent(text,type){ GameState.gameLog.push({text,type:type||'camp'}); if(GameState.gameLog.length>240) GameState.gameLog.splice(0,GameState.gameLog.length-240); }
+function campLog(tpl,a,b,type){ logEvent(fill(tpl,a&&a.name,b&&b.name),type||'camp'); }
+
+/* ============================================================================
+   THE CHRONO-LOOP
+   ============================================================================ */
+const DELAYS={CAMP:2600, IMMUNITY:2200, SCRAMBLE:7200, TRIBAL:2700, ELIM:2700, CHECK:1300};
+let loopTimer=null;
+function scheduleNext(ms){ clearTimeout(loopTimer); loopTimer=setTimeout(tick, ms); }
+function speed(){ return parseInt(document.getElementById('rngSpeed').value)||4; }
+function tick(){
+  if(!GameState.running) return;
+  const ran=GameState.phase;
+  runPhase(ran);
+  render();
+  scheduleNext(DELAYS[ran]/speed());
+}
+function runPhase(ph){
+  switch(ph){
+    case 'CAMP':     doCamp();     GameState.phase='IMMUNITY'; break;
+    case 'IMMUNITY': doImmunity(); GameState.phase='SCRAMBLE'; break;
+    case 'SCRAMBLE': doScramble(); GameState.phase='TRIBAL';   break;
+    case 'TRIBAL':   doTribal();   GameState.phase='ELIM';     break;
+    case 'ELIM':     doElim();     GameState.phase='CHECK';    break;
+    case 'CHECK':    checkSeason();/* sets CAMP or new season */break;
+  }
+}
+
+/* ---------- PHASE 1: CAMP LIFE ------------------------------------------- */
+function doCamp(){
+  GameState.day++;
+  setBadge('CAMP LIFE','camp');
+  const alive=aliveList();
+  if(alive.length<2) return;
+  // stat drift + condition
+  alive.forEach(c=>{ driftStats(c); updateCondition(c); });
+  // 2-3 social logs
+  const n=ri(2,3);
+  for(let i=0;i<n;i++){
+    const a=pick(alive); let b=pick(alive); let g=0; while(b===a&&g++<6)b=pick(alive);
+    if(b===a) continue;
+    if(TRAIT_CAMP[a.trait] && chance(0.55)){
+      campLog(pick(TRAIT_CAMP[a.trait]),a,b,'trait');
+      applyTraitEffect(a,b);
+    } else {
+      campLog(pick(GENERIC_CAMP),a,b,'camp');
+      // relationship drift
+      a.relationships[b.id]=(a.relationships[b.id]||0)+ri(-1,1);
+    }
+  }
+  // weather flavor
+  if(GameState.weather && chance(0.6)){
+    const w=GameState.weather; const a=pick(alive),b=pick(alive);
+    logEvent('☂ '+fill(pick(w.templates), a.name, b.name),'anomaly');
+    alive.forEach(c=>{ for(const k in w.bias){ c.stats[k]=clamp(c.stats[k]+w.bias[k]); } });
+  }
+  // ghosts haunt
+  ghostHaunt(alive);
+}
+function driftStats(c){
+  const b=(TRAITS[c.trait]&&TRAITS[c.trait].bias)||{};
+  for(const k in c.stats){ c.stats[k]=clamp(c.stats[k] + (b[k]||0) + (Math.random()*4-2)); }
+  if(c.condition==='Starving'){ c.stats.physical=clamp(c.stats.physical-2); c.stats.paranoia=clamp(c.stats.paranoia+1.5); }
+  if(c.condition==='Hallucinating'){ c.stats.gaslighting=clamp(c.stats.gaslighting+1); c.stats.paranoia=clamp(c.stats.paranoia+1); }
+}
+function updateCondition(c){
+  if(c.stats.physical<25 && chance(0.6)) c.condition='Starving';
+  else if(c.stats.paranoia>78 && chance(0.6)) c.condition='Hallucinating';
+  else if(chance(0.25)) c.condition='Healthy';
+}
+function applyTraitEffect(a,b){
+  switch(a.trait){
+    case 'Cannibalistic': a.stats.moxie=clamp(a.stats.moxie+3); b.stats.likeability=clamp(b.stats.likeability-3); a.relationships[b.id]=(a.relationships[b.id]||0)-2; break;
+    case 'Paranoid': a.stats.paranoia=clamp(a.stats.paranoia+4); a.relationships[b.id]=(a.relationships[b.id]||0)-2; break;
+    case 'Glitched': { const ks=Object.keys(a.stats); const k=pick(ks); a.stats[k]=clamp(ri(10,90)); if(chance(0.3)){ siren(); logEvent('▚ '+a.name+'\'s stats desync without warning.','anomaly'); } break; }
+    case 'Narcissistic': a.stats.gaslighting=clamp(a.stats.gaslighting+4); b.stats.paranoia=clamp(b.stats.paranoia+2); break;
+    case 'Feral': a.stats.physical=clamp(a.stats.physical+3); b.relationships[a.id]=(b.relationships[a.id]||0)-2; break;
+    case 'Hollow': a.stats.likeability=clamp(a.stats.likeability-2); b.stats.paranoia=clamp(b.stats.paranoia+2); break;
+    default: a.stats.moxie=clamp(a.stats.moxie+2);
+  }
+}
+function ghostHaunt(alive){
+  const ghosts=ghostList(); if(!ghosts.length||!alive.length) return;
+  if(chance(0.7)){
+    const g=pick(ghosts), v=pick(alive);
+    logEvent(fill(pick(GHOST_LINES), g.name, v.name),'ghost');
+    v.stats.likeability=clamp(v.stats.likeability-2);
+    v.stats.moxie=clamp(v.stats.moxie-2);
+    v.stats.paranoia=clamp(v.stats.paranoia+3);
+    if(chance(0.4)) v.condition='Hallucinating';
+  }
+}
+
+/* ---------- PHASE 2: IMMUNITY CHALLENGE --------------------------------- */
+function sumStat(arr){ return arr.reduce((s,c)=>s+c.stats.physical+c.stats.moxie,0); }
+function maybeMerge(){
+  if(GameState.merged) return;
+  if(aliveList().length<=5 && tribeAlive(1).length>0){
+    GameState.tribes[0]=GameState.tribes[0].concat(GameState.tribes[1]);
+    GameState.tribes[1]=[]; GameState.merged=true;
+    logEvent('▓▓ THE MERGE. Two tribes collapse into one writhing signal. Buffs are now meaningless. ▓▓','system');
+  }
+}
+function pickCouncil(){
+  maybeMerge();
+  const t0=tribeAlive(0), t1=tribeAlive(1);
+  if(t0.length && t1.length){
+    const s0=sumStat(t0), s1=sumStat(t1);
+    const losing = s0<s1? t0 : (s1<s0? t1 : (chance(.5)?t0:t1));
+    const winning = losing===t0? t1:t0;
+    return { candidates:losing.map(c=>c.id), voters:losing.map(c=>c.id), immune:null, safe:winning.map(c=>c.id), isTribe:true, s0, s1 };
+  }
+  // merged → individual immunity
+  const all=aliveList().slice().sort((a,b)=>(b.stats.physical+b.stats.moxie)-(a.stats.physical+a.stats.moxie));
+  const immune=all[0];
+  return { candidates:all.filter(c=>c.id!==immune.id).map(c=>c.id), voters:all.map(c=>c.id), immune:immune.id, safe:[immune.id], isTribe:false };
+}
+function doImmunity(){
+  setBadge('IMMUNITY CHALLENGE','host');
+  logEvent(pick(HOST_LINES),'host');
+  const co=pickCouncil(); GameState.council=co;
+  if(co.isTribe){
+    logEvent('IMMUNITY: aggregate Physical+Moxie → Tribe A '+(co.s0)+' vs Tribe B '+(co.s1)+'.','system');
+    const safeNames=co.safe.map(id=>byId[id].name).join(', ');
+    logEvent('✔ SAFE TONIGHT: '+safeNames+'. The losers march to council.','host');
+  } else {
+    logEvent('✔ INDIVIDUAL IMMUNITY → '+byId[co.immune].name+' is untouchable. Everyone else is fair game.','host');
+  }
+}
+
+/* ---------- PHASE 3: THE SCRAMBLE (betting odds) ------------------------ */
+function computeOdds(cands){
+  const raw={}; let sum=0;
+  cands.forEach(id=>{ const c=byId[id]; const r=(c.stats.paranoia+c.stats.gaslighting)/Math.max(8,c.stats.likeability); raw[id]=r; sum+=r; });
+  const odds={};
+  cands.forEach(id=>{ const p=raw[id]/sum; odds[id]=Math.round(clamp(1/p,1.2,18)*10)/10; });
+  return odds;
+}
+function doScramble(){
+  setBadge('THE SCRAMBLE','bet');
+  const co=GameState.council; if(!co){ return; }
+  const odds=computeOdds(co.candidates);
+  GameState.betting={open:true, odds};
+  logEvent('◈ SCRAMBLE: odds locked. Place your Ratings Points — who gets BLINDSIDED? ◈','bet');
+  if(chance(0.3)){ logEvent(pick(ANOMALY_LINES),'anomaly'); siren(); applyAnomaly(); }
+}
+
+/* ---------- PHASE 4: TRIBAL COUNCIL ------------------------------------- */
+function chooseVoteTarget(v,cands){
+  let best=null,bs=-1e9;
+  cands.forEach(id=>{ if(id===v.id)return; const t=byId[id]; const rel=v.relationships[id]||0;
+    const score=-rel*10 + t.stats.paranoia*0.3 - t.stats.likeability*0.25 + v.stats.gaslighting*0.05 + Math.random()*16;
+    if(score>bs){bs=score;best=id;} });
+  return best;
+}
+function doTribal(){
+  setBadge('TRIBAL COUNCIL','vote');
+  GameState.betting.open=false;
+  const co=GameState.council; if(!co||!co.candidates.length){ GameState.eliminatedId=null; return; }
+  logEvent('▼ TRIBAL COUNCIL. The torches are lit. The signal listens. ▼','system');
+  if(co.candidates.length===1){ GameState.eliminatedId=co.candidates[0]; logEvent(byId[co.candidates[0]].name+' stands alone at the bottom. No vote needed.','vote'); return; }
+  const votes={};
+  co.voters.forEach(vid=>{ const v=byId[vid]; if(!v||v.status!=='Alive')return;
+    const pool=co.candidates.filter(id=>id!==vid);
+    const tgt=chooseVoteTarget(v,pool); if(!tgt)return;
+    votes[tgt]=(votes[tgt]||0)+1;
+    if(chance(0.7)) logEvent(fill(pick(VOTE_LINES), v.name, byId[tgt].name),'vote');
+  });
+  // rank
+  let ranked=Object.keys(votes).sort((a,b)=>votes[b]-votes[a]);
+  if(!ranked.length){ ranked=[pick(co.candidates)]; votes[ranked[0]]=1; }
+  let topId=ranked[0];
+  const top=byId[topId];
+  // idol logic
+  if(top.idolCount>0){
+    const corruption=top.stats.paranoia+top.stats.gaslighting;
+    top.idolCount--;
+    if(corruption>140){
+      logEvent('[ERROR] Idol.Null - Access Denied. '+top.name+'\'s idol is too corrupted to read. They remain vulnerable.','system');
+      siren();
+    } else {
+      logEvent('✦ '+top.name+' plays a HIDDEN IMMUNITY IDOL. Idol.Null verifies the signal — VALID. Votes negated.','host');
+      // next highest is voted out
+      topId = ranked[1] || pick(co.candidates.filter(id=>id!==top.id)) || top.id;
+    }
+  }
+  GameState.eliminatedId=topId;
+  logEvent('☞ The matrix tallies. '+byId[topId].name+' is targeted with '+(votes[topId]||1)+' vote(s).','vote');
+}
+
+/* ---------- PHASE 5: ELIMINATION RESOLUTION ----------------------------- */
+function doElim(){
+  setBadge('ELIMINATION','elim');
+  const id=GameState.eliminatedId; if(!id||!byId[id]){ return; }
+  const c=byId[id];
+  // remove from tribes
+  GameState.tribes=GameState.tribes.map(t=>t.filter(x=>x!==id));
+  boom();
+  c.eliminationDay=GameState.day;
+  if(chance(0.80)){
+    c.status='Ghost'; c.condition='—'; GameState.tally.ghosts++;
+    logEvent(fill(pick(SNUFF_LINES), c.name),'elim');
+    logEvent('▒ '+c.name+' becomes a GHOST and will haunt the survivors. (-stats over time) ▒','ghost');
+  } else {
+    c.status='Consumed'; c.condition='—'; GameState.tally.consumed++;
+    logEvent(fill(pick(CONSUMED_LINES), c.name),'elim');
+    logEvent('███ '+c.name+' is CONSUMED BY THE ISLAND. Permanently deleted. ███','system');
+  }
+  settleBets(id);
+}
+function settleBets(elimId){
+  if(!GameState.activeBets.length) return;
+  let net=0, won=0, lost=0;
+  GameState.activeBets.forEach(b=>{
+    if(b.id===elimId){ const pay=Math.round(b.amt*b.odds); GameState.currency+=pay; net+=pay-b.amt; won++; }
+    else { net-=b.amt; lost++; }
+  });
+  if(won) logEvent('$$ BLINDSIDE HIT. '+won+' winning bet(s). Net '+(net>=0?'+':'')+net+' Ratings Points. $$','win');
+  else if(lost) logEvent('$$ House wins. '+lost+' bet(s) busted. Net '+net+' Ratings Points. $$','system');
+  GameState.activeBets=[]; GameState.betting={open:false,odds:{}};
+}
+
+/* ---------- PHASE 6: CHECK / SEASON RESET ------------------------------- */
+function checkSeason(){
+  const alive=aliveList();
+  if(alive.length<=2){
+    crownWinner(alive);
+    setTimeout(()=>{ newSeason(); render(); }, 50);
+    GameState.phase='CAMP';
+    return;
+  }
+  GameState.phase='CAMP';
+}
+function crownWinner(finalists){
+  setBadge('SOLE SURVIVOR','win');
+  let winner=null,bs=-1e9;
+  finalists.forEach(c=>{ const s=c.stats.likeability+c.stats.moxie+c.idolCount*12 - c.stats.paranoia*0.4 + Math.random()*20; if(s>bs){bs=s;winner=c;} });
+  if(!winner){ winner=finalists[0]; }
+  logEvent('★ THE JURY OF GHOSTS SPEAKS. The SOLE SURVIVOR of Season '+GameState.season+' is '+(winner?winner.name:'NO ONE')+'! ★','win');
+  if(winner){
+    logEvent('  ['+winner.archetype+' // '+winner.trait+'] crawls out of the signal alive. Roll credits.','host');
+    GameState.historyLog.unshift({
+      season:GameState.season, winner:winner.name, archetype:winner.archetype, trait:winner.trait,
+      ghosts:GameState.tally.ghosts, consumed:GameState.tally.consumed, days:GameState.day
+    });
+    if(GameState.historyLog.length>40) GameState.historyLog.pop();
+  }
+}
+
+/* ---------- ANOMALY (chaos injector) ------------------------------------ */
+function applyAnomaly(){
+  const alive=aliveList();
+  const mode=ri(0,2);
+  if(mode===0){ alive.forEach(c=>{ for(const k in c.relationships) c.relationships[k]=-(c.relationships[k]||0); }); }
+  else if(mode===1){ alive.forEach(c=>{ const k=pick(Object.keys(c.stats)); c.stats[k]=clamp(ri(5,95)); }); }
+  else { const a=pick(alive); if(a){ a.idolCount++; logEvent('  the static gifts '+a.name+' a corrupted idol fragment.','anomaly'); } }
+}
+function injectAnomalyManual(){
+  ensureAudio(); siren();
+  logEvent(pick(ANOMALY_LINES),'anomaly');
+  applyAnomaly();
+  render();
+}
+
+/* ---------- BETTING ------------------------------------------------------ */
+function placeBet(id,amt){
+  ensureAudio();
+  if(!GameState.betting.open){ flash('betState'); return; }
+  if(GameState.currency<amt){ flash('hCur'); return; }
+  GameState.currency-=amt;
+  GameState.activeBets.push({ id, amt, odds:GameState.betting.odds[id]||2 });
+  blip(); render();
+}
+
+/* ============================================================================
+   RENDERING
+   ============================================================================ */
+const LOG_COLOR={ camp:'c-green', host:'c-cyan', trait:'c-amber', ghost:'c-dim', vote:'c-yellow', elim:'c-red', anomaly:'c-purple', system:'c-cyan', bet:'c-amber', win:'c-yellow' };
+const STAT_COLOR={ paranoia:'#4a9090', gaslighting:'#a0983a', likeability:'#55a355', physical:'#a07030', moxie:'#7a45a8' };
+const STAT_ABBR={ paranoia:'PAR', gaslighting:'GAS', likeability:'LIK', physical:'PHY', moxie:'MOX' };
+const COND_COLOR={ Healthy:'c-green', Starving:'c-amber', Hallucinating:'c-purple', '—':'c-dim' };
+const STATUS_COLOR={ Alive:'c-green', Ghost:'c-dim', Consumed:'c-red' };
+
+function setBadge(t,type){ const b=document.getElementById('phaseBadge'); if(b){ b.textContent=t; b.className='tag '+(LOG_COLOR[type]||'c-amber'); } }
+function flash(idd){ const e=document.getElementById(idd); if(!e)return; e.classList.add('blink'); setTimeout(()=>e.classList.remove('blink'),700); }
+
+function render(){
+  document.getElementById('hSeason').textContent=GameState.season;
+  document.getElementById('hDay').textContent=GameState.day;
+  document.getElementById('hCur').textContent=GameState.currency;
+  document.getElementById('hPhase').textContent=GameState.phase;
+  document.getElementById('aliveCount').textContent=aliveList().length+' alive';
+  renderRoster();
+  renderLog();
+  renderCouncil();
+  renderTally();
+  renderHistory();
+}
+
+function renderRoster(){
+  const host=document.getElementById('roster');
+  let html='';
+  [0,1].forEach(ti=>{
+    const members=GameState.tribes[ti].map(id=>byId[id]).filter(Boolean);
+    if(!members.length) return;
+    const col= ti===0?'var(--green)':'var(--purple)';
+    html+='<div class="mb-1" style="border-left:3px solid '+col+'; padding-left:4px;"><span class="text-[11px]" style="color:'+col+'">'+(GameState.merged?'◇ MERGED TRIBE':'◆ TRIBE '+(ti===0?'A':'B'))+'</span></div>';
+    members.forEach(c=>html+=cardHTML(c));
+  });
+  // ghosts/consumed roster
+  const dead=GameState.castaways.filter(c=>c.status!=='Alive');
+  if(dead.length){ html+='<div class="mb-1 mt-1 c-dim text-[11px]">☠ THE FALLEN</div>'; dead.forEach(c=>html+=cardHTML(c)); }
+  host.innerHTML=html;
+  // draw portraits
+  GameState.castaways.forEach(c=>{ const cv=document.getElementById('cv_'+c.id); if(cv) drawPortrait(cv,c); });
+  // click-to-expand
+  host.querySelectorAll('.castaway-card').forEach(card=>{
+    card.addEventListener('click',()=>{
+      const id=card.dataset.cid;
+      if(GameState.expandedCards.has(id)) GameState.expandedCards.delete(id);
+      else GameState.expandedCards.add(id);
+      renderRoster();
+    });
+  });
+  // full dossier modal
+  host.querySelectorAll('[data-dossier]').forEach(btn=>{
+    btn.addEventListener('click',(e)=>{ e.stopPropagation(); openProfile(btn.dataset.dossier); });
+  });
+}
+function cardHTML(c){
+  const t=TRAITS[c.trait]||{accent:'#55a355'};
+  const onBet=GameState.activeBets.filter(b=>b.id===c.id).reduce((s,b)=>s+b.amt,0);
+  const elimRisk=GameState.council && GameState.council.candidates && GameState.council.candidates.indexOf(c.id)>=0 && c.status==='Alive';
+  const expanded=GameState.expandedCards.has(c.id);
+  let detail='';
+  if(expanded){
+    detail='<div class="grid-stat text-[10px] mt-1">';
+    for(const k in c.stats){ const v=Math.round(c.stats[k]); detail+='<span class="c-dim">'+STAT_ABBR[k]+'</span><span class="bar"><i style="width:'+v+'%;background:'+STAT_COLOR[k]+'"></i></span>'; }
+    detail+='</div>';
+    if(c.status==='Alive'){
+      const others=aliveList().filter(a=>a.id!==c.id);
+      if(others.length){
+        detail+='<div class="text-[10px] c-dim mt-1">BONDS</div><div class="flex flex-wrap gap-x-3 text-[10px]">';
+        others.forEach(a=>{ const r=Math.round(c.relationships[a.id]||0); const col=r>2?'c-green':r<-2?'c-red':'c-dim'; detail+='<span class="'+col+'" style="white-space:nowrap">'+a.name.split(' ')[0]+' '+(r>0?'+':'')+r+'</span>'; });
+        detail+='</div>';
+      }
+      if(elimRisk && GameState.betting.odds && GameState.betting.odds[c.id]){
+        detail+='<div class="text-[10px] c-yellow mt-1">BLINDSIDE ODDS: x'+GameState.betting.odds[c.id].toFixed(1)+'</div>';
+      }
+    } else if(c.eliminationDay){
+      detail+='<div class="text-[10px] c-dim mt-1">eliminated day '+c.eliminationDay+'</div>';
+    }
+    detail+='<div class="mt-1"><button class="btn cyan" data-dossier="'+c.id+'" style="font-size:10px;padding:1px 6px;">ⓘ FULL DOSSIER</button></div>';
+  }
+  return '<div class="panel mb-1 castaway-card" data-cid="'+c.id+'" style="border-width:2px;border-style:solid;border-color:'+(elimRisk?'var(--red)':'#0a3a0a')+';padding:3px;'+(c.status!=='Alive'?'opacity:.6':'')+'">'
+    +'<div class="flex gap-2 items-center">'
+    +'<canvas id="cv_'+c.id+'" class="port" width="16" height="16" style="border-color:'+t.accent+';flex-shrink:0"></canvas>'
+    +'<div style="flex:1 1 auto; min-width:0;">'
+      +'<div class="flex justify-between items-center"><b class="c-white nowrap" style="overflow:hidden;text-overflow:ellipsis">'+c.name+'</b>'
+        +'<span class="tag '+STATUS_COLOR[c.status]+'">'+c.status+'</span></div>'
+      +'<div class="text-[10px] c-dim nowrap" style="overflow:hidden;text-overflow:ellipsis">'+c.archetype+'</div>'
+      +'<div class="text-[10px]"><span style="color:'+t.accent+'">◈'+c.trait+'</span>'
+        +(c.status==='Alive'?' <span class="'+(COND_COLOR[c.condition]||'c-dim')+'">'+c.condition+'</span>':'')
+        +(c.idolCount>0?' <span class="c-yellow">✦x'+c.idolCount+'</span>':'')
+        +(elimRisk?' <span class="c-red blink">⚠</span>':'')
+        +(onBet>0?' <span class="c-amber">$'+onBet+'</span>':'')+'</div>'
+    +'</div>'
+    +'<span class="c-dim" style="font-size:13px;padding:0 2px;align-self:center">'+(expanded?'▴':'▾')+'</span>'
+    +'</div>'
+    +detail
+    +'</div>';
+}
+
+/* ---------- full dossier modal (audition tape + backstory) --------------- */
+function openProfile(id){
+  const c=byId[id]; if(!c) return;
+  ensureAudio(); blip();
+  const t=TRAITS[c.trait]||{accent:'#55a355'};
+  const body=document.getElementById('profileBody');
+  body.innerHTML=
+    '<div class="flex gap-3 items-start flex-wrap">'
+      +'<canvas id="cv_profile" class="port" width="16" height="16" style="border-color:'+t.accent+';width:72px;height:72px;flex-shrink:0;"></canvas>'
+      +'<div style="flex:1 1 220px; min-width:0;">'
+        +'<div class="flex justify-between items-center gap-2"><b class="c-white" style="font-size:15px;">'+c.name+'</b><span class="tag '+STATUS_COLOR[c.status]+'">'+c.status+'</span></div>'
+        +'<div class="text-[11px] c-dim mt-1">age '+c.age+' · '+c.hometown+'</div>'
+        +'<div class="text-[11px] mt-1"><span style="color:'+t.accent+'">◈'+c.trait+'</span> <span class="c-dim">// '+c.archetype+'</span></div>'
+      +'</div>'
+    +'</div>'
+    +'<div class="mt-2" style="border-top:1px dotted #052005; padding-top:6px;">'
+      +'<div class="c-cyan text-[10px] tracking-wider mb-1">PERSONAL FILE</div>'
+      +'<div class="grid-stat text-[11px]">'
+        +'<span class="c-dim">Occupation</span><span class="c-white">'+c.job+'</span>'
+        +'<span class="c-dim">Education</span><span class="c-white">'+c.education+'</span>'
+        +'<span class="c-dim">Family</span><span class="c-white">'+c.family+'</span>'
+      +'</div>'
+    +'</div>'
+    +'<div class="mt-2" style="border-top:1px dotted #052005; padding-top:6px;">'
+      +'<div class="c-amber text-[10px] tracking-wider mb-1">AUDITION TAPE TRANSCRIPT</div>'
+      +'<div class="c-amber text-[11px]" style="font-style:italic; line-height:1.4;">'+escapeHTML(censor(c.auditionTape))+'</div>'
+    +'</div>';
+  document.getElementById('profileModal').style.display='flex';
+  const cv=document.getElementById('cv_profile'); if(cv) drawPortrait(cv,c);
+}
+function closeProfile(){
+  const m=document.getElementById('profileModal'); if(m) m.style.display='none';
+}
+
+let _lastLogLen=0;
+function renderLog(){
+  const host=document.getElementById('log');
+  const shown=GameState.gameLog.filter(e=>GameState.logFilters.has(e.type));
+  const html=shown.length?shown.map(e=>'<div class="logline '+(LOG_COLOR[e.type]||'c-green')+'">'+escapeHTML(censor(e.text))+'</div>').join(''):'<div class="c-dim">// no events match the active filters.</div>';
+  host.innerHTML=html;
+  if(GameState.gameLog.length>_lastLogLen){ blip(); _lastLogLen=GameState.gameLog.length; }
+  host.scrollTop=host.scrollHeight;
+}
+function escapeHTML(s){ return s.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+
+function renderCouncil(){
+  const host=document.getElementById('councilBody');
+  const st=document.getElementById('betState');
+  const co=GameState.council;
+  if(!co || !co.candidates || !co.candidates.length){ host.innerHTML='<div class="c-dim">// no council convened. survive a little longer.</div>'; st.textContent='closed'; st.className='c-dim text-[11px]'; return; }
+  const open=GameState.betting.open;
+  st.textContent= open?'◉ BETTING OPEN':'closed'; st.className=open?'c-yellow blink text-[11px]':'c-dim text-[11px]';
+  let html='<div class="text-[11px] c-dim mb-1">odds = (Paranoia + Gaslighting) ÷ Likeability → blindside probability. bet on who gets snuffed.</div>';
+  html+='<div class="grid gap-1" style="grid-template-columns:1fr;">';
+  co.candidates.forEach(id=>{
+    const c=byId[id]; if(!c)return; const o=(GameState.betting.odds&&GameState.betting.odds[id])||computeOdds(co.candidates)[id];
+    const onBet=GameState.activeBets.filter(b=>b.id===id).reduce((s,b)=>s+b.amt,0);
+    html+='<div class="panel" style="border-width:2px;border-color:#3a3000;padding:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+      +'<b class="c-white" style="min-width:90px">'+c.name+'</b>'
+      +'<span class="c-yellow nowrap">x'+o.toFixed(1)+'</span>'
+      +(onBet?'<span class="c-amber nowrap">staked $'+onBet+'</span>':'')
+      +'<span style="flex:1 1 auto"></span>'
+      +(open?('<button class="btn amber" data-bet="'+id+'" data-amt="25">+25</button>'
+             +'<button class="btn amber" data-bet="'+id+'" data-amt="50">+50</button>'
+             +'<button class="btn amber" data-bet="'+id+'" data-amt="100">+100</button>')
+            :'<span class="c-dim text-[10px]">window closed</span>')
+      +'</div>';
+  });
+  html+='</div>';
+  if(GameState.activeBets.length){
+    const tot=GameState.activeBets.reduce((s,b)=>s+b.amt,0);
+    const pot=GameState.activeBets.reduce((s,b)=>s+Math.round(b.amt*b.odds),0);
+    html+='<div class="mt-1 c-amber text-[11px]">ACTIVE WAGERS: $'+tot+' staked → potential return $'+pot+'</div>';
+  }
+  host.innerHTML=html;
+  host.querySelectorAll('[data-bet]').forEach(btn=>btn.addEventListener('click',()=>placeBet(btn.dataset.bet, parseInt(btn.dataset.amt))));
+}
+
+function renderTally(){
+  const t=GameState.tally;
+  const totalGhosts=GameState.historyLog.reduce((s,h)=>s+h.ghosts,0)+t.ghosts;
+  const totalCons=GameState.historyLog.reduce((s,h)=>s+h.consumed,0)+t.consumed;
+  const eliminated=GameState.castaways.filter(c=>c.status!=='Alive').sort((a,b)=>(b.eliminationDay||0)-(a.eliminationDay||0));
+  let list='';
+  if(eliminated.length){
+    list='<div style="border-top:1px dotted #052005;margin:3px 0"></div><div class="c-dim text-[10px] mb-1">THIS SEASON</div>'
+      +eliminated.map(c=>'<div class="flex justify-between"><span class="'+(c.status==='Ghost'?'c-dim':'c-red')+'">'+(c.status==='Ghost'?'▒':'███')+' '+c.name+'</span><span class="c-dim text-[10px]">day '+(c.eliminationDay||'?')+'</span></div>').join('');
+  }
+  document.getElementById('tally').innerHTML=
+    '<div class="flex justify-between"><span class="c-dim">Ghosts haunting camp</span><b class="c-dim">'+ghostList().length+'</b></div>'
+   +'<div class="flex justify-between"><span class="c-amber">Snuffed → Ghost (season)</span><b class="c-amber">'+t.ghosts+'</b></div>'
+   +'<div class="flex justify-between"><span class="c-red">Consumed (season)</span><b class="c-red">'+t.consumed+'</b></div>'
+   +list
+   +'<div style="border-top:1px dotted #052005;margin:3px 0"></div>'
+   +'<div class="flex justify-between"><span class="c-dim">All-time Ghosts</span><b class="c-dim">'+totalGhosts+'</b></div>'
+   +'<div class="flex justify-between"><span class="c-red">All-time Consumed</span><b class="c-red">'+totalCons+'</b></div>';
+}
+
+function renderHistory(){
+  const host=document.getElementById('history');
+  if(!GameState.historyLog.length){ host.innerHTML='<div class="c-dim">// no season has yet survived to the credits.</div>'; return; }
+  host.innerHTML=GameState.historyLog.map((h,i)=>{
+    const t=TRAITS[h.trait]||{accent:'#7a45a8'};
+    return '<details class="panel mb-1 hist-entry" style="border-width:2px;border-color:#2a0033;"'+(i===0?' open':'')+'>'
+      +'<summary><div class="flex justify-between items-center"><b class="c-purple">S'+h.season+' ★ '+h.winner+'</b><span class="c-dim text-[10px]">'+h.days+'d</span></div></summary>'
+      +'<div style="padding:3px;border-top:1px dotted #2a0033;">'
+        +'<div class="text-[10px]"><span class="c-dim">'+h.archetype+'</span> · <span style="color:'+t.accent+'">'+h.trait+'</span></div>'
+        +'<div class="text-[10px] c-dim">☠ '+h.ghosts+' ghosted · '+h.consumed+' consumed</div>'
+      +'</div></details>';
+  }).join('');
+}
+
+/* ============================================================================
+   PROCEDURAL 16x16 PIXEL PORTRAITS
+   ============================================================================ */
+function setPx(ctx,x,y,c){ ctx.fillStyle=c; ctx.fillRect(x,y,1,1); }
+function desat(hex){ const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); const a=(r+g+b)/3|0; const m=v=>('0'+Math.round((v+a)/2).toString(16)).slice(-2); return '#'+m(r)+m(g)+m(b); }
+function drawPortrait(cv,c){
+  const ctx=cv.getContext('2d'); const N=16; ctx.clearRect(0,0,N,N);
+  const rnd=mulberry32((c.seed^0x9e3779b9)>>>0);
+  const ghost=c.status==='Ghost', consumed=c.status==='Consumed';
+  const skins=['#e0ac69','#c68642','#8d5524','#f1c27d','#ffdbac','#a9745b','#7d9b6a','#9b7da9','#b58a6a'];
+  let skin=skins[Math.floor(rnd()*skins.length)];
+  let hair=['#221','#3a2a1a','#5a3a1a','#777','#101010','#4a2a4a','#6a1a1a'][Math.floor(rnd()*7)];
+  const tdef=TRAITS[c.trait]||{accent:'#55a355'};
+  let eye = c.trait==='Paranoid' ? '#4a9090' : '#0c0c0c';
+  if(c.condition==='Starving') skin=desat(skin);
+  if(c.condition==='Hallucinating') eye='#7a45a8';
+  if(ghost){ skin='#0c3a0c'; hair='#0a280a'; eye='#55a355'; }
+  if(consumed){ ctx.fillStyle='#10001a'; ctx.fillRect(0,0,N,N); for(let i=0;i<46;i++) setPx(ctx,Math.floor(rnd()*16),Math.floor(rnd()*16), i%2?'#7a45a8':'#330044'); return; }
+  for(let y=0;y<N;y++){
+    for(let x=0;x<8;x++){
+      let col=null;
+      const corner=(y<=3&&x<=3)||(y>=14&&x<=3);
+      const inHead=(x>=3&&y>=3&&y<=13)&&!corner;
+      if(inHead) col=skin;
+      if(y>=2&&y<=4&&x>=4&&!corner) col=hair;                 // top hair
+      if(x===3&&y>=4&&y<=11&&rnd()<0.72) col=hair;            // side hair
+      if(y===6&&(x===5||x===6)&&rnd()<0.5) col=hair;          // brow
+      if(y===7&&(x===5||x===6)) col=eye;                      // eye
+      if(c.trait==='Paranoid'&&y===7&&(x===4||x===5||x===6)) col=eye; // wide eyes
+      if(y===11&&x>=5&&x<=7) col=(c.trait==='Cannibalistic')?'#FF0000':'#5a2a2a'; // mouth
+      if(c.trait==='Cannibalistic'&&y===12&&x===6&&rnd()<0.8) col='#FF0000';      // blood drip
+      if(c.trait==='Glitched'&&rnd()<0.10) col=['#7a45a8','#4a9090','#55a355','#a03838'][Math.floor(rnd()*4)];
+      if(inHead&&!col&&rnd()<0.04) col=tdef.accent;           // trait freckle
+      if(col){ setPx(ctx,x,y,col); setPx(ctx,15-x,y,col); }
+    }
+  }
+  if(c.trait==='Glitched'){ for(let i=0;i<6;i++) setPx(ctx,Math.floor(rnd()*16),Math.floor(rnd()*16),['#7a45a8','#4a9090'][i%2]); }
+  if(c.trait==='Feral'){ setPx(ctx,5,5,'#fff'); setPx(ctx,10,5,'#fff'); }       // sharp glints
+  if(ghost){ ctx.globalAlpha=.85; }
+}
+
+/* ============================================================================
+   SHOWRUNNER WORKBENCH — keyword parser + injector
+   ============================================================================ */
+const COLORWORDS={ red:'#FF0000',blood:'#FF0000',crimson:'#FF0000',green:'#00FF00',toxic:'#39FF14',acid:'#39FF14',cyan:'#00FFFF',ice:'#00FFFF',frost:'#00FFFF',blue:'#00BFFF',purple:'#BD00FF',void:'#BD00FF',cosmic:'#BD00FF',violet:'#BD00FF',yellow:'#FFFF00',gold:'#FFB000',amber:'#FFB000',white:'#FFFFFF',bone:'#e8e0c0' };
+const STATWORDS=[
+ {re:/(violent|aggress|strong|brutal|savage|rage|muscle|feral|beast|fight)/, stat:'physical'},
+ {re:/(sneak|lie|liar|decei|manipul|gaslight|cunning|scheme|trick|fungal|rot)/, stat:'gaslighting'},
+ {re:/(scare|fear|nervous|paranoi|anxious|trust|dread|terror|psychic)/, stat:'paranoia'},
+ {re:/(love|kind|charm|friend|likab|sweet|hero|pageant|queen|cute)/, stat:'likeability'},
+ {re:/(bold|brave|confiden|fierce|loud|drama|wild|star|diva)/, stat:'moxie'}];
+const WEATHERWORDS=/(weather|storm|fog|rain|acid|snow|heat|eclipse|aurora|cosmic|radiation|wind|flood|drought|blight|mist|hail)/;
+const TRAITWORDS=/(trait|flesh|glitch|hunger|cannibal|paranoi|ghost|curse|hollow|feral|virus|rot|fungal|psychic|vampir|cosmic|eldritch)/;
+const STOP=new Set('a an the of and or with that this from into very their will not for to is are be your you who get got new make made them they it as on in at by'.split(' '));
+
+function parsePrompt(text){
+  const low=text.toLowerCase();
+  const type = WEATHERWORDS.test(low)?'weather' : (TRAITWORDS.test(low)?'trait':'archetype');
+  // name = most salient word
+  const words=low.replace(/[^a-z ]/g,' ').split(/\s+/).filter(w=>w.length>3&&!STOP.has(w));
+  let nameWord=words.sort((a,b)=>b.length-a.length)[0]||'anomaly';
+  const name=nameWord.charAt(0).toUpperCase()+nameWord.slice(1);
+  // color
+  let color=null; for(const k in COLORWORDS){ if(low.includes(k)){ color=COLORWORDS[k]; break; } }
+  if(!color){ const pal=['#FF0000','#00FFFF','#BD00FF','#FFB000','#39FF14','#FFFF00']; let h=0; for(let i=0;i<low.length;i++)h=(h*31+low.charCodeAt(i))>>>0; color=pal[h%pal.length]; }
+  // stat biases
+  const stats={paranoia:50,gaslighting:50,likeability:50,physical:50,moxie:50};
+  STATWORDS.forEach(sw=>{ if(sw.re.test(low)) stats[sw.stat]=clamp(stats[sw.stat]+ri(25,40)); });
+  // a couple antagonistic dips for texture
+  if(stats.physical>70) stats.likeability=clamp(stats.likeability-15);
+  if(stats.gaslighting>70) stats.paranoia=clamp(stats.paranoia+10);
+  // flavor templates referencing the concept
+  const verbs=['succumbs to','is rewritten by','channels','is hollowed out by','bonds horribly over'];
+  const templates=[
+    '${a} '+pick(verbs)+' the '+name+' and turns on ${b}.',
+    'The '+name+' takes hold of ${a}; ${b} backs away from the static.'
+  ];
+  return {type,name,color,stats,templates,source:text};
+}
+
+function buildWorkbenchResult(d){
+  GameState.draft=d;
+  const sl=(k)=>'<div class="grid-stat text-[11px] items-center"><span class="c-dim" style="width:70px">'+STAT_ABBR[k]+'</span>'
+    +'<input type="range" class="amber" min="0" max="100" value="'+Math.round(d.stats[k])+'" data-stat="'+k+'" style="width:140px">'
+    +'<span class="c-amber" data-statval="'+k+'" style="width:26px;text-align:right">'+Math.round(d.stats[k])+'</span></div>';
+  const html=
+    '<div class="flex justify-between items-center mb-1"><span class="c-purple">▚ GENERATED CONSTRUCT</span>'
+      +'<span class="tag" style="color:'+d.color+';border-color:'+d.color+'">'+d.type.toUpperCase()+'</span></div>'
+    +'<div class="flex gap-2 items-center mb-1 flex-wrap">'
+      +'<label class="c-dim text-[11px]">TYPE</label>'
+      +'<select id="wbType"><option'+(d.type==='trait'?' selected':'')+'>trait</option><option'+(d.type==='archetype'?' selected':'')+'>archetype</option><option'+(d.type==='weather'?' selected':'')+'>weather</option></select>'
+      +'<label class="c-dim text-[11px]">NAME</label><input id="wbName" type="text" value="'+escapeHTML(d.name)+'" style="width:130px">'
+      +'<label class="c-dim text-[11px]">COLOR</label><input id="wbColor" type="text" value="'+d.color+'" style="width:80px">'
+      +'<span class="port" style="width:20px;height:20px;background:'+d.color+';display:inline-block;border:1px solid #fff"></span>'
+    +'</div>'
+    +'<div class="grid gap-x-4 gap-y-1 mb-2" style="grid-template-columns:1fr 1fr">'+Object.keys(d.stats).map(sl).join('')+'</div>'
+    +'<div class="c-dim text-[11px] mb-1">FLAVOR LOG EDITOR (one per line · use ${a} / ${b})</div>'
+    +'<textarea id="wbFlavor" rows="3" class="w-full" style="border-color:'+d.color+';color:'+d.color+'">'+escapeHTML(d.templates.join('\n'))+'</textarea>'
+    +'<div class="flex gap-2 mt-2 flex-wrap">'
+      +'<button id="wbInject" class="btn red">⇩ INJECT DATA INTO RUNTIME</button>'
+      +'<span id="wbMsg" class="c-dim text-[11px] self-center"></span>'
+    +'</div>';
+  const box=document.getElementById('wbResult'); box.innerHTML=html;
+  // wire sliders
+  box.querySelectorAll('[data-stat]').forEach(s=>s.addEventListener('input',()=>{ GameState.draft.stats[s.dataset.stat]=+s.value; box.querySelector('[data-statval="'+s.dataset.stat+'"]').textContent=s.value; }));
+  document.getElementById('wbInject').addEventListener('click', injectCreation);
+}
+
+function readDraftFromUI(){
+  const d=GameState.draft||{}; if(!d) return null;
+  d.type=document.getElementById('wbType').value;
+  d.name=(document.getElementById('wbName').value||'Anomaly').trim();
+  d.color=document.getElementById('wbColor').value.trim()||'#BD00FF';
+  d.templates=document.getElementById('wbFlavor').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(!d.templates.length) d.templates=['${a} is altered by the '+d.name+'.'];
+  return d;
+}
+function injectCreation(){
+  ensureAudio();
+  const d=readDraftFromUI(); if(!d) return;
+  const msg=document.getElementById('wbMsg');
+  const biasFromStats=()=>{ const b={}; for(const k in d.stats){ b[k]=(d.stats[k]-50)/22; } return b; };
+  if(d.type==='trait'){
+    TRAITS[d.name]={accent:d.color, bias:biasFromStats()};
+    TRAIT_CAMP[d.name]=d.templates;
+    if(SPAWN_TRAITS.indexOf(d.name)<0) SPAWN_TRAITS.push(d.name);
+    const alive=aliveList(); if(alive.length){ const v=pick(alive); v.trait=d.name; v.seed=ri(1,2**31);
+      logEvent('▚ RUNTIME INJECT: new TRAIT ['+d.name+'] grafted onto '+v.name+'. The signal accepts it.','anomaly'); }
+    else logEvent('▚ RUNTIME INJECT: TRAIT ['+d.name+'] added to the spawn pool.','anomaly');
+  } else if(d.type==='archetype'){
+    if(ARCHETYPES.indexOf(d.name)<0) ARCHETYPES.push(d.name);
+    const alive=aliveList(); if(alive.length){ const v=pick(alive); v.archetype=d.name;
+      logEvent('▚ RUNTIME INJECT: new ARCHETYPE ['+d.name+'] assigned to '+v.name+'.','anomaly'); }
+    else logEvent('▚ RUNTIME INJECT: ARCHETYPE ['+d.name+'] added to the pool.','anomaly');
+  } else {
+    GameState.weather={ name:d.name, color:d.color, bias:biasFromStats(), templates:d.templates };
+    logEvent('☂ RUNTIME INJECT: WEATHER ELEMENT ['+d.name+'] now warps the island every camp phase.','anomaly');
+  }
+  siren();
+  if(msg){ msg.textContent='✓ injected into live runtime.'; msg.className='c-green text-[11px] self-center'; }
+  render();
+}
+
+/* ============================================================================
+   EVENT WIRING + BOOT
+   ============================================================================ */
+function wire(){
+  const play=document.getElementById('btnPlay');
+  play.addEventListener('click',()=>{ ensureAudio(); GameState.running=!GameState.running; play.textContent=GameState.running?'❚❚ PAUSE':'▶ PLAY'; play.classList.toggle('on',!GameState.running); if(GameState.running) tick(); });
+  document.getElementById('btnStep').addEventListener('click',()=>{ ensureAudio(); const was=GameState.running; GameState.running=true; runPhase(GameState.phase); GameState.running=was; render(); });
+  const sp=document.getElementById('rngSpeed'); sp.addEventListener('input',()=>document.getElementById('lblSpeed').textContent=sp.value+'x');
+  const f=document.getElementById('btnFilter'); f.addEventListener('click',()=>{ GameState.censorFilter=!GameState.censorFilter; f.textContent='[FILTER: '+(GameState.censorFilter?'ON':'OFF')+']'; f.classList.toggle('on',GameState.censorFilter); render(); });
+  const m=document.getElementById('btnMute'); m.addEventListener('click',()=>{ ensureAudio(); GameState.muted=!GameState.muted; m.textContent='[AUDIO: '+(GameState.muted?'OFF':'ON')+']'; m.classList.toggle('on',GameState.muted); });
+  document.getElementById('btnAnomaly').addEventListener('click',injectAnomalyManual);
+  document.getElementById('profileClose').addEventListener('click',closeProfile);
+  document.getElementById('profileModal').addEventListener('click',(e)=>{ if(e.target.id==='profileModal') closeProfile(); });
+  document.addEventListener('keydown',(e)=>{ if(e.key==='Escape') closeProfile(); });
+  document.querySelectorAll('.lfbtn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const lt=btn.dataset.lf;
+      if(GameState.logFilters.has(lt)){ GameState.logFilters.delete(lt); btn.classList.remove('on'); }
+      else{ GameState.logFilters.add(lt); btn.classList.add('on'); }
+      renderLog();
+    });
+  });
+  const wb=document.getElementById('workbench'); const wbBtn=document.getElementById('btnWork');
+  wbBtn.addEventListener('click',()=>{ const open=wb.style.display==='none'; wb.style.display=open?'block':'none'; wbBtn.classList.toggle('on',open); if(open) wb.scrollIntoView({behavior:'smooth'}); });
+  document.getElementById('wbExec').addEventListener('click',()=>{ ensureAudio(); const t=document.getElementById('wbPrompt').value.trim(); if(!t){ document.getElementById('wbResult').innerHTML='<div class="c-red">// empty prompt. feed the core something.</div>'; return; } blip(); buildWorkbenchResult(parsePrompt(t)); });
+  document.getElementById('wbRand').addEventListener('click',()=>{ const seeds=['a paranoid fungal trait that rots all trust','an acid cosmic storm that melts alliances','a violent feral pageant queen archetype','a hollow psychic ghost-hunger trait','a frost eclipse weather of pure dread','a charming manipulative villain archetype']; document.getElementById('wbPrompt').value=pick(seeds); });
+  // first gesture unlocks audio
+  document.addEventListener('pointerdown',ensureAudio,{once:true});
+}
+
+function boot(){
+  wire();
+  GameState.season=0;          // newSeason() will increment to 1
+  newSeason();
+  render();
+  scheduleNext(900);
+}
+boot();
+</script>
+</body>
+</html>

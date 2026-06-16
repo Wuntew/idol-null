@@ -1,0 +1,18 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "idol-null",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8755"],
+      "port": 8755
+    },
+    {
+      "name": "idol-null-app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
+      "autoPort": true
+    }
+  ]
+}

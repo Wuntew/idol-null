@@ -1,0 +1,77 @@
+
+> idol-null@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+
+ ✓ Starting...
+ ✓ Ready in 1914ms
+ ✓ Compiled /middleware in 329ms (126 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 1250ms (653 modules)
+ HEAD / 200 in 1574ms
+ HEAD / 200 in 53ms
+ GET / 200 in 41ms
+ ○ Compiling /more ...
+ ✓ Compiled /more in 657ms (660 modules)
+ GET /more 200 in 880ms
+ ✓ Compiled in 1336ms (674 modules)
+ ✓ Compiled in 422ms (660 modules)
+ ✓ Compiled in 281ms (660 modules)
+ ✓ Compiled in 202ms (660 modules)
+ ✓ Compiled in 138ms (366 modules)
+ ✓ Compiled in 208ms (367 modules)
+ ✓ Compiled in 383ms (675 modules)
+ ✓ Compiled in 332ms (675 modules)
+ ✓ Compiled in 341ms (675 modules)
+ ✓ Compiled in 736ms (661 modules)
+ ✓ Compiled in 475ms (661 modules)
+ ✓ Compiled in 1015ms (661 modules)
+ ✓ Compiled in 447ms (661 modules)
+ ✓ Compiled in 451ms (661 modules)
+ ✓ Compiled in 449ms (661 modules)
+ ✓ Compiled in 394ms (661 modules)
+ ✓ Compiled in 481ms (308 modules)
+ ✓ Compiled in 280ms (308 modules)
+ ✓ Compiled in 264ms (308 modules)
+ ✓ Compiled in 375ms (127 modules)
+ ✓ Compiled in 940ms (788 modules)
+ ✓ Compiled in 604ms (788 modules)
+ ✓ Compiled in 825ms (802 modules)
+ ✓ Compiled in 883ms (802 modules)
+ ✓ Compiled in 854ms (802 modules)
+ ✓ Compiled in 824ms (802 modules)
+ ✓ Compiled in 676ms (788 modules)
+ ✓ Compiled in 852ms (675 modules)
+ ✓ Compiled in 362ms (308 modules)
+ ✓ Compiled in 271ms (308 modules)
+ ✓ Compiled in 714ms (788 modules)
+ ✓ Compiled in 741ms (788 modules)
+ ✓ Compiled in 254ms (308 modules)
+ ✓ Compiled in 746ms (802 modules)
+ ✓ Compiled in 1057ms (675 modules)
+ ✓ Compiled in 744ms (802 modules)
+ ✓ Compiled in 273ms (308 modules)
+ ✓ Compiled in 201ms (308 modules)
+ ✓ Compiled in 684ms (788 modules)
+ ✓ Compiled in 223ms (308 modules)
+ ✓ Compiled in 282ms (308 modules)
+   Reload env: .env.local
+ ✓ Compiled in 397ms (788 modules)
+ ✓ Compiled in 1917ms (675 modules)
+ ✓ Compiled in 1469ms (677 modules)
+ ✓ Compiled in 497ms (663 modules)
+ ✓ Compiled in 724ms (677 modules)
+ ✓ Compiled in 784ms (677 modules)
+ ✓ Compiled in 741ms (677 modules)
+ ✓ Compiled in 297ms (677 modules)
+ ✓ Compiled in 289ms (677 modules)
+ ✓ Compiled in 853ms (677 modules)
+ ✓ Compiled in 1040ms (677 modules)
+ ✓ Compiled in 593ms (677 modules)
+ ✓ Compiled in 319ms (677 modules)
+ ✓ Compiled in 322ms (677 modules)
+ ✓ Compiled in 102ms (309 modules)
+ ✓ Compiled in 321ms (677 modules)
+ ✓ Compiled in 333ms (677 modules)
