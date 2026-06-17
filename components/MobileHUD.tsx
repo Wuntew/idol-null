@@ -304,71 +304,108 @@ function CastProfile({ castaway: c, tribeColor, onBack }: any) {
   const winner = castWinner(c)
 
   return (
-    <div className="hud-panel-inner">
-      {/* Header with back button */}
-      <div className="hdr hud-hdr" style={{ gap: 6 }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--cyan)', cursor: 'pointer', padding: '0 4px 0 0', fontSize: 13, lineHeight: 1, fontFamily: 'monospace' }}>←</button>
-        <span className="c-white" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
-        <span className={`tag text-[9px] ${c.status === 'alive' ? 'c-green' : c.status === 'ghost' ? 'c-purple' : 'c-red'}`}>{c.status}</span>
+    <div className="hud-panel-inner" style={{ flexDirection: 'row' }}>
+
+      {/* LEFT — portrait fills full panel height */}
+      <div style={{ position: 'relative', flexShrink: 0, alignSelf: 'stretch', display: 'flex', alignItems: 'stretch' }}>
+        {c.portrait_file ? (
+          <img
+            src={`/portraits/${c.portrait_file}`}
+            alt={c.name}
+            style={{
+              height: '100%',
+              width: 'auto',
+              imageRendering: 'pixelated',
+              background: '#c8bfa8',
+              borderRight: `2px solid ${tribeBorder}`,
+              display: 'block',
+              filter: c.status === 'ghost' ? 'grayscale(60%) brightness(0.7)' : c.status === 'consumed' ? 'grayscale(100%)' : undefined,
+            }}
+          />
+        ) : (
+          <div style={{
+            width: 188, height: '100%', minHeight: 80,
+            borderRight: `2px solid ${tribeBorder}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 48, color: tribeBorder, background: '#0a1a0a',
+          }}>
+            {c.name[0]}
+          </div>
+        )}
+        {/* Back button — overlaid top-left */}
+        <button
+          onClick={onBack}
+          style={{
+            position: 'absolute', top: 4, left: 4,
+            background: 'rgba(0,0,0,0.65)', border: `1px solid ${tribeBorder}`,
+            color: tribeBorder, cursor: 'pointer',
+            fontSize: 11, lineHeight: 1, padding: '2px 5px',
+            fontFamily: 'monospace',
+          }}
+        >←</button>
+        {/* Status tag — overlaid bottom */}
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, right: 0,
+          background: 'rgba(0,0,0,0.7)', padding: '2px 4px',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <span className="c-dim" style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: '.06em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.archetype}</span>
+          <span className={`tag text-[8px] ${c.status === 'alive' ? 'c-green' : c.status === 'ghost' ? 'c-purple' : 'c-red'}`} style={{ flexShrink: 0, marginLeft: 3 }}>{c.status}</span>
+        </div>
       </div>
 
-      <div className="hud-panel-body" style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+      {/* RIGHT — scrollable info */}
+      <div className="hud-panel-body" style={{ padding: '6px 7px', display: 'flex', flexDirection: 'column', gap: 5 }}>
 
-        {/* Hero row: portrait + identity */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-          {c.portrait_file ? (
-            <img src={`/portraits/${c.portrait_file}`} alt={c.name}
-              style={{ width: 52, height: 52, imageRendering: 'pixelated', background: '#c8bfa8', border: `2px solid ${tribeBorder}`, flexShrink: 0,
-                filter: c.status === 'ghost' ? 'grayscale(60%) brightness(0.7)' : c.status === 'consumed' ? 'grayscale(100%)' : undefined }} />
-          ) : (
-            <div style={{ width: 52, height: 52, border: `2px solid ${tribeBorder}`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: tribeBorder }}>{c.name[0]}</div>
-          )}
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div className="c-dim" style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 2 }}>{c.archetype}</div>
-            <div style={{ fontSize: 10, color: tribeBorder, marginBottom: 2 }}>◈ {c.trait}</div>
-            <div className="c-dim" style={{ fontSize: 9 }}>
-              {c.condition !== 'healthy' && <span className={c.condition === 'hallucinating' ? 'c-purple' : 'c-amber'}>{c.condition} · </span>}
-              {c.idol_count > 0 && <span className="c-yellow">✦×{c.idol_count} · </span>}
-              T{c.tribe + 1}{c.age ? ` · age ${c.age}` : ''}
-            </div>
-            {c.hometown && <div className="c-dim" style={{ fontSize: 9 }}>{c.hometown}</div>}
-          </div>
+        {/* Name + trait */}
+        <div>
+          <div className="c-white" style={{ fontSize: 11, fontWeight: 'bold', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
+          <div style={{ fontSize: 9, color: tribeBorder, marginTop: 1 }}>◈ {c.trait}</div>
+        </div>
+
+        {/* Meta line */}
+        <div className="c-dim" style={{ fontSize: 9 }}>
+          {c.condition !== 'healthy' && <span className={c.condition === 'hallucinating' ? 'c-purple' : 'c-amber'}>{c.condition} · </span>}
+          {c.idol_count > 0 && <span className="c-yellow">✦×{c.idol_count} · </span>}
+          {c.age ? `age ${c.age}` : ''}{c.hometown ? ` · ${c.hometown}` : ''}
         </div>
 
         {/* Reads */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-          <span className={`tag ${threat.cls}`} style={{ fontSize: 9 }}>{threat.label}</span>
-          <span className={`tag ${boot.cls}`} style={{ fontSize: 9 }}>{boot.label}</span>
-          <span className={`tag ${winner.cls}`} style={{ fontSize: 9 }}>{winner.label}</span>
+          <span className={`tag ${threat.cls}`} style={{ fontSize: 8 }}>{threat.label}</span>
+          <span className={`tag ${boot.cls}`} style={{ fontSize: 8 }}>{boot.label}</span>
+          <span className={`tag ${winner.cls}`} style={{ fontSize: 8 }}>{winner.label}</span>
         </div>
 
-        {/* Stats — 2-column compact bars */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 10px' }}>
+        {/* Stats — single column compact bars */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {Object.entries(c.stats ?? {}).map(([k, v]) => (
             <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{ fontSize: 8, color: STAT_COLOR[k] ?? 'var(--dim)', width: 22, flexShrink: 0 }}>{STAT_ABBR[k] ?? k.slice(0,3).toUpperCase()}</span>
-              <div style={{ flex: 1, height: 4, background: '#0a1a0a', borderRadius: 1 }}>
+              <div style={{ flex: 1, height: 3, background: '#0a1a0a', borderRadius: 1 }}>
                 <div style={{ width: `${Math.round(Number(v))}%`, height: '100%', background: STAT_COLOR[k] ?? '#2a4a2a', borderRadius: 1 }} />
               </div>
-              <span className="c-dim" style={{ fontSize: 8, width: 18, textAlign: 'right', flexShrink: 0 }}>{Math.round(Number(v))}</span>
+              <span className="c-dim" style={{ fontSize: 8, width: 16, textAlign: 'right', flexShrink: 0 }}>{Math.round(Number(v))}</span>
             </div>
           ))}
         </div>
 
-        {/* Job + audition — below fold */}
+        {/* Job */}
         {c.job && (
           <div className="c-dim" style={{ fontSize: 9 }}>
             <span style={{ color: 'var(--amber)', marginRight: 4 }}>JOB</span>{c.job}
           </div>
         )}
+
+        {/* Audition tape */}
         {c.audition_tape && (
-          <div className="c-dim" style={{ fontSize: 9, fontStyle: 'italic', lineHeight: 1.4, borderTop: '1px solid #0a1a0a', paddingTop: 5 }}>
+          <div className="c-dim" style={{ fontSize: 9, fontStyle: 'italic', lineHeight: 1.4, borderTop: '1px solid #0a1a0a', paddingTop: 4 }}>
             {c.audition_tape}
           </div>
         )}
 
-        {/* Link to full dossier */}
-        <div style={{ textAlign: 'right', marginTop: 'auto', paddingTop: 4 }}>
+        {/* Full dossier link */}
+        <div style={{ textAlign: 'right', marginTop: 'auto', paddingTop: 2 }}>
           <a href={`/castaways?id=${c.id}`} className="c-dim" style={{ fontSize: 9, textDecoration: 'none', letterSpacing: '.06em' }}>full dossier →</a>
         </div>
 
