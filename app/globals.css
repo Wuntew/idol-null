@@ -409,7 +409,7 @@ input::placeholder, textarea::placeholder { color: #4a3a26; }
 
   .hud-panel {
     flex: none;
-    height: 152px; /* hdr ~28px + 2 compact cast rows ~56px each + gaps */
+    height: 248px; /* hdr ~28px + 3 portrait rows ~64px each + gaps */
   }
 
   /* ── Section headers inside HUD ── */
@@ -509,45 +509,41 @@ input::placeholder, textarea::placeholder { color: #4a3a26; }
     letter-spacing: .04em;
   }
 
-  /* ── CAST TAB: 4-col grid ── */
+  /* ── CAST TAB: 6-col portrait grid ── */
   .hud-cast-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 3px;
-    padding: 4px 4px 0;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 4px;
+    padding: 4px;
   }
 
   .hud-cast-card {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    padding: 4px 4px;
+    gap: 3px;
+    padding: 3px;
     cursor: pointer;
   }
 
-  .hud-cast-avatar {
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
+  .hud-cast-portrait {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    image-rendering: pixelated;
+    background: #c8bfa8;
     border: 1px solid;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: bold;
+    display: block;
   }
 
   .hud-cast-name {
-    font-size: 8px;
+    font-size: 7px;
     text-align: center;
-    letter-spacing: .04em;
+    letter-spacing: .03em;
     text-transform: uppercase;
-  }
-
-  .hud-cast-status {
-    font-size: 8px;
-    letter-spacing: .04em;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   /* ── BET TAB: market list ── */

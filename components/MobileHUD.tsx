@@ -190,20 +190,30 @@ function CastPanel({ castaways }: any) {
         <div className="hud-cast-grid">
           {all.map((c: any) => {
             const isAlive = c.status === 'alive'
+            const accentColor = isAlive ? 'var(--cyan)' : 'var(--wrong)'
             return (
               <a key={c.id} href={`/castaways?id=${c.id}`} style={{ textDecoration: 'none' }}>
                 <div
                   className="hud-cast-card panel"
                   style={{ borderColor: isAlive ? 'var(--green)' : 'var(--wrong)', opacity: isAlive ? 1 : 0.45 }}
                 >
-                  <div className="hud-cast-avatar" style={{ borderColor: isAlive ? 'var(--cyan)' : 'var(--wrong)', color: isAlive ? 'var(--cyan)' : 'var(--wrong)' }}>
-                    {c.name[0]}
-                  </div>
+                  {c.portrait_file ? (
+                    <img
+                      src={`/portraits/${c.portrait_file}`}
+                      alt={c.name}
+                      className="hud-cast-portrait"
+                      style={{
+                        borderColor: accentColor,
+                        filter: !isAlive ? 'grayscale(100%)' : undefined,
+                      }}
+                    />
+                  ) : (
+                    <div className="hud-cast-portrait" style={{ borderColor: accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold', color: accentColor }}>
+                      {c.name[0]}
+                    </div>
+                  )}
                   <div className="hud-cast-name" style={{ color: isAlive ? 'var(--green)' : '#4a3a3a' }}>
-                    {c.name.slice(0, 6)}
-                  </div>
-                  <div className="hud-cast-status" style={{ color: isAlive ? 'var(--green)' : 'var(--wrong)' }}>
-                    {isAlive ? `${c.challenge_wins ?? 0}W` : 'OUT'}
+                    {c.name}
                   </div>
                 </div>
               </a>
