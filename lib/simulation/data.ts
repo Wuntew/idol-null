@@ -182,8 +182,6 @@ export const AUDITION_TAPES: Record<string, string[]> = {
     '[AUDITION TAPE] ${a} answers every question correctly, pleasantly, and with absolutely nothing behind the eyes.',
     '[AUDITION TAPE] ${a} is asked to describe themselves in three words. There is a forty-second silence before they say: "still deciding."',
     '[AUDITION TAPE] The tape is technically complete, properly lit, fully in focus. Nobody who has watched it can recall a single thing ${a} said.'],
-}
-
   Haunted: [
     '[AUDITION TAPE] ${a} speaks directly to someone off-camera for six minutes before acknowledging the crew. "That was nobody," they say. The chair they were facing is empty.',
     '[AUDITION TAPE] ${a}\'s audition footage keeps reversing itself in thirty-second loops. The sound team has no explanation. ${a} seems unsurprised.',
