@@ -13,12 +13,15 @@ function setPx(ctx: CanvasRenderingContext2D, x: number, y: number, c: string) {
   ctx.fillStyle = c; ctx.fillRect(x, y, 1, 1)
 }
 
-export default function Portrait({ seed, trait, status, condition }: {
-  seed: number; trait: string; status: string; condition: string
+export default function Portrait({ seed, trait, status, condition, portraitFile }: {
+  seed: number; trait: string; status: string; condition: string; portraitFile?: string | null
 }) {
   const ref = useRef<HTMLCanvasElement>(null)
+  const accent = TRAITS_ACCENT[trait] ?? '#00FF00'
 
   useEffect(() => {
+    // Skip procedural draw if we have a real portrait
+    if (portraitFile) return
     const cv = ref.current; if (!cv) return
     const ctx = cv.getContext('2d'); if (!ctx) return
     const rnd = mulberry32((seed ^ 0x9e3779b9) >>> 0)
@@ -33,7 +36,6 @@ export default function Portrait({ seed, trait, status, condition }: {
     const skins=['#e0ac69','#c68642','#8d5524','#f1c27d','#ffdbac','#a9745b','#7d9b6a','#b58a6a']
     let skin=skins[Math.floor(rnd()*skins.length)]
     let hair=['#221','#3a2a1a','#5a3a1a','#777','#101010','#4a2a4a','#6a1a1a'][Math.floor(rnd()*7)]
-    const accent = TRAITS_ACCENT[trait] ?? '#00FF00'
     let eye = trait==='Paranoid'?'#00FFFF':'#0c0c0c'
     if (condition==='starving') skin=desat(skin)
     if (condition==='hallucinating') eye='#BD00FF'
@@ -60,9 +62,27 @@ export default function Portrait({ seed, trait, status, condition }: {
     if (trait==='Glitched') { for (let i=0;i<6;i++) setPx(ctx,Math.floor(rnd()*16),Math.floor(rnd()*16),['#BD00FF','#00FFFF'][i%2]) }
     if (trait==='Feral') { setPx(ctx,5,5,'#fff'); setPx(ctx,10,5,'#fff') }
     if (status==='ghost') ctx.globalAlpha=.85
-  }, [seed, trait, status, condition])
+  }, [seed, trait, status, condition, portraitFile])
 
-  const accent = TRAITS_ACCENT[trait] ?? '#00FF00'
+  if (portraitFile) {
+    return (
+      <img
+        src={`/portraits/${portraitFile}`}
+        alt={trait}
+        width={46}
+        height={46}
+        style={{
+          width: 46, height: 46,
+          imageRendering: 'pixelated',
+          border: `1px solid ${accent}`,
+          opacity: status === 'consumed' ? 0.4 : status === 'ghost' ? 0.7 : 1,
+          filter: status === 'ghost' ? 'grayscale(60%) brightness(0.7)' : status === 'consumed' ? 'grayscale(100%)' : undefined,
+          flexShrink: 0,
+        }}
+      />
+    )
+  }
+
   return (
     <canvas ref={ref} width={16} height={16}
       style={{ width: 46, height: 46, imageRendering: 'pixelated', background: '#000', border: `1px solid ${accent}` }}

@@ -23,6 +23,7 @@ type Castaway = {
   education?: string | null
   family?: string | null
   audition_tape?: string | null
+  portrait_file?: string | null
 }
 
 type CastawayMemory = {
@@ -271,7 +272,7 @@ export default function CastawayRoster({
         {selected ? (
           <div className="panel p-yellow dossier-card">
             <div className="dossier-hero">
-              <Portrait seed={selected.seed} trait={selected.trait} status={selected.status} condition={selected.condition} />
+              <Portrait seed={selected.seed} trait={selected.trait} status={selected.status} condition={selected.condition} portraitFile={selected.portrait_file} />
               <div className="min-w-0">
                 <div className="flex justify-between items-start gap-2">
                   <div className="min-w-0">

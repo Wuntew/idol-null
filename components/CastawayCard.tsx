@@ -14,6 +14,7 @@ interface Props {
     idol_count: number; seed: number; tribe: number
     relationships?: Record<string, number>
     elimination_day?: number | null
+    portrait_file?: string | null
   }
   selected?: boolean
   onSelect?: () => void
@@ -40,7 +41,7 @@ export default function CastawayCard({ castaway: c, selected = false, onSelect }
       }}
     >
       <div className="flex gap-2 items-start">
-        <Portrait seed={c.seed} trait={c.trait} status={c.status} condition={c.condition} />
+        <Portrait seed={c.seed} trait={c.trait} status={c.status} condition={c.condition} portraitFile={c.portrait_file} />
         <div style={{ flex: '1 1 auto', minWidth: 0 }}>
           <div className="flex justify-between items-center gap-2">
             <b className="c-white nowrap" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</b>
