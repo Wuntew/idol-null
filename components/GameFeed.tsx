@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { SUPABASE_CONFIGURED } from '@/lib/runtime'
 
@@ -18,12 +18,13 @@ export default function GameFeed({ initialLogs, seasonId }: { initialLogs: LogRo
   const [logs, setLogs] = useState<LogRow[]>(initialLogs)
   const [filters, setFilters] = useState<Set<string>>(() => new Set(LOG_TYPES))
   const bottomRef = useRef<HTMLDivElement>(null)
-  const supabase = SUPABASE_CONFIGURED ? createClient() : null
+  const instanceId = useId()
+  const supabase = useMemo(() => SUPABASE_CONFIGURED ? createClient() : null, [])
 
   useEffect(() => {
     if (!seasonId || !supabase) return
     const channel = supabase
-      .channel(`feed-${seasonId}`)
+      .channel(`feed-${seasonId}-${instanceId}`)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'game_log',
         filter: `season_id=eq.${seasonId}`,
