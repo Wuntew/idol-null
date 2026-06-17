@@ -62,7 +62,11 @@ export default function MobileHUD({
       )}
 
       {/* ── TOP zone — Island Map + Live Feed ── */}
-      <div className="hud-zone hud-feed panel" style={{ display: 'flex', flexDirection: 'column' }}>
+      <div className="hud-zone hud-feed panel" style={{
+        display: 'flex', flexDirection: 'column',
+        borderTopWidth: 3,
+        borderTopColor: season?.status === 'active' ? 'var(--green)' : season?.status === 'preseason' ? 'var(--amber)' : '#1a2a1a',
+      }}>
         {/* Map — tap to open full-screen overlay */}
         <div
           onClick={() => setMapOpen(true)}
@@ -97,7 +101,7 @@ export default function MobileHUD({
       {/* ── BOTTOM 50 % — Tab Panel ── */}
       <div className="hud-zone hud-panel panel">
         {tab === 'feed'  && <FeedPanel  season={season} aliveCount={aliveCount} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} latestSummary={latestSummary} />}
-        {tab === 'cast'  && <CastPanel  castaways={castaways} />}
+        {tab === 'cast'  && <CastPanel  castaways={castaways} tribes={tribes} />}
         {tab === 'bet'   && <BetPanel   groupedMarkets={groupedMarkets} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} />}
         {tab === 'noise' && <NoisePanel castaways={castaways} profile={profile} user={user} seasonActive={seasonActive} isDemo={isDemo} />}
         {tab === 'more'  && <MorePanel  season={season} aliveCount={aliveCount} profile={profile} user={user} isDemo={isDemo} />}
@@ -171,9 +175,12 @@ function FeedPanel({ season, aliveCount, openMarketCount, profile, user, isDemo,
 /* ─────────────────────────────────────────────
    CAST TAB — 4-col compact castaway grid
 ───────────────────────────────────────────── */
-function CastPanel({ castaways }: any) {
+function CastPanel({ castaways, tribes }: any) {
   const all = castaways ?? []
   const alive = all.filter((c: any) => c.status === 'alive').length
+  const tribeColor: Record<number, string> = Object.fromEntries(
+    (tribes ?? []).map((t: any) => [t.id, t.color ?? 'var(--cyan)'])
+  )
 
   return (
     <div className="hud-panel-inner">
@@ -185,7 +192,9 @@ function CastPanel({ castaways }: any) {
         <div className="hud-cast-grid">
           {all.map((c: any) => {
             const isAlive = c.status === 'alive'
-            const accentColor = isAlive ? 'var(--cyan)' : 'var(--wrong)'
+            const portraitBorder = isAlive
+              ? (tribeColor[c.tribe_id] ?? 'var(--cyan)')
+              : 'var(--wrong)'
             return (
               <a key={c.id} href={`/castaways?id=${c.id}`} style={{ textDecoration: 'none' }}>
                 <div
@@ -198,12 +207,12 @@ function CastPanel({ castaways }: any) {
                       alt={c.name}
                       className="hud-cast-portrait"
                       style={{
-                        borderColor: accentColor,
+                        borderColor: portraitBorder,
                         filter: !isAlive ? 'grayscale(100%)' : undefined,
                       }}
                     />
                   ) : (
-                    <div className="hud-cast-portrait" style={{ borderColor: accentColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold', color: accentColor }}>
+                    <div className="hud-cast-portrait" style={{ borderColor: portraitBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold', color: portraitBorder }}>
                       {c.name[0]}
                     </div>
                   )}
