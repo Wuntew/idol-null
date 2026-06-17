@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import GameFeed from './GameFeed'
 import IslandMap from './IslandMap'
 import type { Tribe, TribeResources } from './IslandMap'
@@ -45,10 +45,16 @@ export default function MobileHUD({
   const [tab, setTab] = useState<Tab>('feed')
   const [mapOpen, setMapOpen] = useState(false)
   const [dossier, setDossier] = useState<any>(null)
+  const [archive, setArchive] = useState<{ season: any; castaways: any[]; tribes: any[] } | null>(null)
 
   const tribeColor: Record<number, string> = Object.fromEntries(
     (tribes ?? []).map((t: any) => [t.id, t.color ?? 'var(--cyan)'])
   )
+
+  async function openArchive(seasonId: number) {
+    const data = await fetch(`/api/seasons/${seasonId}`).then(r => r.json()).catch(() => null)
+    if (data) setArchive(data)
+  }
 
   return (
     <div className="mobile-hud">
@@ -68,7 +74,16 @@ export default function MobileHUD({
 
       {dossier ? (
         /* ── FULL DOSSIER — replaces feed + panel, sits above tab bar ── */
-        <FullDossier castaway={dossier} tribeColor={tribeColor} onBack={() => setDossier(null)} />
+        <FullDossier
+          castaway={dossier}
+          tribeColor={archive
+            ? Object.fromEntries((archive.tribes ?? []).map((t: any) => [t.id, t.color ?? 'var(--cyan)']))
+            : tribeColor}
+          onBack={() => setDossier(null)}
+        />
+      ) : archive ? (
+        /* ── SEASON ARCHIVE — replaces feed + panel ── */
+        <SeasonArchive archive={archive} onBack={() => setArchive(null)} onOpenDossier={setDossier} />
       ) : (
         <>
           {/* ── TOP zone — Island Map + Live Feed ── */}
@@ -109,7 +124,7 @@ export default function MobileHUD({
             {tab === 'cast'  && <CastPanel  castaways={castaways} tribes={tribes} onOpenDossier={setDossier} />}
             {tab === 'bet'   && <BetPanel   groupedMarkets={groupedMarkets} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} />}
             {tab === 'noise' && <NoisePanel castaways={castaways} profile={profile} user={user} seasonActive={seasonActive} isDemo={isDemo} />}
-            {tab === 'more'  && <MorePanel  season={season} aliveCount={aliveCount} profile={profile} user={user} isDemo={isDemo} />}
+            {tab === 'more'  && <MorePanel  season={season} aliveCount={aliveCount} profile={profile} user={user} isDemo={isDemo} onOpenArchive={openArchive} />}
           </div>
         </>
       )}
@@ -120,7 +135,7 @@ export default function MobileHUD({
           <button
             key={t.id}
             className={`hud-tab${tab === t.id ? ' active' : ''}`}
-            onClick={() => { setTab(t.id); setDossier(null) }}
+            onClick={() => { setTab(t.id); setDossier(null); setArchive(null) }}
             aria-pressed={tab === t.id}
           >
             <span className="hud-tab-ico" aria-hidden="true">{t.ico}</span>
@@ -547,9 +562,17 @@ function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
 }
 
 /* ─────────────────────────────────────────────
-   MORE TAB — nav hub + account
+   MORE TAB — nav hub + account + past seasons
 ───────────────────────────────────────────── */
-function MorePanel({ season, aliveCount, profile, user, isDemo }: any) {
+function MorePanel({ season, aliveCount, profile, user, isDemo, onOpenArchive }: any) {
+  const [seasons, setSeasons] = useState<any[]>([])
+
+  useEffect(() => {
+    fetch('/api/seasons').then(r => r.json()).then(setSeasons).catch(() => {})
+  }, [])
+
+  const pastSeasons = seasons.filter((s: any) => s.status === 'complete')
+
   return (
     <div className="hud-panel-inner">
       <div className="hdr hud-hdr">≡ MORE</div>
@@ -574,6 +597,23 @@ function MorePanel({ season, aliveCount, profile, user, isDemo }: any) {
           </div>
         </div>
 
+        {/* Past seasons */}
+        {pastSeasons.length > 0 && (
+          <div style={{ padding: '6px 8px 0' }}>
+            <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>PAST SEASONS</div>
+            {pastSeasons.map((s: any) => (
+              <button key={s.id} onClick={() => onOpenArchive(s.id)}
+                style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between',
+                  background: 'none', border: '1px solid #1a2a1a', padding: '5px 8px', marginBottom: 4,
+                  cursor: 'pointer', fontFamily: 'monospace' }}>
+                <span className="c-cyan" style={{ fontSize: 10 }}>SEASON {s.season_number}</span>
+                <span className="c-dim" style={{ fontSize: 9 }}>DAY {s.current_day} · COMPLETE</span>
+                <span className="c-dim" style={{ fontSize: 10 }}>→</span>
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Nav links */}
         {[
           { href: '/leaderboard', label: '◈ LEADERBOARD', cls: 'c-cyan' },
@@ -596,6 +636,111 @@ function MorePanel({ season, aliveCount, profile, user, isDemo }: any) {
             </a>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────
+   SEASON ARCHIVE — full-body scrollable results view
+───────────────────────────────────────────── */
+function SeasonArchive({ archive, onBack, onOpenDossier }: { archive: { season: any; castaways: any[]; tribes: any[] }; onBack: () => void; onOpenDossier: (c: any) => void }) {
+  const { season, castaways, tribes } = archive
+  const tribeColor: Record<number, string> = Object.fromEntries(
+    (tribes ?? []).map((t: any) => [t.id, t.color ?? 'var(--cyan)'])
+  )
+  const tribeName: Record<number, string> = Object.fromEntries(
+    (tribes ?? []).map((t: any) => [t.id, t.name ?? ''])
+  )
+
+  // Sort: winner (alive, no elimination_day) first, then by elimination_day DESC
+  const sorted = [...castaways].sort((a, b) => {
+    if (a.status === 'alive' && b.status !== 'alive') return -1
+    if (b.status === 'alive' && a.status !== 'alive') return 1
+    return (b.elimination_day ?? 0) - (a.elimination_day ?? 0)
+  })
+
+  const winner = sorted.find(c => c.status === 'alive')
+
+  return (
+    <div className="hud-zone hud-feed panel" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+
+      {/* Sticky header */}
+      <div className="hdr hud-hdr" style={{ flexShrink: 0, gap: 6 }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--cyan)', cursor: 'pointer',
+          padding: '0 6px 0 0', fontSize: 14, lineHeight: 1, fontFamily: 'monospace' }}>{'←'}</button>
+        <span className="c-white" style={{ fontWeight: 'bold' }}>SEASON {season?.season_number}</span>
+        <span className="c-dim" style={{ fontWeight: 'normal', fontSize: 9 }}>DAY {season?.current_day} · COMPLETE</span>
+        {winner && (
+          <span style={{ marginLeft: 'auto', color: 'var(--yellow)', fontSize: 9, letterSpacing: '.06em' }}>
+            ✦ {winner.name}
+          </span>
+        )}
+      </div>
+
+      {/* Scrollable cast list */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: '#1f2a1f #000' }}>
+        {sorted.map((c, i) => {
+          const isWinner = c.status === 'alive'
+          const border = isWinner ? 'var(--yellow)' : (tribeColor[c.tribe_id] ?? 'var(--dim)')
+          const placement = isWinner ? null : sorted.length - i
+          return (
+            <button key={c.id} onClick={() => onOpenDossier(c)}
+              style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 8,
+                padding: '5px 8px', background: 'none', border: 'none',
+                borderBottom: '1px solid #0a1a0a', cursor: 'pointer', textAlign: 'left' }}>
+
+              {/* Placement / winner badge */}
+              <div style={{ width: 26, flexShrink: 0, textAlign: 'center' }}>
+                {isWinner ? (
+                  <span style={{ color: 'var(--yellow)', fontSize: 13 }}>✦</span>
+                ) : (
+                  <span className="c-dim" style={{ fontSize: 9 }}>#{placement}</span>
+                )}
+              </div>
+
+              {/* Portrait */}
+              {c.portrait_file ? (
+                <img src={`/portraits/${c.portrait_file}`} alt={c.name}
+                  style={{ width: 34, height: 34, imageRendering: 'pixelated', flexShrink: 0,
+                    border: `1px solid ${border}`, background: '#c8bfa8',
+                    filter: (c.status === 'ghost' || c.status === 'consumed') ? 'grayscale(80%) brightness(0.65)' : undefined }} />
+              ) : (
+                <div style={{ width: 34, height: 34, flexShrink: 0, border: `1px solid ${border}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: border }}>
+                  {c.name[0]}
+                </div>
+              )}
+
+              {/* Name + tribe */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 10, fontWeight: isWinner ? 'bold' : 'normal',
+                  color: isWinner ? 'var(--yellow)' : 'var(--white)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {c.name}
+                </div>
+                <div style={{ fontSize: 8, color: tribeColor[c.tribe_id] ?? 'var(--dim)', marginTop: 1 }}>
+                  {tribeName[c.tribe_id] ?? ''}
+                </div>
+              </div>
+
+              {/* Elimination info */}
+              <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                {isWinner ? (
+                  <span style={{ color: 'var(--yellow)', fontSize: 9, letterSpacing: '.06em' }}>WINNER</span>
+                ) : (
+                  <>
+                    <div className="c-dim" style={{ fontSize: 9 }}>day {c.elimination_day ?? '?'}</div>
+                    <div style={{ fontSize: 8, color: c.status === 'consumed' ? 'var(--red)' : 'var(--dim)' }}>
+                      {c.status === 'consumed' ? 'consumed' : c.status === 'ghost' ? 'voted out' : c.status}
+                    </div>
+                  </>
+                )}
+              </div>
+            </button>
+          )
+        })}
+        <div style={{ height: 12 }} />
       </div>
     </div>
   )
