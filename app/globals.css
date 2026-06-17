@@ -409,7 +409,7 @@ input::placeholder, textarea::placeholder { color: #4a3a26; }
 
   .hud-panel {
     flex: none;
-    height: 196px; /* hdr ~28px + 2 cast rows ~65px each + gaps + link ~28px */
+    height: 152px; /* hdr ~28px + 2 compact cast rows ~56px each + gaps */
   }
 
   /* ── Section headers inside HUD ── */
@@ -513,28 +513,28 @@ input::placeholder, textarea::placeholder { color: #4a3a26; }
   .hud-cast-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 4px;
-    padding: 6px 6px 0;
+    gap: 3px;
+    padding: 4px 4px 0;
   }
 
   .hud-cast-card {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 3px;
-    padding: 6px 4px;
+    gap: 2px;
+    padding: 4px 4px;
     cursor: pointer;
   }
 
   .hud-cast-avatar {
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
     border-radius: 50%;
     border: 1px solid;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: bold;
   }
 

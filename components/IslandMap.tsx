@@ -307,7 +307,7 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
           ref={canvasRef}
           width={TW * TS}
           height={TH * TS}
-          style={{ display: 'block', width: '100%', imageRendering: 'pixelated' }}
+          style={{ display: 'block', width: '100%', height: 'clamp(180px, 60vw, 280px)', imageRendering: 'pixelated' }}
         />
         {/* Tappable legend toggle */}
         <button

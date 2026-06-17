@@ -175,9 +175,9 @@ function CastPanel({ castaways }: any) {
             )
           })}
         </div>
-        <div style={{ padding: '6px 8px 4px', textAlign: 'center' }}>
-          <a href="/castaways" className="c-cyan" style={{ fontSize: 10, textDecoration: 'none', letterSpacing: '.08em' }}>
-            VIEW FULL DOSSIERS →
+        <div style={{ padding: '2px 8px 4px', textAlign: 'right' }}>
+          <a href="/castaways" className="c-dim" style={{ fontSize: 9, textDecoration: 'none', letterSpacing: '.06em' }}>
+            all →
           </a>
         </div>
       </div>
