@@ -173,14 +173,47 @@ function FeedPanel({ season, aliveCount, openMarketCount, profile, user, isDemo,
 }
 
 /* ─────────────────────────────────────────────
-   CAST TAB — 4-col compact castaway grid
+   CAST TAB — grid + inline profile
 ───────────────────────────────────────────── */
+const STAT_ABBR: Record<string, string> = { paranoia: 'PAR', gaslighting: 'GAS', likeability: 'LIK', physical: 'PHY', moxie: 'MOX' }
+const STAT_COLOR: Record<string, string> = { paranoia: 'var(--red)', gaslighting: 'var(--purple)', likeability: 'var(--cyan)', physical: 'var(--green)', moxie: 'var(--amber)' }
+
+function castStat(c: any, k: string) { return Number(c.stats?.[k] ?? 0) }
+function castThreat(c: any) {
+  if (c.status === 'consumed') return { label: 'Consumed', cls: 'c-red' }
+  if (c.status === 'ghost')    return { label: 'Haunting', cls: 'c-purple' }
+  const s = castStat(c,'gaslighting')*.22 + castStat(c,'likeability')*.2 + castStat(c,'physical')*.18 + castStat(c,'moxie')*.22 + castStat(c,'paranoia')*.18 + c.idol_count*8
+  if (s >= 76) return { label: 'Finalist', cls: 'c-yellow' }
+  if (s >= 62) return { label: 'Dangerous', cls: 'c-amber' }
+  if (s >= 48) return { label: 'Unstable', cls: 'c-purple' }
+  return { label: 'Low signal', cls: 'c-dim' }
+}
+function castBoot(c: any) {
+  if (c.status !== 'alive') return { label: 'Out', cls: 'c-dim' }
+  const s = castStat(c,'paranoia')*.38 + (100-castStat(c,'likeability'))*.28 + (100-castStat(c,'moxie'))*.18 + (c.condition==='starving'?10:0) + (c.condition==='hallucinating'?14:0) - c.idol_count*10
+  if (s >= 70) return { label: 'High boot', cls: 'c-red' }
+  if (s >= 48) return { label: 'Mid boot', cls: 'c-amber' }
+  return { label: 'Low boot', cls: 'c-green' }
+}
+function castWinner(c: any) {
+  if (c.status !== 'alive') return { label: 'Out', cls: 'c-dim' }
+  const s = castStat(c,'likeability')*.32 + castStat(c,'moxie')*.28 + castStat(c,'gaslighting')*.18 + castStat(c,'physical')*.12 - castStat(c,'paranoia')*.18 + c.idol_count*8
+  if (s >= 56) return { label: 'Winner upside', cls: 'c-yellow' }
+  if (s >= 38) return { label: 'Live', cls: 'c-amber' }
+  return { label: 'Long shot', cls: 'c-dim' }
+}
+
 function CastPanel({ castaways, tribes }: any) {
+  const [selected, setSelected] = useState<any>(null)
   const all = castaways ?? []
   const alive = all.filter((c: any) => c.status === 'alive').length
   const tribeColor: Record<number, string> = Object.fromEntries(
     (tribes ?? []).map((t: any) => [t.id, t.color ?? 'var(--cyan)'])
   )
+
+  if (selected) {
+    return <CastProfile castaway={selected} tribeColor={tribeColor} onBack={() => setSelected(null)} />
+  }
 
   return (
     <div className="hud-panel-inner">
@@ -192,25 +225,20 @@ function CastPanel({ castaways, tribes }: any) {
         <div className="hud-cast-grid">
           {all.map((c: any) => {
             const isAlive = c.status === 'alive'
-            const portraitBorder = isAlive
-              ? (tribeColor[c.tribe_id] ?? 'var(--cyan)')
-              : 'var(--wrong)'
+            const portraitBorder = isAlive ? (tribeColor[c.tribe_id] ?? 'var(--cyan)') : 'var(--wrong)'
             return (
-              <a key={c.id} href={`/castaways?id=${c.id}`} style={{ textDecoration: 'none' }}>
+              <button
+                key={c.id}
+                onClick={() => setSelected(c)}
+                style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', width: '100%' }}
+              >
                 <div
                   className="hud-cast-card panel"
                   style={{ borderColor: isAlive ? 'var(--green)' : 'var(--wrong)', opacity: isAlive ? 1 : 0.45 }}
                 >
                   {c.portrait_file ? (
-                    <img
-                      src={`/portraits/${c.portrait_file}`}
-                      alt={c.name}
-                      className="hud-cast-portrait"
-                      style={{
-                        borderColor: portraitBorder,
-                        filter: !isAlive ? 'grayscale(100%)' : undefined,
-                      }}
-                    />
+                    <img src={`/portraits/${c.portrait_file}`} alt={c.name} className="hud-cast-portrait"
+                      style={{ borderColor: portraitBorder, filter: !isAlive ? 'grayscale(100%)' : undefined }} />
                   ) : (
                     <div className="hud-cast-portrait" style={{ borderColor: portraitBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold', color: portraitBorder }}>
                       {c.name[0]}
@@ -220,15 +248,94 @@ function CastPanel({ castaways, tribes }: any) {
                     {c.name}
                   </div>
                 </div>
-              </a>
+              </button>
             )
           })}
         </div>
-        <div style={{ padding: '2px 8px 4px', textAlign: 'right' }}>
-          <a href="/castaways" className="c-dim" style={{ fontSize: 9, textDecoration: 'none', letterSpacing: '.06em' }}>
-            all →
-          </a>
+      </div>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────
+   CAST PROFILE — inline dossier in the panel
+───────────────────────────────────────────── */
+function CastProfile({ castaway: c, tribeColor, onBack }: any) {
+  const isAlive = c.status === 'alive'
+  const tribeBorder = isAlive ? (tribeColor[c.tribe_id] ?? 'var(--cyan)') : 'var(--wrong)'
+  const threat = castThreat(c)
+  const boot   = castBoot(c)
+  const winner = castWinner(c)
+
+  return (
+    <div className="hud-panel-inner">
+      {/* Header with back button */}
+      <div className="hdr hud-hdr" style={{ gap: 6 }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--cyan)', cursor: 'pointer', padding: '0 4px 0 0', fontSize: 13, lineHeight: 1, fontFamily: 'monospace' }}>←</button>
+        <span className="c-white" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+        <span className={`tag text-[9px] ${c.status === 'alive' ? 'c-green' : c.status === 'ghost' ? 'c-purple' : 'c-red'}`}>{c.status}</span>
+      </div>
+
+      <div className="hud-panel-body" style={{ padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+
+        {/* Hero row: portrait + identity */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          {c.portrait_file ? (
+            <img src={`/portraits/${c.portrait_file}`} alt={c.name}
+              style={{ width: 52, height: 52, imageRendering: 'pixelated', background: '#c8bfa8', border: `2px solid ${tribeBorder}`, flexShrink: 0,
+                filter: c.status === 'ghost' ? 'grayscale(60%) brightness(0.7)' : c.status === 'consumed' ? 'grayscale(100%)' : undefined }} />
+          ) : (
+            <div style={{ width: 52, height: 52, border: `2px solid ${tribeBorder}`, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: tribeBorder }}>{c.name[0]}</div>
+          )}
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div className="c-dim" style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 2 }}>{c.archetype}</div>
+            <div style={{ fontSize: 10, color: tribeBorder, marginBottom: 2 }}>◈ {c.trait}</div>
+            <div className="c-dim" style={{ fontSize: 9 }}>
+              {c.condition !== 'healthy' && <span className={c.condition === 'hallucinating' ? 'c-purple' : 'c-amber'}>{c.condition} · </span>}
+              {c.idol_count > 0 && <span className="c-yellow">✦×{c.idol_count} · </span>}
+              T{c.tribe + 1}{c.age ? ` · age ${c.age}` : ''}
+            </div>
+            {c.hometown && <div className="c-dim" style={{ fontSize: 9 }}>{c.hometown}</div>}
+          </div>
         </div>
+
+        {/* Reads */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+          <span className={`tag ${threat.cls}`} style={{ fontSize: 9 }}>{threat.label}</span>
+          <span className={`tag ${boot.cls}`} style={{ fontSize: 9 }}>{boot.label}</span>
+          <span className={`tag ${winner.cls}`} style={{ fontSize: 9 }}>{winner.label}</span>
+        </div>
+
+        {/* Stats — 2-column compact bars */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 10px' }}>
+          {Object.entries(c.stats ?? {}).map(([k, v]) => (
+            <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 8, color: STAT_COLOR[k] ?? 'var(--dim)', width: 22, flexShrink: 0 }}>{STAT_ABBR[k] ?? k.slice(0,3).toUpperCase()}</span>
+              <div style={{ flex: 1, height: 4, background: '#0a1a0a', borderRadius: 1 }}>
+                <div style={{ width: `${Math.round(Number(v))}%`, height: '100%', background: STAT_COLOR[k] ?? '#2a4a2a', borderRadius: 1 }} />
+              </div>
+              <span className="c-dim" style={{ fontSize: 8, width: 18, textAlign: 'right', flexShrink: 0 }}>{Math.round(Number(v))}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Job + audition — below fold */}
+        {c.job && (
+          <div className="c-dim" style={{ fontSize: 9 }}>
+            <span style={{ color: 'var(--amber)', marginRight: 4 }}>JOB</span>{c.job}
+          </div>
+        )}
+        {c.audition_tape && (
+          <div className="c-dim" style={{ fontSize: 9, fontStyle: 'italic', lineHeight: 1.4, borderTop: '1px solid #0a1a0a', paddingTop: 5 }}>
+            {c.audition_tape}
+          </div>
+        )}
+
+        {/* Link to full dossier */}
+        <div style={{ textAlign: 'right', marginTop: 'auto', paddingTop: 4 }}>
+          <a href={`/castaways?id=${c.id}`} className="c-dim" style={{ fontSize: 9, textDecoration: 'none', letterSpacing: '.06em' }}>full dossier →</a>
+        </div>
+
       </div>
     </div>
   )
