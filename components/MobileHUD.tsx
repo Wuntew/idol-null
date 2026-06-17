@@ -130,11 +130,6 @@ function FeedPanel({ season, aliveCount, openMarketCount, profile, user, isDemo,
     <div className="hud-panel-inner">
       <div className="hdr hud-hdr">
         <span>◉ SIGNAL STATUS</span>
-        {season && (
-          <span className={`tag text-[9px] ${season.status === 'active' ? 'c-green' : 'c-amber'}`}>
-            {season.status.toUpperCase()}
-          </span>
-        )}
       </div>
       <div className="hud-panel-body">
         {/* 2 × 2 stat grid */}

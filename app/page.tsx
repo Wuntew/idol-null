@@ -179,7 +179,7 @@ export default async function HomePage() {
             <span>▶ LIVE FEED // confessional log</span>
             {season && (
               <span className="c-dim text-[11px]">
-                S{season.season_number} · DAY {season.current_day} · <span className={season.status === 'active' ? 'c-green' : 'c-amber'}>{season.status.toUpperCase()}</span>
+                S{season.season_number} · DAY {season.current_day}
               </span>
             )}
           </div>

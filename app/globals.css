@@ -409,7 +409,7 @@ input::placeholder, textarea::placeholder { color: #4a3a26; }
 
   .hud-panel {
     flex: none;
-    height: 248px; /* hdr ~28px + 3 portrait rows ~64px each + gaps */
+    height: 188px; /* hdr ~25px + grid padding 8px + 2 portrait rows ~68px + gap 4px + footer 15px */
   }
 
   /* ── Section headers inside HUD ── */

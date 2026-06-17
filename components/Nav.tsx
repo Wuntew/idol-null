@@ -34,7 +34,6 @@ export default async function Nav() {
             {season && (
               <>
                 <span className="c-cyan nowrap">S<b>{season.season_number}</b>·D<b>{season.current_day}</b></span>
-                <span className={`tag text-[9px] ${season.status === 'active' ? 'c-green' : 'c-amber'}`}>{season.status.toUpperCase()}</span>
               </>
             )}
             {!user && <a href="/login" className="btn amber text-[9px]" style={{ textDecoration: 'none', whiteSpace: 'nowrap', padding: '2px 6px', fontWeight: 'bold', minHeight: 'unset', lineHeight: 1 }}>SIGN IN</a>}
@@ -45,7 +44,6 @@ export default async function Nav() {
                 <>
               <span className="nowrap c-purple">S<b>{season.season_number}</b></span>
               <span className="nowrap c-cyan">DAY <b>{season.current_day}</b></span>
-              <span className={`nowrap tag ${season.status === 'active' ? 'c-green' : 'c-amber'}`}>{season.status.toUpperCase()}</span>
             </>
           )}
           {profile && <span className="nowrap c-yellow"><b>{profile.points}</b><span className="c-dim">pts</span></span>}
