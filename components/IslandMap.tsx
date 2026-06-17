@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type Castaway = {
   id: number
@@ -19,6 +19,7 @@ interface Props {
   seasonSeed?: number
   challenges?: ChallengeArena[]
   currentDay?: number
+  compact?: boolean
 }
 
 const TW = 136, TH = 68, TS = 5
@@ -71,8 +72,9 @@ const EV_CLR: Record<number, string> = {
   9: '#0a000a', 10: '#2a4a6a', 11: '#8a8a9a', 12: '#cc4400',
 }
 
-export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [], currentDay = 0 }: Props) {
+export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [], currentDay = 0, compact = false }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [legendOpen, setLegendOpen] = useState(false)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -297,6 +299,50 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
     rafId = requestAnimationFrame(render)
     return () => cancelAnimationFrame(rafId)
   }, [castaways, seasonSeed, challenges, currentDay])
+
+  if (compact) {
+    return (
+      <div style={{ position: 'relative', display: 'block', flexShrink: 0 }}>
+        <canvas
+          ref={canvasRef}
+          width={TW * TS}
+          height={TH * TS}
+          style={{ display: 'block', width: '100%', imageRendering: 'pixelated' }}
+        />
+        {/* Tappable legend toggle */}
+        <button
+          onClick={() => setLegendOpen(o => !o)}
+          style={{
+            position: 'absolute', bottom: 4, right: 4,
+            background: 'rgba(0,0,0,0.78)', border: '1px solid #1a4a1a',
+            color: legendOpen ? '#00ff44' : '#3a8a3a',
+            fontSize: 9, padding: '2px 6px', cursor: 'pointer',
+            fontFamily: 'monospace', letterSpacing: '.06em', lineHeight: 1.4,
+          }}
+          aria-label="Toggle map legend"
+        >
+          ◈ KEY
+        </button>
+        {/* Legend overlay */}
+        {legendOpen && (
+          <div style={{
+            position: 'absolute', bottom: 24, right: 4,
+            background: 'rgba(4,10,4,0.92)', border: '1px solid #1a3a1a',
+            padding: '6px 8px', fontSize: 9, fontFamily: 'monospace',
+            display: 'flex', flexDirection: 'column', gap: 4,
+            zIndex: 10, pointerEvents: 'none',
+          }}>
+            <span style={{ color: '#00ff44' }}>● alive castaway</span>
+            <span style={{ color: '#ff4444' }}>● eliminated</span>
+            <span style={{ color: '#FFD700' }}>● challenge arena</span>
+            <span style={{ color: '#5a7a3a' }}>◼ jungle / highland</span>
+            <span style={{ color: '#4a3a1a' }}>◼ ruins / camp</span>
+            <span style={{ color: '#1a4a6e' }}>◼ coast / ocean</span>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="panel" style={{ padding: 8 }}>

@@ -104,6 +104,8 @@ export default async function HomePage() {
       latestSummary={latestSummary}
       aliveCount={aliveCount}
       openMarketCount={openMarketCount}
+      seasonSeed={season?.seed ?? 1337}
+      challenges={challenges as { label: string; x: number; y: number; sort_order: number }[]}
     />
 
     {/* ── DESKTOP GRID (hidden on mobile) ── */}

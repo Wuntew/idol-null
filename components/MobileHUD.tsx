@@ -45,28 +45,15 @@ export default function MobileHUD({
 
       {/* ── TOP zone — Island Map + Live Feed ── */}
       <div className="hud-zone hud-feed panel" style={{ display: 'flex', flexDirection: 'column' }}>
-        {/* Map */}
-        <div style={{ flexShrink: 0, padding: '4px 4px 0' }}>
-          <IslandMap
-            castaways={(castaways ?? []).map((c: any) => ({ id: c.id, name: c.name, status: c.status }))}
-            seasonSeed={seasonSeed}
-            challenges={challenges}
-            currentDay={season?.current_day ?? 0}
-          />
-        </div>
-        {/* Feed header */}
-        <div className="hdr hud-hdr" style={{ flexShrink: 0 }}>
-          <span>▶ LIVE FEED</span>
-          {season && (
-            <span className="c-dim" style={{ fontSize: 10, fontWeight: 'normal', letterSpacing: '.04em' }}>
-              &nbsp;// S{season.season_number}·D{season.current_day}&nbsp;
-              <span className={season.status === 'active' ? 'c-green' : 'c-amber'}>
-                {season.status.toUpperCase()}
-              </span>
-            </span>
-          )}
-        </div>
-        {/* Feed — grows to fill remaining space */}
+        {/* Map — compact mode: no chrome, tappable legend */}
+        <IslandMap
+          castaways={(castaways ?? []).map((c: any) => ({ id: c.id, name: c.name, status: c.status }))}
+          seasonSeed={seasonSeed}
+          challenges={challenges}
+          currentDay={season?.current_day ?? 0}
+          compact
+        />
+        {/* Feed — grows to fill remaining space, no header */}
         <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
           <GameFeed initialLogs={logs} seasonId={season?.id ?? null} />
         </div>
@@ -134,15 +121,6 @@ function FeedPanel({ season, aliveCount, openMarketCount, profile, user, isDemo,
             <div className="c-yellow hud-stat-val">{profile?.points ?? 0}</div>
           </div>
         </div>
-
-        {/* Sign-in CTA */}
-        {!user && !isDemo && (
-          <div style={{ padding: '0 8px 8px' }}>
-            <a href="/login" className="btn amber" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', fontSize: 11 }}>
-              ⚡ SIGN IN TO PLAY
-            </a>
-          </div>
-        )}
 
         {/* Latest day narrative */}
         {latestSummary?.summary_data?.aiNarrative && (
@@ -222,12 +200,6 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo }: an
         </span>
       </div>
       <div className="hud-panel-body">
-        {!user && !isDemo && (
-          <div style={{ padding: '6px 8px', borderBottom: '1px dotted #0a120a', fontSize: 10 }}>
-            <a href="/login" className="c-amber">Sign in</a>
-            <span className="c-dim"> to place predictions.</span>
-          </div>
-        )}
         {openMarketCount === 0 && (
           <div className="c-dim" style={{ padding: '8px', fontSize: 10 }}>No open markets.</div>
         )}
@@ -271,12 +243,7 @@ function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
         </span>
       </div>
       <div className="hud-panel-body">
-        {!user && !isDemo ? (
-          <div style={{ padding: 10, fontSize: 10 }}>
-            <a href="/login" className="c-purple">Sign in</a>
-            <span className="c-dim"> to spend influence.</span>
-          </div>
-        ) : !seasonActive ? (
+        {!seasonActive ? (
           <div className="c-dim" style={{ padding: 10, fontSize: 10 }}>
             Influence opens during an active season.
           </div>
@@ -348,13 +315,9 @@ function MorePanel({ season, aliveCount, profile, user, isDemo }: any) {
 
         {/* Account */}
         <div className="hud-more-account">
-          {user ? (
+          {user && (
             <a href="/api/auth/signout" className="btn red" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', fontSize: 11 }}>
               SIGN OUT
-            </a>
-          ) : (
-            <a href="/login" className="btn amber" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', fontSize: 11 }}>
-              ⚡ SIGN IN
             </a>
           )}
         </div>
