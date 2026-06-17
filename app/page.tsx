@@ -7,6 +7,7 @@ import DemoModeBanner from '@/components/DemoModeBanner'
 import HowToPlayPanel from '@/components/HowToPlayPanel'
 import CommandCenter from '@/components/CommandCenter'
 import MobileHUD from '@/components/MobileHUD'
+import IslandMap from '@/components/IslandMap'
 import { SUPABASE_CONFIGURED } from '@/lib/runtime'
 import { getDemoDashboardData } from '@/lib/demo'
 
@@ -31,7 +32,7 @@ export default async function HomePage() {
   const season = demo?.season ?? (supabase
     ? (await supabase
       .from('seasons')
-      .select('*')
+      .select('id, season_number, status, current_day, seed')
       .in('status', ['preseason', 'active'])
       .order('id', { ascending: false })
       .limit(1)
@@ -57,6 +58,10 @@ export default async function HomePage() {
   const memoryRows = demo?.memories ?? (season && supabase
     ? (await supabase.from('castaway_memories').select('castaway_id, memory').eq('season_id', season.id)).data
     : [])
+
+  const challenges = season && supabase
+    ? (await supabase.from('challenges').select('label, x, y').eq('season_id', season.id)).data ?? []
+    : []
 
   const profile = demo?.profile ?? (user && supabase
     ? (await supabase.from('profiles').select('points').eq('id', user.id).single()).data
@@ -135,8 +140,14 @@ export default async function HomePage() {
         )}
       </section>
 
-      {/* CENTER — live feed */}
+      {/* CENTER — island map + live feed stacked */}
       <section id="live-feed" className="feed-shell" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <IslandMap
+          castaways={(castaways ?? []).map(c => ({ id: c.id, name: c.name, status: c.status }))}
+          seasonSeed={season?.seed ?? 1337}
+          challenges={challenges as { label: string; x: number; y: number; sort_order: number }[]}
+          currentDay={season?.current_day ?? 0}
+        />
         <div className="panel" style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="hdr flex justify-between items-center">
             <span>▶ LIVE FEED // confessional log</span>

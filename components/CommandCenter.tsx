@@ -94,9 +94,6 @@ export default function CommandCenter(props: Props) {
           <p className="command-next">{nextMove}</p>
           <p className="command-situation">{situation}</p>
           <div className="flex flex-wrap gap-2 mt-3">
-            {!isLoggedIn && !isDemo && (
-              <a href="/login" className="btn amber command-cta" style={{ textDecoration: 'none' }}>Sign in to play</a>
-            )}
             <a href="#market-book" className="btn command-cta" style={{ textDecoration: 'none' }}>View markets</a>
             <a href="#live-feed" className="btn cyan command-cta" style={{ textDecoration: 'none' }}>Read feed</a>
           </div>

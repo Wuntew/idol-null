@@ -26,13 +26,11 @@ export default function NavClient({ isLoggedIn, username }: { isLoggedIn: boolea
       <a href="/preseason" className="btn purple text-[11px]" style={{ textDecoration: 'none' }}>⛧ PRESEASON</a>
       <a href="/leaderboard" className="btn cyan text-[11px]" style={{ textDecoration: 'none' }}>◈ LEADERBOARD</a>
       <span className="c-dim">|</span>
-      {isLoggedIn ? (
+      {isLoggedIn && (
         <>
           <span className="c-dim text-[11px]">{username}</span>
           <button onClick={signOut} className="btn red text-[11px]">SIGN OUT</button>
         </>
-      ) : (
-        <a href="/login" className="btn amber text-[11px]" style={{ textDecoration: 'none' }}>⚡ SIGN IN</a>
       )}
     </div>
   )

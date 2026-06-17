@@ -52,19 +52,30 @@ export default function GameFeed({ initialLogs, seasonId }: { initialLogs: LogRo
 
   return (
     <div className="scroll feed-scroll p-2 text-[12px]">
-      <div className="flex flex-wrap gap-1 mb-2 pb-2" style={{ borderBottom: '1px solid #052005' }}>
-        <span className="c-dim text-[10px] self-center mr-1">FILTER:</span>
-        {LOG_TYPES.map(type => (
+      <details className="mb-2 pb-2" style={{ borderBottom: '1px solid #052005' }}>
+        <summary className="c-dim text-[10px] cursor-pointer" style={{ listStyle: 'none', userSelect: 'none' }}>
+          ▾ FILTER [{filters.size}/{LOG_TYPES.length} active]
+        </summary>
+        <div className="flex flex-wrap gap-1 mt-1">
           <button
-            key={type}
-            onClick={() => toggleFilter(type)}
-            className={`btn text-[10px] ${filters.has(type) ? 'on' : ''} ${LOG_COLOR[type] ?? ''}`}
-            style={{ padding: '1px 5px', opacity: filters.has(type) ? 1 : 0.38 }}
+            onClick={() => setFilters(filters.size === LOG_TYPES.length ? new Set() : new Set(LOG_TYPES))}
+            className="btn text-[10px] c-dim"
+            style={{ padding: '1px 5px' }}
           >
-            {type.toUpperCase()}
+            {filters.size === LOG_TYPES.length ? 'CLEAR ALL' : 'SELECT ALL'}
           </button>
-        ))}
-      </div>
+          {LOG_TYPES.map(type => (
+            <button
+              key={type}
+              onClick={() => toggleFilter(type)}
+              className={`btn text-[10px] ${filters.has(type) ? 'on' : ''} ${LOG_COLOR[type] ?? ''}`}
+              style={{ padding: '1px 5px', opacity: filters.has(type) ? 1 : 0.38 }}
+            >
+              {type.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </details>
 
       {logs.length === 0 && <div className="c-dim">// signal silent. no events yet.</div>}
       {logs.length > 0 && visibleLogs.length === 0 && <div className="c-dim">// no events match the active filters.</div>}

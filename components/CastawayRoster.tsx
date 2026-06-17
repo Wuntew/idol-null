@@ -403,7 +403,7 @@ export default function CastawayRoster({
         )}
       </div>
 
-      <div className="scroll p-1" style={{ maxHeight: '82vh' }}>
+      <div className="scroll p-1" style={{ maxHeight: 124 }}>
         {castaways.map(c => (
           <CastawayCard
             key={c.id}

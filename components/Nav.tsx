@@ -46,6 +46,7 @@ export default async function Nav() {
             </>
           )}
           {profile && <span className="nowrap c-yellow"><b>{profile.points}</b><span className="c-dim">pts</span></span>}
+          {!user && <a href="/login" className="btn amber text-[11px]" style={{ textDecoration: 'none', marginLeft: 'auto' }}>⚡ SIGN IN</a>}
         </div>
       </div>
       <NavClient isLoggedIn={!!user} username={profile?.username ?? null} />
