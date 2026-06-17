@@ -393,15 +393,23 @@ input::placeholder, textarea::placeholder { color: #4a3a26; }
     gap: 0;
   }
 
-  /* ── Both zones share the space equally (50 / 50) ── */
+  /* ── Feed zone grows; panel zone is fixed to 2 cast rows ── */
   .hud-zone {
-    flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     margin: 4px 4px 0;
     border-radius: 0;
+  }
+
+  .hud-feed {
+    flex: 1;
+  }
+
+  .hud-panel {
+    flex: none;
+    height: 196px; /* hdr ~28px + 2 cast rows ~65px each + gaps + link ~28px */
   }
 
   /* ── Section headers inside HUD ── */

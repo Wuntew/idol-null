@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import GameFeed from './GameFeed'
+import IslandMap from './IslandMap'
 
 type Tab = 'feed' | 'cast' | 'bet' | 'noise' | 'more'
 
@@ -19,6 +20,8 @@ interface Props {
   latestSummary: any
   aliveCount: number
   openMarketCount: number
+  seasonSeed?: number
+  challenges?: { label: string; x: number; y: number; sort_order: number }[]
 }
 
 const TABS: { id: Tab; ico: string; label: string }[] = [
@@ -33,15 +36,26 @@ export default function MobileHUD({
   logs, castaways, markets, groupedMarkets,
   season, profile, user, isDemo, seasonActive,
   userPredictions, latestSummary, aliveCount, openMarketCount,
+  seasonSeed = 1337, challenges = [],
 }: Props) {
   const [tab, setTab] = useState<Tab>('feed')
 
   return (
     <div className="mobile-hud">
 
-      {/* ── TOP 50 % — Live Feed ── */}
-      <div className="hud-zone hud-feed panel">
-        <div className="hdr hud-hdr">
+      {/* ── TOP zone — Island Map + Live Feed ── */}
+      <div className="hud-zone hud-feed panel" style={{ display: 'flex', flexDirection: 'column' }}>
+        {/* Map */}
+        <div style={{ flexShrink: 0, padding: '4px 4px 0' }}>
+          <IslandMap
+            castaways={(castaways ?? []).map((c: any) => ({ id: c.id, name: c.name, status: c.status }))}
+            seasonSeed={seasonSeed}
+            challenges={challenges}
+            currentDay={season?.current_day ?? 0}
+          />
+        </div>
+        {/* Feed header */}
+        <div className="hdr hud-hdr" style={{ flexShrink: 0 }}>
           <span>▶ LIVE FEED</span>
           {season && (
             <span className="c-dim" style={{ fontSize: 10, fontWeight: 'normal', letterSpacing: '.04em' }}>
@@ -52,7 +66,10 @@ export default function MobileHUD({
             </span>
           )}
         </div>
-        <GameFeed initialLogs={logs} seasonId={season?.id ?? null} />
+        {/* Feed — grows to fill remaining space */}
+        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+          <GameFeed initialLogs={logs} seasonId={season?.id ?? null} />
+        </div>
       </div>
 
       {/* ── BOTTOM 50 % — Tab Panel ── */}

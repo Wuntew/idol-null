@@ -30,12 +30,15 @@ export default async function Nav() {
             IDOL<span className="c-red">.</span>NULL
           </a>
           <span className="nav-tagline c-dim text-[10px]">// the matrix has spoken</span>
-          {season && (
-            <span className="mobile-only items-center gap-2 text-[10px]" style={{ marginLeft: 'auto' }}>
-              <span className="c-cyan nowrap">S<b>{season.season_number}</b>·D<b>{season.current_day}</b></span>
-              <span className={`tag text-[9px] ${season.status === 'active' ? 'c-green' : 'c-amber'}`}>{season.status.toUpperCase()}</span>
-            </span>
-          )}
+          <span className="mobile-only items-center gap-2 text-[10px]" style={{ marginLeft: 'auto' }}>
+            {season && (
+              <>
+                <span className="c-cyan nowrap">S<b>{season.season_number}</b>·D<b>{season.current_day}</b></span>
+                <span className={`tag text-[9px] ${season.status === 'active' ? 'c-green' : 'c-amber'}`}>{season.status.toUpperCase()}</span>
+              </>
+            )}
+            {!user && <a href="/login" className="btn amber text-[11px]" style={{ textDecoration: 'none' }}>⚡ SIGN IN</a>}
+          </span>
         </div>
         <div className="nav-info-row flex items-center gap-3 px-2 flex-wrap text-[12px]">
           {season && (
