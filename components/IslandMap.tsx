@@ -32,6 +32,12 @@ export type TribeResources = {
   fire_level: number     // 0–5
 }
 
+type MapEvent = {
+  ev_type: number
+  tile_x: number
+  tile_y: number
+}
+
 interface Props {
   castaways: Castaway[]
   seasonSeed?: number
@@ -40,6 +46,7 @@ interface Props {
   compact?: boolean
   tribes?: Tribe[]
   tribeResources?: TribeResources[]
+  mapEvents?: MapEvent[]
 }
 
 const TW = 136, TH = 68, TS = 5
@@ -92,7 +99,7 @@ const EV_CLR: Record<number, string> = {
   9: '#0a000a', 10: '#2a4a6a', 11: '#8a8a9a', 12: '#cc4400',
 }
 
-export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [], currentDay = 0, compact = false, tribes = [], tribeResources = [] }: Props) {
+export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [], currentDay = 0, compact = false, tribes = [], tribeResources = [], mapEvents }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [legendOpen, setLegendOpen] = useState(false)
 
@@ -201,15 +208,27 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
       })
     })()
 
-    // Event state
+    // Event state — seed from DB events when provided, else procedural decoration
     const ev = new Uint8Array(TW * TH)
     const age = new Uint8Array(TW * TH)
-    const evRng = mulberry32(seasonSeed ^ 0xE4E4)
-    const evTypes = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-    for (let i = 0; i < 22; i++) {
-      const x = Math.floor(evRng() * TW), y = Math.floor(evRng() * TH)
-      const idx = y * TW + x
-      if (terrain[idx] >= 2) { ev[idx] = evTypes[Math.floor(evRng() * evTypes.length)]; age[idx] = 0 }
+    if (mapEvents && mapEvents.length > 0) {
+      // DB-sourced events: seed specific tiles, let spreading animation take over
+      for (const me of mapEvents) {
+        const idx = me.tile_y * TW + me.tile_x
+        if (idx >= 0 && idx < TW * TH && terrain[idx] >= 2) {
+          ev[idx] = me.ev_type
+          age[idx] = 0
+        }
+      }
+    } else {
+      // Procedural fallback for live map
+      const evRng = mulberry32(seasonSeed ^ 0xE4E4)
+      const evTypes = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+      for (let i = 0; i < 22; i++) {
+        const x = Math.floor(evRng() * TW), y = Math.floor(evRng() * TH)
+        const idx = y * TW + x
+        if (terrain[idx] >= 2) { ev[idx] = evTypes[Math.floor(evRng() * evTypes.length)]; age[idx] = 0 }
+      }
     }
 
     const DIRS = [-1, 1, -TW, TW]
@@ -382,7 +401,7 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
 
     rafId = requestAnimationFrame(render)
     return () => cancelAnimationFrame(rafId)
-  }, [castaways, seasonSeed, challenges, currentDay])
+  }, [castaways, seasonSeed, challenges, currentDay, mapEvents])
 
   if (compact) {
     return (

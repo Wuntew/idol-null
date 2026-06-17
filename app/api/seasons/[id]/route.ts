@@ -14,6 +14,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     { data: logs },
     { data: resources },
     { data: challenges },
+    { data: mapEvents },
   ] = await Promise.all([
     supabase.from('seasons').select('id, season_number, status, current_day, seed').eq('id', id).single(),
     supabase.from('castaways').select('*').eq('season_id', id).order('id'),
@@ -21,6 +22,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     supabase.from('game_log').select('id, day, type, text').eq('season_id', id).order('id', { ascending: true }),
     supabase.from('tribe_resources').select('tribe_id, food, hydration, shelter_level, fire_level, day').eq('season_id', id).order('day', { ascending: true }),
     supabase.from('challenges').select('label, x, y, sort_order').eq('season_id', id),
+    supabase.from('map_events').select('day, ev_type, tile_x, tile_y').eq('season_id', id).order('day', { ascending: true }),
   ])
 
   return NextResponse.json({
@@ -30,5 +32,6 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     logs: logs ?? [],
     resources: resources ?? [],
     challenges: challenges ?? [],
+    mapEvents: mapEvents ?? [],
   })
 }

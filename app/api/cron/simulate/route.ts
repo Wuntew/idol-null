@@ -133,6 +133,17 @@ export async function GET(request: Request) {
     challengeName: result.challengeName,
   })
 
+  // ── Generate map events ──────────────────────────────────────────────────
+  const { data: tribeData } = await supabase
+    .from('tribes')
+    .select('camp_x, camp_y, is_merge_tribe')
+    .eq('season_id', season.id)
+
+  const mapEventRows = generateDayMapEvents(season.id, nextDay, season.seed ?? 1337, tribeData ?? [])
+  if (mapEventRows.length) {
+    await supabase.from('map_events').insert(mapEventRows)
+  }
+
   // ── Write logs ───────────────────────────────────────────────────────────
   const logRows = [
     ...influenceLogs.map(text => ({ season_id: season.id, day: nextDay, text, type: 'influence' })),
@@ -445,6 +456,59 @@ async function bootstrapNewSeason(supabase: ReturnType<typeof createServiceClien
 
 function shuffled<T>(arr: T[]): T[] {
   const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]] } return a
+}
+
+const MAP_TW = 136, MAP_TH = 68
+const MAP_EV_OPTIONS = [1, 1, 3, 3, 9, 12] // fire (×2), flood (×2), anomaly, lava
+
+function seededRng(seed: number) {
+  let s = seed >>> 0
+  return function () {
+    s = (s + 0x6D2B79F5) | 0
+    let t = Math.imul(s ^ (s >>> 15), 1 | s)
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+function generateDayMapEvents(
+  seasonId: number,
+  day: number,
+  seed: number,
+  tribes: { camp_x: number; camp_y: number; is_merge_tribe: boolean }[],
+) {
+  const rng = seededRng(((seed ^ day ^ 0x4C4F4F50) >>> 0))
+
+  // ~35% chance of 1 event, ~12% chance of 2
+  const roll = rng()
+  const count = roll < 0.12 ? 2 : roll < 0.47 ? 1 : 0
+  if (count === 0) return []
+
+  const rows: { season_id: number; day: number; ev_type: number; tile_x: number; tile_y: number }[] = []
+  const activeTribes = tribes.filter(t => !t.is_merge_tribe)
+
+  for (let i = 0; i < count; i++) {
+    const evType = MAP_EV_OPTIONS[Math.floor(rng() * MAP_EV_OPTIONS.length)]
+
+    let baseX: number, baseY: number
+    if (activeTribes.length > 0 && rng() < 0.65) {
+      const tribe = activeTribes[Math.floor(rng() * activeTribes.length)]
+      baseX = tribe.camp_x
+      baseY = tribe.camp_y
+    } else {
+      baseX = Math.floor(rng() * MAP_TW)
+      baseY = Math.floor(rng() * MAP_TH)
+    }
+
+    const ox = Math.floor((rng() - 0.5) * 24)
+    const oy = Math.floor((rng() - 0.5) * 16)
+    const tx = Math.max(4, Math.min(MAP_TW - 4, baseX + ox))
+    const ty = Math.max(4, Math.min(MAP_TH - 4, baseY + oy))
+
+    rows.push({ season_id: seasonId, day, ev_type: evType, tile_x: tx, tile_y: ty })
+  }
+
+  return rows
 }
 
 export const POST = GET

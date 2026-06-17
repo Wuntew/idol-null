@@ -45,7 +45,7 @@ export default function MobileHUD({
   const [tab, setTab] = useState<Tab>('feed')
   const [mapOpen, setMapOpen] = useState(false)
   const [dossier, setDossier] = useState<any>(null)
-  const [archive, setArchive] = useState<{ season: any; castaways: any[]; tribes: any[]; logs: any[]; resources: any[]; challenges: any[] } | null>(null)
+  const [archive, setArchive] = useState<{ season: any; castaways: any[]; tribes: any[]; logs: any[]; resources: any[]; challenges: any[]; mapEvents: any[] } | null>(null)
 
   const tribeColor: Record<number, string> = Object.fromEntries(
     (tribes ?? []).map((t: any) => [t.id, t.color ?? 'var(--cyan)'])
@@ -661,11 +661,11 @@ const LOG_TYPE: Record<string, { icon: string; color: string }> = {
    SEASON ARCHIVE — day-by-day replay + final results
 ───────────────────────────────────────────── */
 function SeasonArchive({ archive, onBack, onOpenDossier }: {
-  archive: { season: any; castaways: any[]; tribes: any[]; logs: any[]; resources: any[]; challenges: any[] }
+  archive: { season: any; castaways: any[]; tribes: any[]; logs: any[]; resources: any[]; challenges: any[]; mapEvents: any[] }
   onBack: () => void
   onOpenDossier: (c: any) => void
 }) {
-  const { season, castaways, tribes, logs, resources, challenges } = archive
+  const { season, castaways, tribes, logs, resources, challenges, mapEvents } = archive
   const maxDay = season?.current_day ?? 1
   const [day, setDay] = useState(1)
   const [mode, setMode] = useState<'replay' | 'results'>('replay')
@@ -698,6 +698,9 @@ function SeasonArchive({ archive, onBack, onOpenDossier }: {
 
   // Logs for this day
   const dayLogs = (logs ?? []).filter((l: any) => l.day === day)
+
+  // Map events for this day
+  const dayMapEvents = (mapEvents ?? []).filter((e: any) => e.day === day)
 
   /* ── Results mode — final standings ── */
   if (mode === 'results') {
@@ -814,6 +817,7 @@ function SeasonArchive({ archive, onBack, onOpenDossier }: {
             currentDay={day}
             tribes={tribes as any[]}
             tribeResources={resourcesOnDay}
+            mapEvents={dayMapEvents}
             compact
           />
         </div>
