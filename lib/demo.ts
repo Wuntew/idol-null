@@ -72,6 +72,7 @@ export function getDemoDashboardData() {
     status: 'active' as const,
     start_date: new Date(Date.now() + 86400000 * 5).toISOString().slice(0, 10),
     current_day: 5,
+    seed: 1337,
     winner_id: null,
     created_at: nowIso(),
   }

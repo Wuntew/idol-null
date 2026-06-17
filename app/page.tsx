@@ -60,7 +60,7 @@ export default async function HomePage() {
     : [])
 
   const challenges = season && supabase
-    ? (await supabase.from('challenges').select('label, x, y').eq('season_id', season.id)).data ?? []
+    ? (await supabase.from('challenges').select('label, x, y, sort_order').eq('season_id', season.id)).data ?? []
     : []
 
   const profile = demo?.profile ?? (user && supabase
