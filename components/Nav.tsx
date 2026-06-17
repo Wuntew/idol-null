@@ -37,7 +37,7 @@ export default async function Nav() {
                 <span className={`tag text-[9px] ${season.status === 'active' ? 'c-green' : 'c-amber'}`}>{season.status.toUpperCase()}</span>
               </>
             )}
-            {!user && <a href="/login" className="btn amber text-[11px]" style={{ textDecoration: 'none', whiteSpace: 'nowrap' }}>⚡ SIGN IN</a>}
+            {!user && <a href="/login" className="btn amber text-[9px]" style={{ textDecoration: 'none', whiteSpace: 'nowrap', padding: '2px 6px', fontWeight: 'bold' }}>SIGN IN</a>}
           </span>
         </div>
         <div className="nav-info-row flex items-center gap-3 px-2 flex-wrap text-[12px]">
@@ -49,7 +49,7 @@ export default async function Nav() {
             </>
           )}
           {profile && <span className="nowrap c-yellow"><b>{profile.points}</b><span className="c-dim">pts</span></span>}
-          {!user && <a href="/login" className="btn amber text-[11px]" style={{ textDecoration: 'none', marginLeft: 'auto' }}>⚡ SIGN IN</a>}
+          {!user && <a href="/login" className="btn amber text-[9px]" style={{ textDecoration: 'none', marginLeft: 'auto', padding: '2px 6px', fontWeight: 'bold' }}>SIGN IN</a>}
         </div>
       </div>
       <NavClient isLoggedIn={!!user} username={profile?.username ?? null} />
