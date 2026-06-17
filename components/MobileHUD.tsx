@@ -45,7 +45,7 @@ export default function MobileHUD({
   const [tab, setTab] = useState<Tab>('feed')
   const [mapOpen, setMapOpen] = useState(false)
   const [dossier, setDossier] = useState<any>(null)
-  const [archive, setArchive] = useState<{ season: any; castaways: any[]; tribes: any[] } | null>(null)
+  const [archive, setArchive] = useState<{ season: any; castaways: any[]; tribes: any[]; logs: any[]; resources: any[]; challenges: any[] } | null>(null)
 
   const tribeColor: Record<number, string> = Object.fromEntries(
     (tribes ?? []).map((t: any) => [t.id, t.color ?? 'var(--cyan)'])
@@ -642,10 +642,34 @@ function MorePanel({ season, aliveCount, profile, user, isDemo, onOpenArchive }:
 }
 
 /* ─────────────────────────────────────────────
-   SEASON ARCHIVE — full-body scrollable results view
+   LOG TYPE metadata
 ───────────────────────────────────────────── */
-function SeasonArchive({ archive, onBack, onOpenDossier }: { archive: { season: any; castaways: any[]; tribes: any[] }; onBack: () => void; onOpenDossier: (c: any) => void }) {
-  const { season, castaways, tribes } = archive
+const LOG_TYPE: Record<string, { icon: string; color: string }> = {
+  system:  { icon: '▓', color: 'var(--dim)'    },
+  host:    { icon: '◉', color: 'var(--cyan)'   },
+  trait:   { icon: '◈', color: 'var(--purple)' },
+  camp:    { icon: '⌂', color: 'var(--cyan)'   },
+  gather:  { icon: '✦', color: 'var(--green)'  },
+  loop:    { icon: '↻', color: 'var(--amber)'  },
+  anomaly: { icon: '◚', color: 'var(--red)'    },
+  vote:    { icon: '☞', color: 'var(--amber)'  },
+  elim:    { icon: '✘', color: 'var(--red)'    },
+  romance: { icon: '♥', color: '#ff6699'       },
+}
+
+/* ─────────────────────────────────────────────
+   SEASON ARCHIVE — day-by-day replay + final results
+───────────────────────────────────────────── */
+function SeasonArchive({ archive, onBack, onOpenDossier }: {
+  archive: { season: any; castaways: any[]; tribes: any[]; logs: any[]; resources: any[]; challenges: any[] }
+  onBack: () => void
+  onOpenDossier: (c: any) => void
+}) {
+  const { season, castaways, tribes, logs, resources, challenges } = archive
+  const maxDay = season?.current_day ?? 1
+  const [day, setDay] = useState(1)
+  const [mode, setMode] = useState<'replay' | 'results'>('replay')
+
   const tribeColor: Record<number, string> = Object.fromEntries(
     (tribes ?? []).map((t: any) => [t.id, t.color ?? 'var(--cyan)'])
   )
@@ -653,93 +677,181 @@ function SeasonArchive({ archive, onBack, onOpenDossier }: { archive: { season: 
     (tribes ?? []).map((t: any) => [t.id, t.name ?? ''])
   )
 
-  // Sort: winner (alive, no elimination_day) first, then by elimination_day DESC
-  const sorted = [...castaways].sort((a, b) => {
-    if (a.status === 'alive' && b.status !== 'alive') return -1
-    if (b.status === 'alive' && a.status !== 'alive') return 1
-    return (b.elimination_day ?? 0) - (a.elimination_day ?? 0)
-  })
+  /* ── Per-day derived data ── */
+  // Castaways alive on this day (eliminated after day or winner)
+  const castawaysOnDay = (castaways ?? [])
+    .filter((c: any) => c.status === 'alive' || c.elimination_day == null || c.elimination_day >= day)
+    .map((c: any) => ({
+      id: c.id, name: c.name, tribe_id: c.tribe_id,
+      status: c.elimination_day === day ? 'ghost' : 'alive',
+    }))
 
-  const winner = sorted.find(c => c.status === 'alive')
+  // Tribe resources up to this day (most recent per tribe)
+  const resourcesOnDay: any[] = Object.values(
+    (resources ?? [])
+      .filter((r: any) => r.day <= day)
+      .reduce<Record<number, any>>((acc, r: any) => {
+        if (!acc[r.tribe_id] || acc[r.tribe_id].day < r.day) acc[r.tribe_id] = r
+        return acc
+      }, {})
+  )
 
+  // Logs for this day
+  const dayLogs = (logs ?? []).filter((l: any) => l.day === day)
+
+  /* ── Results mode — final standings ── */
+  if (mode === 'results') {
+    const sorted = [...(castaways ?? [])].sort((a: any, b: any) => {
+      if (a.status === 'alive' && b.status !== 'alive') return -1
+      if (b.status === 'alive' && a.status !== 'alive') return 1
+      return (b.elimination_day ?? 0) - (a.elimination_day ?? 0)
+    })
+    const winner = sorted.find((c: any) => c.status === 'alive')
+    return (
+      <div className="hud-zone hud-feed panel" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div className="hdr hud-hdr" style={{ flexShrink: 0, gap: 6 }}>
+          <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--cyan)', cursor: 'pointer',
+            padding: '0 6px 0 0', fontSize: 14, lineHeight: 1, fontFamily: 'monospace' }}>{'←'}</button>
+          <span className="c-white" style={{ fontWeight: 'bold' }}>SEASON {season?.season_number}</span>
+          <button onClick={() => setMode('replay')} style={{ marginLeft: 'auto', background: 'none',
+            border: '1px solid var(--dim)', color: 'var(--dim)', cursor: 'pointer',
+            fontSize: 9, padding: '2px 6px', fontFamily: 'monospace', letterSpacing: '.06em' }}>◀ REPLAY</button>
+        </div>
+        {winner && (
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a', display: 'flex', alignItems: 'center', gap: 8 }}>
+            {winner.portrait_file && (
+              <img src={`/portraits/${winner.portrait_file}`} alt={winner.name}
+                style={{ width: 40, height: 40, imageRendering: 'pixelated', border: '2px solid var(--yellow)', background: '#c8bfa8' }} />
+            )}
+            <div>
+              <div style={{ color: 'var(--yellow)', fontSize: 11, fontWeight: 'bold' }}>✦ {winner.name}</div>
+              <div className="c-dim" style={{ fontSize: 9 }}>SEASON {season?.season_number} WINNER</div>
+            </div>
+          </div>
+        )}
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: '#1f2a1f #000' }}>
+          {sorted.map((c: any, i: number) => {
+            const isWinner = c.status === 'alive'
+            const border = isWinner ? 'var(--yellow)' : (tribeColor[c.tribe_id] ?? 'var(--dim)')
+            return (
+              <button key={c.id} onClick={() => onOpenDossier(c)}
+                style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 8,
+                  padding: '5px 8px', background: 'none', border: 'none',
+                  borderBottom: '1px solid #0a1a0a', cursor: 'pointer', textAlign: 'left' }}>
+                <div style={{ width: 24, flexShrink: 0, textAlign: 'center' }}>
+                  {isWinner ? <span style={{ color: 'var(--yellow)', fontSize: 12 }}>✦</span>
+                    : <span className="c-dim" style={{ fontSize: 9 }}>#{i}</span>}
+                </div>
+                {c.portrait_file ? (
+                  <img src={`/portraits/${c.portrait_file}`} alt={c.name}
+                    style={{ width: 32, height: 32, imageRendering: 'pixelated', flexShrink: 0,
+                      border: `1px solid ${border}`, background: '#c8bfa8',
+                      filter: !isWinner ? 'grayscale(75%) brightness(0.65)' : undefined }} />
+                ) : (
+                  <div style={{ width: 32, height: 32, flexShrink: 0, border: `1px solid ${border}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: border }}>
+                    {c.name[0]}
+                  </div>
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10, fontWeight: isWinner ? 'bold' : 'normal',
+                    color: isWinner ? 'var(--yellow)' : 'var(--white)',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
+                  <div style={{ fontSize: 8, color: tribeColor[c.tribe_id] ?? 'var(--dim)', marginTop: 1 }}>{tribeName[c.tribe_id] ?? ''}</div>
+                </div>
+                <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                  {isWinner ? <span style={{ color: 'var(--yellow)', fontSize: 9 }}>WINNER</span> : (
+                    <>
+                      <div className="c-dim" style={{ fontSize: 9 }}>day {c.elimination_day ?? '?'}</div>
+                      <div style={{ fontSize: 8, color: c.status === 'consumed' ? 'var(--red)' : 'var(--dim)' }}>
+                        {c.status === 'consumed' ? 'consumed' : 'voted out'}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </button>
+            )
+          })}
+          <div style={{ height: 12 }} />
+        </div>
+      </div>
+    )
+  }
+
+  /* ── Replay mode — day-by-day ── */
   return (
     <div className="hud-zone hud-feed panel" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
-      {/* Sticky header */}
-      <div className="hdr hud-hdr" style={{ flexShrink: 0, gap: 6 }}>
+      {/* Header: back | season | day nav | results toggle */}
+      <div className="hdr hud-hdr" style={{ flexShrink: 0, gap: 0 }}>
         <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--cyan)', cursor: 'pointer',
-          padding: '0 6px 0 0', fontSize: 14, lineHeight: 1, fontFamily: 'monospace' }}>{'←'}</button>
-        <span className="c-white" style={{ fontWeight: 'bold' }}>SEASON {season?.season_number}</span>
-        <span className="c-dim" style={{ fontWeight: 'normal', fontSize: 9 }}>DAY {season?.current_day} · COMPLETE</span>
-        {winner && (
-          <span style={{ marginLeft: 'auto', color: 'var(--yellow)', fontSize: 9, letterSpacing: '.06em' }}>
-            ✦ {winner.name}
-          </span>
-        )}
+          padding: '0 8px 0 0', fontSize: 14, lineHeight: 1, fontFamily: 'monospace' }}>{'←'}</button>
+        <span className="c-dim" style={{ fontSize: 9, marginRight: 6 }}>S{season?.season_number}</span>
+        {/* Day nav */}
+        <button onClick={() => setDay(d => Math.max(1, d - 1))} disabled={day <= 1}
+          style={{ background: 'none', border: 'none', color: day <= 1 ? 'var(--dim)' : 'var(--cyan)',
+            cursor: day <= 1 ? 'default' : 'pointer', fontSize: 11, padding: '0 4px', fontFamily: 'monospace' }}>◀</button>
+        <span className="c-white" style={{ fontSize: 10, fontWeight: 'bold', minWidth: 52, textAlign: 'center' }}>
+          DAY {day}/{maxDay}
+        </span>
+        <button onClick={() => setDay(d => Math.min(maxDay, d + 1))} disabled={day >= maxDay}
+          style={{ background: 'none', border: 'none', color: day >= maxDay ? 'var(--dim)' : 'var(--cyan)',
+            cursor: day >= maxDay ? 'default' : 'pointer', fontSize: 11, padding: '0 4px', fontFamily: 'monospace' }}>▶</button>
+        <button onClick={() => setMode('results')} style={{ marginLeft: 'auto', background: 'none',
+          border: '1px solid #1a3a1a', color: 'var(--dim)', cursor: 'pointer',
+          fontSize: 9, padding: '2px 6px', fontFamily: 'monospace', letterSpacing: '.06em' }}>CAST ▸</button>
       </div>
 
-      {/* Scrollable cast list */}
+      {/* Scrollable body: map + event feed */}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: '#1f2a1f #000' }}>
-        {sorted.map((c, i) => {
-          const isWinner = c.status === 'alive'
-          const border = isWinner ? 'var(--yellow)' : (tribeColor[c.tribe_id] ?? 'var(--dim)')
-          const placement = isWinner ? null : sorted.length - i
-          return (
-            <button key={c.id} onClick={() => onOpenDossier(c)}
-              style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 8,
-                padding: '5px 8px', background: 'none', border: 'none',
-                borderBottom: '1px solid #0a1a0a', cursor: 'pointer', textAlign: 'left' }}>
 
-              {/* Placement / winner badge */}
-              <div style={{ width: 26, flexShrink: 0, textAlign: 'center' }}>
-                {isWinner ? (
-                  <span style={{ color: 'var(--yellow)', fontSize: 13 }}>✦</span>
-                ) : (
-                  <span className="c-dim" style={{ fontSize: 9 }}>#{placement}</span>
-                )}
+        {/* Map — shows island state on this day */}
+        <div style={{ flexShrink: 0, borderBottom: '1px solid #0a1a0a' }}>
+          <IslandMap
+            castaways={castawaysOnDay}
+            seasonSeed={season?.seed ?? 1337}
+            challenges={challenges ?? []}
+            currentDay={day}
+            tribes={tribes as any[]}
+            tribeResources={resourcesOnDay}
+            compact
+          />
+        </div>
+
+        {/* Alive count bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '4px 8px', borderBottom: '1px solid #0a1a0a', flexShrink: 0 }}>
+          <span className="c-dim" style={{ fontSize: 9 }}>
+            {castawaysOnDay.filter((c: any) => c.status === 'alive').length} alive
+          </span>
+          <span className="c-dim" style={{ fontSize: 9 }}>
+            {dayLogs.length} events
+          </span>
+        </div>
+
+        {/* Event log */}
+        {dayLogs.length === 0 ? (
+          <div className="c-dim" style={{ padding: '12px 10px', fontSize: 9, textAlign: 'center' }}>
+            no events logged for day {day}
+          </div>
+        ) : (
+          dayLogs.map((log: any) => {
+            const meta = LOG_TYPE[log.type] ?? { icon: '·', color: 'var(--dim)' }
+            return (
+              <div key={log.id} style={{ display: 'flex', gap: 7, padding: '5px 8px',
+                borderBottom: '1px solid #060e06', alignItems: 'flex-start' }}>
+                <span style={{ color: meta.color, fontSize: 10, flexShrink: 0, marginTop: 1 }}>{meta.icon}</span>
+                <span style={{ fontSize: 9, lineHeight: 1.5, color: log.type === 'system' ? 'var(--dim)'
+                  : log.type === 'elim' ? 'var(--red)'
+                  : log.type === 'anomaly' ? 'var(--red)'
+                  : log.type === 'host' ? 'var(--cyan)'
+                  : 'var(--white)' }}>
+                  {log.text}
+                </span>
               </div>
-
-              {/* Portrait */}
-              {c.portrait_file ? (
-                <img src={`/portraits/${c.portrait_file}`} alt={c.name}
-                  style={{ width: 34, height: 34, imageRendering: 'pixelated', flexShrink: 0,
-                    border: `1px solid ${border}`, background: '#c8bfa8',
-                    filter: (c.status === 'ghost' || c.status === 'consumed') ? 'grayscale(80%) brightness(0.65)' : undefined }} />
-              ) : (
-                <div style={{ width: 34, height: 34, flexShrink: 0, border: `1px solid ${border}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: border }}>
-                  {c.name[0]}
-                </div>
-              )}
-
-              {/* Name + tribe */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 10, fontWeight: isWinner ? 'bold' : 'normal',
-                  color: isWinner ? 'var(--yellow)' : 'var(--white)',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {c.name}
-                </div>
-                <div style={{ fontSize: 8, color: tribeColor[c.tribe_id] ?? 'var(--dim)', marginTop: 1 }}>
-                  {tribeName[c.tribe_id] ?? ''}
-                </div>
-              </div>
-
-              {/* Elimination info */}
-              <div style={{ flexShrink: 0, textAlign: 'right' }}>
-                {isWinner ? (
-                  <span style={{ color: 'var(--yellow)', fontSize: 9, letterSpacing: '.06em' }}>WINNER</span>
-                ) : (
-                  <>
-                    <div className="c-dim" style={{ fontSize: 9 }}>day {c.elimination_day ?? '?'}</div>
-                    <div style={{ fontSize: 8, color: c.status === 'consumed' ? 'var(--red)' : 'var(--dim)' }}>
-                      {c.status === 'consumed' ? 'consumed' : c.status === 'ghost' ? 'voted out' : c.status}
-                    </div>
-                  </>
-                )}
-              </div>
-            </button>
-          )
-        })}
+            )
+          })
+        )}
         <div style={{ height: 12 }} />
       </div>
     </div>
