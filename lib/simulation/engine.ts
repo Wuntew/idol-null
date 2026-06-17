@@ -506,6 +506,13 @@ export function simulateDay(ctx: SimulationContext): DayResult {
     if (winner) {
       winnerId = (winner as Castaway).id
       log(`★ THE JURY OF GHOSTS SPEAKS. SOLE SURVIVOR: ${(winner as Castaway).name}! ★`, 'win')
+      // Mark all other surviving finalists as runner-up (eliminated this day)
+      stillAlive.forEach(c => {
+        if (c.id !== winnerId) {
+          c.status = 'ghost'
+          c.eliminationDay = ctx.day
+        }
+      })
     }
   }
 
