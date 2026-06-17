@@ -74,6 +74,7 @@ export default function Portrait({ seed, trait, status, condition, portraitFile 
         style={{
           width: 46, height: 46,
           imageRendering: 'pixelated',
+          background: '#c8bfa8',
           border: `1px solid ${accent}`,
           opacity: status === 'consumed' ? 0.4 : status === 'ghost' ? 0.7 : 1,
           filter: status === 'ghost' ? 'grayscale(60%) brightness(0.7)' : status === 'consumed' ? 'grayscale(100%)' : undefined,
