@@ -517,6 +517,11 @@ input::placeholder, textarea::placeholder { color: #4a3a26; }
     padding: 4px;
   }
 
+  .hud-cast-grid > a {
+    min-width: 0;
+    overflow: hidden;
+  }
+
   .hud-cast-card {
     display: flex;
     flex-direction: column;
