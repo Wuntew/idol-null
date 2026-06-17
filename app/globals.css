@@ -509,14 +509,44 @@ input::placeholder, textarea::placeholder { color: #4a3a26; }
     letter-spacing: .04em;
   }
 
-  /* ── CAST TAB: 6-col portrait grid ── */
-  .hud-cast-grid {
+  /* ── CAST TAB: tribe boxes side-by-side ── */
+  .hud-cast-tribes {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    gap: 4px;
-    padding: 4px;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    padding: 5px;
+    height: 100%;
+    box-sizing: border-box;
   }
 
+  .hud-tribe-box {
+    display: flex;
+    flex-direction: column;
+    border: 2px solid;
+    min-width: 0;
+  }
+
+  .hud-tribe-name {
+    font-size: 8px;
+    font-weight: bold;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 2px 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .hud-cast-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3px;
+    padding: 3px;
+    flex: 1;
+  }
+
+  .hud-cast-grid > button,
   .hud-cast-grid > a {
     min-width: 0;
     overflow: hidden;

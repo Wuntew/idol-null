@@ -203,17 +203,55 @@ function castWinner(c: any) {
   return { label: 'Long shot', cls: 'c-dim' }
 }
 
+function CastCard({ c, tribeColor, onSelect }: { c: any; tribeColor: Record<number,string>; onSelect: (c: any) => void }) {
+  const isAlive = c.status === 'alive'
+  const portraitBorder = isAlive ? (tribeColor[c.tribe_id] ?? 'var(--cyan)') : 'var(--wrong)'
+  return (
+    <button
+      onClick={() => onSelect(c)}
+      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', width: '100%', minWidth: 0 }}
+    >
+      <div
+        className="hud-cast-card panel"
+        style={{ borderColor: isAlive ? 'var(--green)' : 'var(--wrong)', opacity: isAlive ? 1 : 0.45 }}
+      >
+        {c.portrait_file ? (
+          <img src={`/portraits/${c.portrait_file}`} alt={c.name} className="hud-cast-portrait"
+            style={{ borderColor: portraitBorder, filter: !isAlive ? 'grayscale(100%)' : undefined }} />
+        ) : (
+          <div className="hud-cast-portrait" style={{ borderColor: portraitBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold', color: portraitBorder }}>
+            {c.name[0]}
+          </div>
+        )}
+        <div className="hud-cast-name" style={{ color: isAlive ? 'var(--green)' : '#4a3a3a' }}>
+          {c.name}
+        </div>
+      </div>
+    </button>
+  )
+}
+
 function CastPanel({ castaways, tribes }: any) {
   const [selected, setSelected] = useState<any>(null)
   const all = castaways ?? []
   const alive = all.filter((c: any) => c.status === 'alive').length
+  const tribeList: any[] = tribes ?? []
   const tribeColor: Record<number, string> = Object.fromEntries(
-    (tribes ?? []).map((t: any) => [t.id, t.color ?? 'var(--cyan)'])
+    tribeList.map((t: any) => [t.id, t.color ?? 'var(--cyan)'])
   )
 
   if (selected) {
     return <CastProfile castaway={selected} tribeColor={tribeColor} onBack={() => setSelected(null)} />
   }
+
+  // Group castaways by tribe, preserving tribe order
+  const tribeGroups: { tribe: any; members: any[] }[] = tribeList.map(t => ({
+    tribe: t,
+    members: all.filter((c: any) => c.tribe_id === t.id),
+  })).filter(g => g.members.length > 0)
+
+  // Fallback: ungrouped (no tribes data)
+  const ungrouped = all.filter((c: any) => !tribeList.find((t: any) => t.id === c.tribe_id))
 
   return (
     <div className="hud-panel-inner">
@@ -221,36 +259,34 @@ function CastPanel({ castaways, tribes }: any) {
         <span>▣ CAST</span>
         <span className="c-dim" style={{ fontSize: 10, fontWeight: 'normal' }}>{alive} alive</span>
       </div>
-      <div className="hud-panel-body">
-        <div className="hud-cast-grid">
-          {all.map((c: any) => {
-            const isAlive = c.status === 'alive'
-            const portraitBorder = isAlive ? (tribeColor[c.tribe_id] ?? 'var(--cyan)') : 'var(--wrong)'
-            return (
-              <button
-                key={c.id}
-                onClick={() => setSelected(c)}
-                style={{ textDecoration: 'none', background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', width: '100%' }}
-              >
-                <div
-                  className="hud-cast-card panel"
-                  style={{ borderColor: isAlive ? 'var(--green)' : 'var(--wrong)', opacity: isAlive ? 1 : 0.45 }}
-                >
-                  {c.portrait_file ? (
-                    <img src={`/portraits/${c.portrait_file}`} alt={c.name} className="hud-cast-portrait"
-                      style={{ borderColor: portraitBorder, filter: !isAlive ? 'grayscale(100%)' : undefined }} />
-                  ) : (
-                    <div className="hud-cast-portrait" style={{ borderColor: portraitBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold', color: portraitBorder }}>
-                      {c.name[0]}
-                    </div>
-                  )}
-                  <div className="hud-cast-name" style={{ color: isAlive ? 'var(--green)' : '#4a3a3a' }}>
-                    {c.name}
-                  </div>
-                </div>
-              </button>
-            )
-          })}
+      <div className="hud-panel-body" style={{ padding: 0 }}>
+        <div className="hud-cast-tribes">
+          {tribeGroups.map(({ tribe, members }) => (
+            <div
+              key={tribe.id}
+              className="hud-tribe-box"
+              style={{ borderColor: tribe.color ?? 'var(--cyan)' }}
+            >
+              <div className="hud-tribe-name" style={{ color: tribe.color ?? 'var(--cyan)', borderBottom: `1px solid ${tribe.color ?? 'var(--cyan)'}` }}>
+                {tribe.name}
+              </div>
+              <div className="hud-cast-grid">
+                {members.map((c: any) => (
+                  <CastCard key={c.id} c={c} tribeColor={tribeColor} onSelect={setSelected} />
+                ))}
+              </div>
+            </div>
+          ))}
+          {ungrouped.length > 0 && (
+            <div className="hud-tribe-box" style={{ borderColor: 'var(--dim)', gridColumn: ungrouped.length > 3 ? '1 / -1' : undefined }}>
+              <div className="hud-tribe-name" style={{ color: 'var(--dim)', borderBottom: '1px solid var(--dim)' }}>JURY / OUT</div>
+              <div className="hud-cast-grid">
+                {ungrouped.map((c: any) => (
+                  <CastCard key={c.id} c={c} tribeColor={tribeColor} onSelect={setSelected} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
