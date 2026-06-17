@@ -5,6 +5,7 @@ type Castaway = {
   id: number
   name: string
   status: string
+  tribe_id?: number | null
 }
 
 type ChallengeArena = {
@@ -14,12 +15,31 @@ type ChallengeArena = {
   sort_order: number
 }
 
+export type Tribe = {
+  id: number
+  name: string
+  color: string   // hex
+  camp_x: number
+  camp_y: number
+  is_merge_tribe: boolean
+}
+
+export type TribeResources = {
+  tribe_id: number
+  food: number        // 0–100
+  hydration: number   // 0–100
+  shelter_level: number  // 0–5
+  fire_level: number     // 0–5
+}
+
 interface Props {
   castaways: Castaway[]
   seasonSeed?: number
   challenges?: ChallengeArena[]
   currentDay?: number
   compact?: boolean
+  tribes?: Tribe[]
+  tribeResources?: TribeResources[]
 }
 
 const TW = 136, TH = 68, TS = 5
@@ -72,9 +92,14 @@ const EV_CLR: Record<number, string> = {
   9: '#0a000a', 10: '#2a4a6a', 11: '#8a8a9a', 12: '#cc4400',
 }
 
-export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [], currentDay = 0, compact = false }: Props) {
+export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [], currentDay = 0, compact = false, tribes = [], tribeResources = [] }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [legendOpen, setLegendOpen] = useState(false)
+
+  // Build lookup: tribe_id → tribe
+  const tribeMap = Object.fromEntries(tribes.map(t => [t.id, t]))
+  // Build lookup: tribe_id → resources
+  const resourceMap = Object.fromEntries(tribeResources.map(r => [r.tribe_id, r]))
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -122,14 +147,29 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
       }
     }
 
-    // Castaway positions (seeded per castaway id)
+    // Castaway positions — biased toward tribe camp when alive, else random
+    const activeTribe = tribes.find(t => !t.is_merge_tribe && castaways.some(c => c.tribe_id === t.id))
     const castawayPositions = castaways.map(c => {
       const pr = mulberry32(seasonSeed ^ (c.id * 0x9E3779B9))
+      const tribe = c.tribe_id != null ? tribeMap[c.tribe_id] : null
+      // Camp anchor: if alive + has tribe, scatter within ~12 tiles of camp
+      if (c.status === 'alive' && tribe) {
+        for (let attempt = 0; attempt < 300; attempt++) {
+          const angle = pr() * Math.PI * 2
+          const radius = pr() * 12
+          const x = Math.round(tribe.camp_x + Math.cos(angle) * radius)
+          const y = Math.round(tribe.camp_y + Math.sin(angle) * radius)
+          if (x >= 0 && x < TW && y >= 0 && y < TH && terrain[y * TW + x] >= 2) {
+            return { ...c, x, y, color: tribe.color }
+          }
+        }
+      }
+      // Fallback: random land tile
       for (let attempt = 0; attempt < 200; attempt++) {
         const x = Math.floor(pr() * TW), y = Math.floor(pr() * TH)
-        if (terrain[y * TW + x] >= 2) return { ...c, x, y }
+        if (terrain[y * TW + x] >= 2) return { ...c, x, y, color: tribe?.color ?? '#00ff44' }
       }
-      return { ...c, x: Math.floor(TW / 2), y: Math.floor(TH / 2) }
+      return { ...c, x: Math.floor(TW / 2), y: Math.floor(TH / 2), color: tribe?.color ?? '#00ff44' }
     })
 
     // Challenge arena positions — cycle through the pool by currentDay
@@ -253,23 +293,72 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
 
-        // Castaway markers
+        // ── Tribe camp markers ──────────────────────────────────────
+        for (const tribe of tribes) {
+          if (tribe.is_merge_tribe) continue // skip merge camp until merged
+          const sx = tribe.camp_x * TS + TS / 2
+          const sy = tribe.camp_y * TS + TS / 2
+          const res = resourceMap[tribe.id]
+
+          // Camp base: colored square
+          ctx.fillStyle = tribe.color
+          ctx.globalAlpha = 0.85
+          ctx.fillRect(sx - 8, sy - 8, 16, 16)
+          ctx.strokeStyle = '#000'; ctx.lineWidth = 1.5
+          ctx.strokeRect(sx - 8, sy - 8, 16, 16)
+          ctx.globalAlpha = 1
+
+          // Tribe initial
+          ctx.fillStyle = '#fff'
+          ctx.font = 'bold 9px monospace'
+          ctx.fillText(tribe.name[0], sx, sy)
+
+          // Tribe name label above camp
+          ctx.font = 'bold 8px monospace'
+          ctx.fillStyle = tribe.color
+          ctx.globalAlpha = 0.95
+          ctx.fillText(tribe.name, sx, sy - 14)
+          ctx.globalAlpha = 1
+
+          // Resource icons below camp (food 🍖, water 💧, shelter 🏠, fire 🔥)
+          if (res) {
+            const iconY = sy + 14
+            const icons: [string, number, string][] = [
+              ['F', res.food,          res.food > 60 ? '#44cc44' : res.food > 30 ? '#ccaa00' : '#cc3300'],
+              ['W', res.hydration,     res.hydration > 60 ? '#44aaff' : res.hydration > 30 ? '#ccaa00' : '#cc3300'],
+              ['S', res.shelter_level * 20, res.shelter_level >= 3 ? '#44cc44' : '#ccaa00'],
+              ['~', res.fire_level * 20,    res.fire_level >= 3 ? '#ff8800' : '#cc6600'],
+            ]
+            icons.forEach(([label, _val, color], i) => {
+              const ix = sx - 12 + i * 8
+              ctx.fillStyle = color
+              ctx.font = '7px monospace'
+              ctx.globalAlpha = 0.9
+              ctx.fillText(label, ix, iconY)
+            })
+            ctx.globalAlpha = 1
+          }
+        }
+
+        // ── Castaway markers ─────────────────────────────────────────
         for (const c of castawayPositions) {
           const sx = c.x * TS + TS / 2, sy = c.y * TS + TS / 2
           const alive = c.status === 'alive'
-          ctx.globalAlpha = alive ? 1 : 0.5
-          ctx.fillStyle = alive ? '#00ff44' : '#ff4444'
-          ctx.beginPath(); ctx.arc(sx, sy, 5, 0, Math.PI * 2); ctx.fill()
+          const dotColor = alive ? ((c as any).color ?? '#00ff44') : '#ff4444'
+          ctx.globalAlpha = alive ? 1 : 0.45
+          ctx.fillStyle = dotColor
+          ctx.beginPath(); ctx.arc(sx, sy, 4, 0, Math.PI * 2); ctx.fill()
+          ctx.strokeStyle = '#000'; ctx.lineWidth = 0.8; ctx.stroke()
           ctx.fillStyle = '#000'
           ctx.globalAlpha = 1
-          ctx.font = 'bold 9px monospace'
+          ctx.font = 'bold 8px monospace'
           ctx.fillText(c.name[0], sx, sy)
 
           // Name label
-          ctx.font = 'bold 8px monospace'
-          ctx.fillStyle = alive ? '#00ff44' : '#ff4444'
-          ctx.globalAlpha = alive ? 0.95 : 0.5
-          ctx.fillText(c.name, sx, sy - 10)
+          ctx.font = '7px monospace'
+          ctx.fillStyle = dotColor
+          ctx.globalAlpha = alive ? 0.85 : 0.4
+          ctx.fillText(c.name.slice(0, 5), sx, sy - 8)
           ctx.globalAlpha = 1
         }
 

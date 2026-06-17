@@ -63,6 +63,26 @@ export default async function HomePage() {
     ? (await supabase.from('challenges').select('label, x, y, sort_order').eq('season_id', season.id)).data ?? []
     : []
 
+  const tribes = season && supabase
+    ? (await supabase.from('tribes').select('id, name, color, camp_x, camp_y, is_merge_tribe').eq('season_id', season.id)).data ?? []
+    : []
+
+  const allTribeResources = season && supabase && (tribes as any[]).length
+    ? (await supabase
+        .from('tribe_resources')
+        .select('tribe_id, food, hydration, shelter_level, fire_level, day')
+        .eq('season_id', season.id)
+        .lte('day', season.current_day)
+        .order('day', { ascending: false })).data ?? []
+    : []
+  // Keep only the most recent row per tribe
+  const tribeResources = Object.values(
+    (allTribeResources as any[]).reduce<Record<number, any>>((acc, r) => {
+      if (!acc[r.tribe_id]) acc[r.tribe_id] = r
+      return acc
+    }, {})
+  )
+
   const profile = demo?.profile ?? (user && supabase
     ? (await supabase.from('profiles').select('points').eq('id', user.id).single()).data
     : null)
@@ -106,6 +126,8 @@ export default async function HomePage() {
       openMarketCount={openMarketCount}
       seasonSeed={season?.seed ?? 1337}
       challenges={challenges as { label: string; x: number; y: number; sort_order: number }[]}
+      tribes={tribes as any[]}
+      tribeResources={tribeResources as any[]}
     />
 
     {/* ── DESKTOP GRID (hidden on mobile) ── */}
@@ -145,10 +167,12 @@ export default async function HomePage() {
       {/* CENTER — island map + live feed stacked */}
       <section id="live-feed" className="feed-shell" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <IslandMap
-          castaways={(castaways ?? []).map(c => ({ id: c.id, name: c.name, status: c.status }))}
+          castaways={(castaways ?? []).map((c: any) => ({ id: c.id, name: c.name, status: c.status, tribe_id: c.tribe_id }))}
           seasonSeed={season?.seed ?? 1337}
           challenges={challenges as { label: string; x: number; y: number; sort_order: number }[]}
           currentDay={season?.current_day ?? 0}
+          tribes={tribes as any[]}
+          tribeResources={tribeResources as any[]}
         />
         <div className="panel" style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="hdr flex justify-between items-center">

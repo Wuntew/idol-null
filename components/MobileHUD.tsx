@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import GameFeed from './GameFeed'
 import IslandMap from './IslandMap'
+import type { Tribe, TribeResources } from './IslandMap'
+import MapOverlay from './MapOverlay'
 
 type Tab = 'feed' | 'cast' | 'bet' | 'noise' | 'more'
 
@@ -22,6 +24,8 @@ interface Props {
   openMarketCount: number
   seasonSeed?: number
   challenges?: { label: string; x: number; y: number; sort_order: number }[]
+  tribes?: Tribe[]
+  tribeResources?: TribeResources[]
 }
 
 const TABS: { id: Tab; ico: string; label: string }[] = [
@@ -36,23 +40,54 @@ export default function MobileHUD({
   logs, castaways, markets, groupedMarkets,
   season, profile, user, isDemo, seasonActive,
   userPredictions, latestSummary, aliveCount, openMarketCount,
-  seasonSeed = 1337, challenges = [],
+  seasonSeed = 1337, challenges = [], tribes = [], tribeResources = [],
 }: Props) {
   const [tab, setTab] = useState<Tab>('feed')
+  const [mapOpen, setMapOpen] = useState(false)
 
   return (
     <div className="mobile-hud">
 
+      {/* ── Full-screen map overlay ── */}
+      {mapOpen && (
+        <MapOverlay
+          castaways={(castaways ?? []).map((c: any) => ({ id: c.id, name: c.name, status: c.status, tribe_id: c.tribe_id }))}
+          tribes={tribes}
+          tribeResources={tribeResources}
+          challenges={challenges}
+          seasonSeed={seasonSeed}
+          currentDay={season?.current_day ?? 0}
+          onClose={() => setMapOpen(false)}
+        />
+      )}
+
       {/* ── TOP zone — Island Map + Live Feed ── */}
       <div className="hud-zone hud-feed panel" style={{ display: 'flex', flexDirection: 'column' }}>
-        {/* Map — compact mode: no chrome, tappable legend */}
-        <IslandMap
-          castaways={(castaways ?? []).map((c: any) => ({ id: c.id, name: c.name, status: c.status }))}
-          seasonSeed={seasonSeed}
-          challenges={challenges}
-          currentDay={season?.current_day ?? 0}
-          compact
-        />
+        {/* Map — tap to open full-screen overlay */}
+        <div
+          onClick={() => setMapOpen(true)}
+          style={{ cursor: 'pointer', flexShrink: 0, position: 'relative' }}
+          title="Tap to open full map"
+        >
+          <IslandMap
+            castaways={(castaways ?? []).map((c: any) => ({ id: c.id, name: c.name, status: c.status, tribe_id: c.tribe_id }))}
+            seasonSeed={seasonSeed}
+            challenges={challenges}
+            currentDay={season?.current_day ?? 0}
+            tribes={tribes}
+            tribeResources={tribeResources}
+            compact
+          />
+          {/* Expand hint */}
+          <div style={{
+            position: 'absolute', top: 4, left: 4,
+            background: 'rgba(0,0,0,0.7)', border: '1px solid #1a3a1a',
+            color: '#2a6a2a', fontSize: 8, padding: '1px 5px',
+            fontFamily: 'monospace', pointerEvents: 'none',
+          }}>
+            ⤢ MAP
+          </div>
+        </div>
         {/* Feed — grows to fill remaining space, no header */}
         <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
           <GameFeed initialLogs={logs} seasonId={season?.id ?? null} />
