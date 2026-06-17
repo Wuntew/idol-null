@@ -44,6 +44,11 @@ export default function MobileHUD({
 }: Props) {
   const [tab, setTab] = useState<Tab>('feed')
   const [mapOpen, setMapOpen] = useState(false)
+  const [dossier, setDossier] = useState<any>(null)
+
+  const tribeColor: Record<number, string> = Object.fromEntries(
+    (tribes ?? []).map((t: any) => [t.id, t.color ?? 'var(--cyan)'])
+  )
 
   return (
     <div className="mobile-hud">
@@ -61,59 +66,61 @@ export default function MobileHUD({
         />
       )}
 
-      {/* ── TOP zone — Island Map + Live Feed ── */}
-      <div className="hud-zone hud-feed panel" style={{
-        display: 'flex', flexDirection: 'column',
-        borderTopWidth: 3,
-        borderTopColor: season?.status === 'active' ? 'var(--green)' : season?.status === 'preseason' ? 'var(--amber)' : '#1a2a1a',
-      }}>
-        {/* Map — tap to open full-screen overlay */}
-        <div
-          onClick={() => setMapOpen(true)}
-          style={{ cursor: 'pointer', flexShrink: 0, position: 'relative' }}
-          title="Tap to open full map"
-        >
-          <IslandMap
-            castaways={(castaways ?? []).map((c: any) => ({ id: c.id, name: c.name, status: c.status, tribe_id: c.tribe_id }))}
-            seasonSeed={seasonSeed}
-            challenges={challenges}
-            currentDay={season?.current_day ?? 0}
-            tribes={tribes}
-            tribeResources={tribeResources}
-            compact
-          />
-          {/* Expand hint */}
-          <div style={{
-            position: 'absolute', top: 4, left: 4,
-            background: 'rgba(0,0,0,0.7)', border: '1px solid #1a3a1a',
-            color: '#2a6a2a', fontSize: 8, padding: '1px 5px',
-            fontFamily: 'monospace', pointerEvents: 'none',
+      {dossier ? (
+        /* ── FULL DOSSIER — replaces feed + panel, sits above tab bar ── */
+        <FullDossier castaway={dossier} tribeColor={tribeColor} onBack={() => setDossier(null)} />
+      ) : (
+        <>
+          {/* ── TOP zone — Island Map + Live Feed ── */}
+          <div className="hud-zone hud-feed panel" style={{
+            display: 'flex', flexDirection: 'column',
+            borderTopWidth: 3,
+            borderTopColor: season?.status === 'active' ? 'var(--green)' : season?.status === 'preseason' ? 'var(--amber)' : '#1a2a1a',
           }}>
-            ⤢ MAP
+            <div
+              onClick={() => setMapOpen(true)}
+              style={{ cursor: 'pointer', flexShrink: 0, position: 'relative' }}
+              title="Tap to open full map"
+            >
+              <IslandMap
+                castaways={(castaways ?? []).map((c: any) => ({ id: c.id, name: c.name, status: c.status, tribe_id: c.tribe_id }))}
+                seasonSeed={seasonSeed}
+                challenges={challenges}
+                currentDay={season?.current_day ?? 0}
+                tribes={tribes}
+                tribeResources={tribeResources}
+                compact
+              />
+              <div style={{
+                position: 'absolute', top: 4, left: 4,
+                background: 'rgba(0,0,0,0.7)', border: '1px solid #1a3a1a',
+                color: '#2a6a2a', fontSize: 8, padding: '1px 5px',
+                fontFamily: 'monospace', pointerEvents: 'none',
+              }}>⤢ MAP</div>
+            </div>
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <GameFeed initialLogs={logs} seasonId={season?.id ?? null} />
+            </div>
           </div>
-        </div>
-        {/* Feed — grows to fill remaining space, no header */}
-        <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-          <GameFeed initialLogs={logs} seasonId={season?.id ?? null} />
-        </div>
-      </div>
 
-      {/* ── BOTTOM 50 % — Tab Panel ── */}
-      <div className="hud-zone hud-panel panel">
-        {tab === 'feed'  && <FeedPanel  season={season} aliveCount={aliveCount} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} latestSummary={latestSummary} />}
-        {tab === 'cast'  && <CastPanel  castaways={castaways} tribes={tribes} />}
-        {tab === 'bet'   && <BetPanel   groupedMarkets={groupedMarkets} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} />}
-        {tab === 'noise' && <NoisePanel castaways={castaways} profile={profile} user={user} seasonActive={seasonActive} isDemo={isDemo} />}
-        {tab === 'more'  && <MorePanel  season={season} aliveCount={aliveCount} profile={profile} user={user} isDemo={isDemo} />}
-      </div>
+          {/* ── BOTTOM — Tab Panel ── */}
+          <div className="hud-zone hud-panel panel">
+            {tab === 'feed'  && <FeedPanel  season={season} aliveCount={aliveCount} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} latestSummary={latestSummary} />}
+            {tab === 'cast'  && <CastPanel  castaways={castaways} tribes={tribes} onOpenDossier={setDossier} />}
+            {tab === 'bet'   && <BetPanel   groupedMarkets={groupedMarkets} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} />}
+            {tab === 'noise' && <NoisePanel castaways={castaways} profile={profile} user={user} seasonActive={seasonActive} isDemo={isDemo} />}
+            {tab === 'more'  && <MorePanel  season={season} aliveCount={aliveCount} profile={profile} user={user} isDemo={isDemo} />}
+          </div>
+        </>
+      )}
 
-      {/* ── Tab Bar ── */}
+      {/* ── Tab Bar — always visible ── */}
       <nav className="hud-tabbar" aria-label="Panel navigation">
         {TABS.map(t => (
           <button
             key={t.id}
             className={`hud-tab${tab === t.id ? ' active' : ''}`}
-            onClick={() => setTab(t.id)}
+            onClick={() => { setTab(t.id); setDossier(null) }}
             aria-pressed={tab === t.id}
           >
             <span className="hud-tab-ico" aria-hidden="true">{t.ico}</span>
@@ -231,7 +238,7 @@ function CastCard({ c, tribeColor, onSelect }: { c: any; tribeColor: Record<numb
   )
 }
 
-function CastPanel({ castaways, tribes }: any) {
+function CastPanel({ castaways, tribes, onOpenDossier }: any) {
   const [selected, setSelected] = useState<any>(null)
   const all = castaways ?? []
   const alive = all.filter((c: any) => c.status === 'alive').length
@@ -241,16 +248,14 @@ function CastPanel({ castaways, tribes }: any) {
   )
 
   if (selected) {
-    return <CastProfile castaway={selected} tribeColor={tribeColor} onBack={() => setSelected(null)} />
+    return <CastProfile castaway={selected} tribeColor={tribeColor} onBack={() => setSelected(null)} onOpenDossier={onOpenDossier} />
   }
 
-  // Group castaways by tribe, preserving tribe order
   const tribeGroups: { tribe: any; members: any[] }[] = tribeList.map(t => ({
     tribe: t,
     members: all.filter((c: any) => c.tribe_id === t.id),
   })).filter(g => g.members.length > 0)
 
-  // Fallback: ungrouped (no tribes data)
   const ungrouped = all.filter((c: any) => !tribeList.find((t: any) => t.id === c.tribe_id))
 
   return (
@@ -262,11 +267,7 @@ function CastPanel({ castaways, tribes }: any) {
       <div className="hud-panel-body" style={{ padding: 0 }}>
         <div className="hud-cast-tribes">
           {tribeGroups.map(({ tribe, members }) => (
-            <div
-              key={tribe.id}
-              className="hud-tribe-box"
-              style={{ borderColor: tribe.color ?? 'var(--cyan)' }}
-            >
+            <div key={tribe.id} className="hud-tribe-box" style={{ borderColor: tribe.color ?? 'var(--cyan)' }}>
               <div className="hud-tribe-name" style={{ color: tribe.color ?? 'var(--cyan)', borderBottom: `1px solid ${tribe.color ?? 'var(--cyan)'}` }}>
                 {tribe.name}
               </div>
@@ -294,14 +295,14 @@ function CastPanel({ castaways, tribes }: any) {
 }
 
 /* ─────────────────────────────────────────────
-   CAST PROFILE — inline dossier in the panel
+   CAST PROFILE — compact panel preview
+   Portrait fills height; key info + "full dossier" button on right
 ───────────────────────────────────────────── */
-function CastProfile({ castaway: c, tribeColor, onBack }: any) {
+function CastProfile({ castaway: c, tribeColor, onBack, onOpenDossier }: any) {
   const isAlive = c.status === 'alive'
   const tribeBorder = isAlive ? (tribeColor[c.tribe_id] ?? 'var(--cyan)') : 'var(--wrong)'
   const threat = castThreat(c)
   const boot   = castBoot(c)
-  const winner = castWinner(c)
 
   return (
     <div className="hud-panel-inner" style={{ flexDirection: 'row' }}>
@@ -309,75 +310,42 @@ function CastProfile({ castaway: c, tribeColor, onBack }: any) {
       {/* LEFT — portrait fills full panel height */}
       <div style={{ position: 'relative', flexShrink: 0, alignSelf: 'stretch', display: 'flex', alignItems: 'stretch' }}>
         {c.portrait_file ? (
-          <img
-            src={`/portraits/${c.portrait_file}`}
-            alt={c.name}
-            style={{
-              height: '100%',
-              width: 'auto',
-              imageRendering: 'pixelated',
-              background: '#c8bfa8',
-              borderRight: `2px solid ${tribeBorder}`,
-              display: 'block',
-              filter: c.status === 'ghost' ? 'grayscale(60%) brightness(0.7)' : c.status === 'consumed' ? 'grayscale(100%)' : undefined,
-            }}
-          />
+          <img src={`/portraits/${c.portrait_file}`} alt={c.name}
+            style={{ height: '100%', width: 'auto', imageRendering: 'pixelated', background: '#c8bfa8',
+              borderRight: `2px solid ${tribeBorder}`, display: 'block',
+              filter: c.status === 'ghost' ? 'grayscale(60%) brightness(0.7)' : c.status === 'consumed' ? 'grayscale(100%)' : undefined }} />
         ) : (
-          <div style={{
-            width: 188, height: '100%', minHeight: 80,
-            borderRight: `2px solid ${tribeBorder}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 48, color: tribeBorder, background: '#0a1a0a',
-          }}>
+          <div style={{ width: 188, height: '100%', minHeight: 80, borderRight: `2px solid ${tribeBorder}`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48, color: tribeBorder, background: '#0a1a0a' }}>
             {c.name[0]}
           </div>
         )}
-        {/* Back button — overlaid top-left */}
-        <button
-          onClick={onBack}
-          style={{
-            position: 'absolute', top: 4, left: 4,
-            background: 'rgba(0,0,0,0.65)', border: `1px solid ${tribeBorder}`,
-            color: tribeBorder, cursor: 'pointer',
-            fontSize: 11, lineHeight: 1, padding: '2px 5px',
-            fontFamily: 'monospace',
-          }}
-        >←</button>
-        {/* Status tag — overlaid bottom */}
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0,
-          background: 'rgba(0,0,0,0.7)', padding: '2px 4px',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        }}>
+        <button onClick={onBack} style={{ position: 'absolute', top: 4, left: 4,
+          background: 'rgba(0,0,0,0.65)', border: `1px solid ${tribeBorder}`, color: tribeBorder,
+          cursor: 'pointer', fontSize: 11, lineHeight: 1, padding: '2px 5px', fontFamily: 'monospace' }}>{'←'}</button>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.7)',
+          padding: '2px 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span className="c-dim" style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: '.06em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.archetype}</span>
           <span className={`tag text-[8px] ${c.status === 'alive' ? 'c-green' : c.status === 'ghost' ? 'c-purple' : 'c-red'}`} style={{ flexShrink: 0, marginLeft: 3 }}>{c.status}</span>
         </div>
       </div>
 
-      {/* RIGHT — scrollable info */}
-      <div className="hud-panel-body" style={{ padding: '6px 7px', display: 'flex', flexDirection: 'column', gap: 5 }}>
-
-        {/* Name + trait */}
+      {/* RIGHT — key info + open full dossier */}
+      <div style={{ flex: 1, minWidth: 0, padding: '8px 8px', display: 'flex', flexDirection: 'column', gap: 5, overflow: 'hidden' }}>
         <div>
-          <div className="c-white" style={{ fontSize: 11, fontWeight: 'bold', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
-          <div style={{ fontSize: 9, color: tribeBorder, marginTop: 1 }}>◈ {c.trait}</div>
+          <div className="c-white" style={{ fontSize: 12, fontWeight: 'bold', lineHeight: 1.2 }}>{c.name}</div>
+          <div style={{ fontSize: 9, color: tribeBorder, marginTop: 2 }}>◈ {c.trait}</div>
         </div>
-
-        {/* Meta line */}
         <div className="c-dim" style={{ fontSize: 9 }}>
           {c.condition !== 'healthy' && <span className={c.condition === 'hallucinating' ? 'c-purple' : 'c-amber'}>{c.condition} · </span>}
           {c.idol_count > 0 && <span className="c-yellow">✦×{c.idol_count} · </span>}
-          {c.age ? `age ${c.age}` : ''}{c.hometown ? ` · ${c.hometown}` : ''}
+          {[c.age ? `age ${c.age}` : null, c.hometown].filter(Boolean).join(' · ')}
         </div>
-
-        {/* Reads */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
           <span className={`tag ${threat.cls}`} style={{ fontSize: 8 }}>{threat.label}</span>
           <span className={`tag ${boot.cls}`} style={{ fontSize: 8 }}>{boot.label}</span>
-          <span className={`tag ${winner.cls}`} style={{ fontSize: 8 }}>{winner.label}</span>
         </div>
-
-        {/* Stats — single column compact bars */}
+        {/* Stats — compact */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {Object.entries(c.stats ?? {}).map(([k, v]) => (
             <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -389,26 +357,104 @@ function CastProfile({ castaway: c, tribeColor, onBack }: any) {
             </div>
           ))}
         </div>
+        <button
+          onClick={() => onOpenDossier(c)}
+          style={{ marginTop: 'auto', background: 'none', border: `1px solid ${tribeBorder}`, color: tribeBorder,
+            cursor: 'pointer', fontSize: 9, padding: '3px 8px', letterSpacing: '.06em', fontFamily: 'monospace', width: '100%' }}
+        >▶ FULL DOSSIER</button>
+      </div>
+    </div>
+  )
+}
 
-        {/* Job */}
-        {c.job && (
-          <div className="c-dim" style={{ fontSize: 9 }}>
-            <span style={{ color: 'var(--amber)', marginRight: 4 }}>JOB</span>{c.job}
+/* ─────────────────────────────────────────────
+   FULL DOSSIER — occupies entire HUD body (feed + panel), scrollable
+───────────────────────────────────────────── */
+function FullDossier({ castaway: c, tribeColor, onBack }: any) {
+  const isAlive = c.status === 'alive'
+  const tribeBorder = isAlive ? (tribeColor[c.tribe_id] ?? 'var(--cyan)') : 'var(--wrong)'
+  const threat = castThreat(c)
+  const boot   = castBoot(c)
+  const winner = castWinner(c)
+
+  return (
+    <div className="hud-zone hud-feed panel" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+
+      {/* Sticky header */}
+      <div className="hdr hud-hdr" style={{ flexShrink: 0, gap: 6, borderBottomWidth: 2, borderBottomColor: tribeBorder }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--cyan)', cursor: 'pointer',
+          padding: '0 6px 0 0', fontSize: 14, lineHeight: 1, fontFamily: 'monospace' }}>{'←'}</button>
+        <span className="c-white" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 'bold' }}>{c.name}</span>
+        <span className={`tag ${c.status === 'alive' ? 'c-green' : c.status === 'ghost' ? 'c-purple' : 'c-red'}`} style={{ fontSize: 9 }}>{c.status}</span>
+      </div>
+
+      {/* Scrollable body */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: '#1f2a1f #000' }}>
+
+        {/* Hero: large portrait + identity block */}
+        <div style={{ display: 'flex', gap: 0, borderBottom: `1px solid #0a1a0a` }}>
+          {c.portrait_file ? (
+            <img src={`/portraits/${c.portrait_file}`} alt={c.name}
+              style={{ width: 120, height: 120, imageRendering: 'pixelated', background: '#c8bfa8',
+                borderRight: `2px solid ${tribeBorder}`, flexShrink: 0,
+                filter: c.status === 'ghost' ? 'grayscale(60%) brightness(0.7)' : c.status === 'consumed' ? 'grayscale(100%)' : undefined }} />
+          ) : (
+            <div style={{ width: 120, height: 120, background: '#0a1a0a', borderRight: `2px solid ${tribeBorder}`,
+              flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48, color: tribeBorder }}>
+              {c.name[0]}
+            </div>
+          )}
+          <div style={{ flex: 1, minWidth: 0, padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div className="c-dim" style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.08em' }}>{c.archetype}</div>
+            <div style={{ fontSize: 11, color: tribeBorder }}>◈ {c.trait}</div>
+            <div className="c-dim" style={{ fontSize: 9 }}>
+              {c.condition !== 'healthy' && <span className={c.condition === 'hallucinating' ? 'c-purple' : 'c-amber'}>{c.condition}<br/></span>}
+              {c.idol_count > 0 && <span className="c-yellow">✦ idol ×{c.idol_count}<br/></span>}
+              {c.age && <span>Age {c.age}<br/></span>}
+              {c.hometown && <span>{c.hometown}<br/></span>}
+              {c.job && <span style={{ color: 'var(--amber)' }}>{c.job}</span>}
+            </div>
           </div>
-        )}
+        </div>
+
+        {/* Read tags */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
+          <span className={`tag ${threat.cls}`} style={{ fontSize: 9 }}>{threat.label}</span>
+          <span className={`tag ${boot.cls}`} style={{ fontSize: 9 }}>{boot.label}</span>
+          <span className={`tag ${winner.cls}`} style={{ fontSize: 9 }}>{winner.label}</span>
+        </div>
+
+        {/* Stats */}
+        <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a', display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 2 }}>STATS</div>
+          {Object.entries(c.stats ?? {}).map(([k, v]) => (
+            <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 9, color: STAT_COLOR[k] ?? 'var(--dim)', width: 26, flexShrink: 0 }}>{STAT_ABBR[k] ?? k.slice(0,3).toUpperCase()}</span>
+              <div style={{ flex: 1, height: 5, background: '#0a1a0a', borderRadius: 1 }}>
+                <div style={{ width: `${Math.round(Number(v))}%`, height: '100%', background: STAT_COLOR[k] ?? '#2a4a2a', borderRadius: 1 }} />
+              </div>
+              <span className="c-dim" style={{ fontSize: 9, width: 22, textAlign: 'right', flexShrink: 0 }}>{Math.round(Number(v))}</span>
+            </div>
+          ))}
+        </div>
 
         {/* Audition tape */}
         {c.audition_tape && (
-          <div className="c-dim" style={{ fontSize: 9, fontStyle: 'italic', lineHeight: 1.4, borderTop: '1px solid #0a1a0a', paddingTop: 4 }}>
-            {c.audition_tape}
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
+            <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>AUDITION TAPE</div>
+            <div className="c-dim" style={{ fontSize: 10, fontStyle: 'italic', lineHeight: 1.55 }}>{c.audition_tape}</div>
           </div>
         )}
 
-        {/* Full dossier link */}
-        <div style={{ textAlign: 'right', marginTop: 'auto', paddingTop: 2 }}>
-          <a href={`/castaways?id=${c.id}`} className="c-dim" style={{ fontSize: 9, textDecoration: 'none', letterSpacing: '.06em' }}>full dossier →</a>
-        </div>
+        {/* Education / family */}
+        {(c.education || c.family) && (
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {c.education && <div className="c-dim" style={{ fontSize: 9 }}><span style={{ color: 'var(--cyan)', marginRight: 4 }}>EDU</span>{c.education}</div>}
+            {c.family && <div className="c-dim" style={{ fontSize: 9 }}><span style={{ color: 'var(--cyan)', marginRight: 4 }}>FAMILY</span>{c.family}</div>}
+          </div>
+        )}
 
+        <div style={{ height: 12 }} />
       </div>
     </div>
   )
