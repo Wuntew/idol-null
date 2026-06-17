@@ -50,7 +50,7 @@ export default function GameFeed({ initialLogs, seasonId }: { initialLogs: LogRo
   }
 
   return (
-    <div className="scroll p-2 text-[12px]" style={{ height: '52vh' }}>
+    <div className="scroll feed-scroll p-2 text-[12px]">
       <div className="flex flex-wrap gap-1 mb-2 pb-2" style={{ borderBottom: '1px solid #052005' }}>
         <span className="c-dim text-[10px] self-center mr-1">FILTER:</span>
         {LOG_TYPES.map(type => (

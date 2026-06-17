@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import NavClient from './NavClient'
-import MobileTabBar from './MobileTabBar'
 import { SUPABASE_CONFIGURED } from '@/lib/runtime'
 
 export default async function Nav() {
@@ -50,7 +49,6 @@ export default async function Nav() {
         </div>
       </div>
       <NavClient isLoggedIn={!!user} username={profile?.username ?? null} />
-      <MobileTabBar />
     </header>
   )
 }

@@ -6,6 +6,7 @@ import PredictionMarket from '@/components/PredictionMarket'
 import DemoModeBanner from '@/components/DemoModeBanner'
 import HowToPlayPanel from '@/components/HowToPlayPanel'
 import CommandCenter from '@/components/CommandCenter'
+import MobileHUD from '@/components/MobileHUD'
 import { SUPABASE_CONFIGURED } from '@/lib/runtime'
 import { getDemoDashboardData } from '@/lib/demo'
 
@@ -82,7 +83,26 @@ export default async function HomePage() {
   }, {})
 
   return (
-    <main className="dashboard-grid grid gap-2 px-1 pt-1 pb-2">
+    <>
+    {/* ── MOBILE HUD (hidden on desktop) ── */}
+    <MobileHUD
+      logs={logs}
+      castaways={castaways ?? []}
+      markets={(markets ?? []) as any[]}
+      groupedMarkets={groupedMarkets as any}
+      season={season}
+      profile={profile}
+      user={user}
+      isDemo={isDemo}
+      seasonActive={seasonActive}
+      userPredictions={(userPredictions ?? []) as any[]}
+      latestSummary={latestSummary}
+      aliveCount={aliveCount}
+      openMarketCount={openMarketCount}
+    />
+
+    {/* ── DESKTOP GRID (hidden on mobile) ── */}
+    <main className="dashboard-grid grid gap-2 px-1 pt-1 pb-2 mobile-hide">
       {isDemo && <DemoModeBanner />}
       <CommandCenter
         season={season}
@@ -208,5 +228,6 @@ export default async function HomePage() {
         )}
       </section>
     </main>
+    </>
   )
 }

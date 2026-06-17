@@ -1,16 +1,26 @@
 import type { ChallengeType, TraitDef } from './types'
 
 export const CASTAWAY_NAMES = [
+  // original cast
   'Garbage Kevin','Babs','Trent','DeShawn','Moonpie','Brad','Crystal','Nguyen',
   'Skylar','Hoss','Patches','Vex','Ramona','Cleetus','Bex','Tofu Greg',
   'Sister Mary','Gizz','Lurleen','Chadwick','Mama Sue','Pixel','Worm',
   'Daphne','Roach','Bunny','Tank','Esmerelda',
+  // expanded pool
+  'Thunderstruck Linda','Mud Dobbs','Floatsy','Crawdad','Remy Gloom',
+  'Duchess','The Intern','Spade','Clovis','Grimple',
+  'Wet Janet','Buckeye','Preach','Magnolia','Scabs',
+  'Driftwood Carl','Velvet','Hatchet','Zero','Cobweb',
+  'Mothball Wanda','Fondue','Skunky','Digger','Half-Pint',
+  'Scorch','Noodles','Bathwater','Grimshaw','Twitchy',
+  'Stovepipe','Ruckus','Belladonna','Gnarly Dave','Flipper',
 ]
 
 export const ARCHETYPES = [
   'The Schemer','The Golden Retriever','The Villain Edit','The Floater',
   'The Provider','The Wildcard','The Pageant Queen','The Conspiracy Guy',
   'The Gym Bro','The Sweetheart','The Goblin','The Saboteur',
+  'The True Believer','The Mole','The Chaos Agent','The One Who Cries First',
 ]
 
 export const INSULTS = ['snake','rat','clown','gremlin','liar','ghoul','freak','weasel','goblin','worm']
@@ -22,6 +32,8 @@ export const TRAITS: Record<string, TraitDef> = {
   Narcissistic:  { accent:'#FFFF00', bias:{ gaslighting:1.4, moxie:.8, likeability:-.6 } },
   Feral:         { accent:'#FFB000', bias:{ physical:1.4, likeability:-.8, paranoia:.4 } },
   Hollow:        { accent:'#00FF00', bias:{ paranoia:.6, moxie:-.6, likeability:-.4 } },
+  Haunted:       { accent:'#7B8CDE', bias:{ paranoia:1.2, likeability:-.3, gaslighting:.5 } },
+  Obsessed:      { accent:'#E05C5C', bias:{ moxie:1.3, paranoia:.9, likeability:-.7 } },
 }
 
 export const CHALLENGE_TYPES: ChallengeType[] = [
@@ -64,13 +76,86 @@ export const CHALLENGE_TYPES: ChallengeType[] = [
 ]
 
 // ── Backstory matrices (age/hometown/job/education/family/audition tape) ────
-export const HOMETOWNS = ['Lower Moose Jaw','Spittlefield','New Caustic','Bismuth Creek','Salt Forks','Drywell','Cinderlick','Hog Valley','Backwater Bend','Toad Suck Annex','Grayrot','Static Hollow','Bleak Ridge','Cooper\'s Drain','Mossbarrow','Lostlight']
+export const HOMETOWNS = [
+  'Lower Moose Jaw','Spittlefield','New Caustic','Bismuth Creek','Salt Forks',
+  'Drywell','Cinderlick','Hog Valley','Backwater Bend','Toad Suck Annex',
+  'Grayrot','Static Hollow','Bleak Ridge','Cooper\'s Drain','Mossbarrow','Lostlight',
+  // expanded
+  'Rustbelt Parish','Soggy Fork','New Slaughter','Plaguehole','Tickle Creek',
+  'Bleachwood','Gutchuck','Forgettable Falls','Sour Milk Bluffs','The Gulch',
+  'Soot Crossing','Briar Hollow','Wormwood Landing','Pucker Flats','Hagthorpe',
+]
 
-export const JOBS = ['discount mattress salesman','third-shift gas station clerk','competitive eater','failed cult leader','substitute gym teacher','repo man','wedding DJ','crime scene cleaner','daycare worker','insurance fraud investigator','retired exotic bird smuggler','funeral home cosmetician','crab boat deckhand','tarot reader at the mall','unlicensed tattoo artist','foreclosure auctioneer','beekeeper','community theater villain']
+export const JOBS = [
+  'discount mattress salesman','third-shift gas station clerk','competitive eater',
+  'failed cult leader','substitute gym teacher','repo man','wedding DJ',
+  'crime scene cleaner','daycare worker','insurance fraud investigator',
+  'retired exotic bird smuggler','funeral home cosmetician','crab boat deckhand',
+  'tarot reader at the mall','unlicensed tattoo artist','foreclosure auctioneer',
+  'beekeeper','community theater villain',
+  // expanded
+  'decommissioned mascot','self-described influencer with eleven followers',
+  'unlicensed therapist','roadkill taxidermist','professional grudge-holder',
+  'bridge toll operator who gives unsolicited life advice','flea market psychic',
+  'competitive dog groomer','reality TV consultant who has never been on reality TV',
+  'regional hot dog eating record holder','seasonal storm chaser (unlicensed)',
+  'municipal code violation inspector','lapsed chiropractor','escape room architect',
+  'self-appointed neighborhood watch captain','former game show warm-up comedian',
+]
 
-export const EDUCATIONS = ['dropped out of community college to "find clarity"','online ordained minister certificate','GED, earned twice for reasons unclear','self-taught, mostly from late-night infomercials','expelled from culinary school for "the incident"','correspondence degree in criminal justice','high school diploma, valedictorian of a class of nine','two semesters of art school before the funding ran out','homeschooled by a parent who distrusted institutions','vocational certificate in small engine repair','some college, didn\'t finish, doesn\'t want to talk about it','PhD dropout, ABD in a field nobody can pronounce','trade school welding certificate','military service, discharge status classified']
+export const EDUCATIONS = [
+  'dropped out of community college to "find clarity"',
+  'online ordained minister certificate',
+  'GED, earned twice for reasons unclear',
+  'self-taught, mostly from late-night infomercials',
+  'expelled from culinary school for "the incident"',
+  'correspondence degree in criminal justice',
+  'high school diploma, valedictorian of a class of nine',
+  'two semesters of art school before the funding ran out',
+  'homeschooled by a parent who distrusted institutions',
+  'vocational certificate in small engine repair',
+  'some college, didn\'t finish, doesn\'t want to talk about it',
+  'PhD dropout, ABD in a field nobody can pronounce',
+  'trade school welding certificate',
+  'military service, discharge status classified',
+  // expanded
+  'life coaching certificate from a now-defunct website',
+  'one year of nursing school before the incident with the chart',
+  'bartending school graduate, twice, for different reasons',
+  'apprenticed under a mentalist who turned out to be a fraud',
+  'graduated valedictorian, still brings it up constantly',
+  'self-described autodidact, which they confirm means books from the library',
+  'online degree in something nobody has verified',
+  'three weeks of paramedic training, then stopped for personal reasons',
+]
 
-export const FAMILIES = ['raised by a single mother who ran a tarot hotline','oldest of seven, none of whom are speaking right now','estranged from a twin nobody else knew about','married into a family that owns a regional waterpark','parents run a roadside attraction nobody visits anymore','grandmother claims to have invented a popular condiment','has a stepfather currently incarcerated for "civil reasons"','comes from a long line of competitive yodelers','raised in a trailer behind the family\'s failing drive-in theater','youngest of four, the designated "normal one" until now','parents divorced live on local cable access television','family runs a struggling exotic pet rescue out of their garage','engaged twice, married zero times, no comment beyond that','has a brother who is "basically" famous, by his own account','raised by grandparents after a family situation nobody explains on camera','only child, overcorrected for it in every relationship since']
+export const FAMILIES = [
+  'raised by a single mother who ran a tarot hotline',
+  'oldest of seven, none of whom are speaking right now',
+  'estranged from a twin nobody else knew about',
+  'married into a family that owns a regional waterpark',
+  'parents run a roadside attraction nobody visits anymore',
+  'grandmother claims to have invented a popular condiment',
+  'has a stepfather currently incarcerated for "civil reasons"',
+  'comes from a long line of competitive yodelers',
+  'raised in a trailer behind the family\'s failing drive-in theater',
+  'youngest of four, the designated "normal one" until now',
+  'parents divorced live on local cable access television',
+  'family runs a struggling exotic pet rescue out of their garage',
+  'engaged twice, married zero times, no comment beyond that',
+  'has a brother who is "basically" famous, by his own account',
+  'raised by grandparents after a family situation nobody explains on camera',
+  'only child, overcorrected for it in every relationship since',
+  // expanded
+  'raised by a rotating cast of aunts, none of whom coordinated with each other',
+  'parents currently on a "spiritual sabbatical" that has lasted eleven years',
+  'only sibling is a licensed PI who will not say what they know',
+  'family crest is a real thing and they will explain it to anyone who slows down',
+  'grew up next to a decommissioned Walmart the family used as a backyard',
+  'has a nephew who appeared on a game show once, considered a family legacy',
+  'grandmother won a local beauty pageant in 1963 and the family has been coasting since',
+  'related to someone semifamous by a chain of marriages nobody can fully diagram',
+]
 
 export const AUDITION_TAPES: Record<string, string[]> = {
   Cannibalistic: [
@@ -97,6 +182,18 @@ export const AUDITION_TAPES: Record<string, string[]> = {
     '[AUDITION TAPE] ${a} answers every question correctly, pleasantly, and with absolutely nothing behind the eyes.',
     '[AUDITION TAPE] ${a} is asked to describe themselves in three words. There is a forty-second silence before they say: "still deciding."',
     '[AUDITION TAPE] The tape is technically complete, properly lit, fully in focus. Nobody who has watched it can recall a single thing ${a} said.'],
+}
+
+  Haunted: [
+    '[AUDITION TAPE] ${a} speaks directly to someone off-camera for six minutes before acknowledging the crew. "That was nobody," they say. The chair they were facing is empty.',
+    '[AUDITION TAPE] ${a}\'s audition footage keeps reversing itself in thirty-second loops. The sound team has no explanation. ${a} seems unsurprised.',
+    '[AUDITION TAPE] ${a} warns production that someone from a previous season will be on this one too. There is no previous season.',
+  ],
+  Obsessed: [
+    '[AUDITION TAPE] ${a} arrives with a printed surveillance file on a player who has not been cast yet. They refer to this person by a nickname. The nickname is alarming.',
+    '[AUDITION TAPE] ${a} is asked their strategy. They say one name, twice, slowly, and then wait.',
+    '[AUDITION TAPE] ${a} would like it on record that they are not here to make friends. They are here for one reason. They say the reason. It is very specific.',
+  ],
 }
 
 export const AUDITION_GENERIC = [
@@ -151,6 +248,16 @@ export const TRAIT_CAMP: Record<string, string[]> = {
     '${a} stares at the ocean for nine hours. ${b} swears ${a} did not blink once.',
     '${a} forgets their own name but remembers exactly how ${b} betrayed them.',
     '${a} hums a song no one taught them while ${b} backs slowly away.',
+  ],
+  Haunted: [
+    '${a} wakes the camp at dawn reporting that ${b} was outside the shelter all night. ${b} was inside the shelter all night.',
+    '${a}\'s Haunted trait activates; the static on their buff spells out ${b}\'s name over and over.',
+    '${a} describes a dream in specific detail. ${b} is unnerved because it describes tomorrow.',
+  ],
+  Obsessed: [
+    '${a} has carved a comprehensive threat assessment into the shelter wall. Every entry is ${b}.',
+    '${a}\'s Obsessed trait locks onto ${b}; they trail them to the water, to the fire, to the confessional.',
+    '${a} asks the third person they meet today whether ${b} is trustworthy. They do not wait for the answer.',
   ],
 }
 
