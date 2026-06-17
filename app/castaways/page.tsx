@@ -6,7 +6,7 @@ import { getDemoDashboardData } from '@/lib/demo'
 
 export const dynamic = 'force-dynamic'
 
-export default async function CastawaysPage() {
+export default async function CastawaysPage({ searchParams }: { searchParams: { id?: string } }) {
   const demo = !SUPABASE_CONFIGURED ? getDemoDashboardData() : null
   const supabase = SUPABASE_CONFIGURED ? createClient() : null
   const isDemo = !SUPABASE_CONFIGURED
@@ -55,6 +55,7 @@ export default async function CastawaysPage() {
           nameLookup={nameLookup}
           seasonLabel={`Season ${season.season_number} · Day ${season.current_day}`}
           memories={memoryLookup}
+          defaultSelectedId={searchParams.id ? Number(searchParams.id) : undefined}
         />
       )}
     </main>

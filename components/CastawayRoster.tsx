@@ -231,14 +231,17 @@ export default function CastawayRoster({
   nameLookup,
   seasonLabel,
   memories = {},
+  defaultSelectedId,
 }: {
   castaways: Castaway[]
   nameLookup: Record<string, string>
   seasonLabel: string
   memories?: Record<string, CastawayMemory>
+  defaultSelectedId?: number
 }) {
   const initial = castaways.find(c => c.status === 'alive') ?? castaways[0] ?? null
-  const [selectedId, setSelectedId] = useState<number | null>(initial?.id ?? null)
+  const defaultId = defaultSelectedId ?? initial?.id ?? null
+  const [selectedId, setSelectedId] = useState<number | null>(defaultId)
 
   const selected = useMemo(() => castaways.find(c => c.id === selectedId) ?? initial, [castaways, selectedId, initial])
 
@@ -410,7 +413,7 @@ export default function CastawayRoster({
             key={c.id}
             castaway={c}
             selected={c.id === selected?.id}
-            onSelect={() => setSelectedId(c.id)}
+               onSelect={() => setSelectedId(c.id)}
           />
         ))}
       </div>

@@ -191,7 +191,7 @@ function CastPanel({ castaways }: any) {
           {all.map((c: any) => {
             const isAlive = c.status === 'alive'
             return (
-              <a key={c.id} href="/castaways" style={{ textDecoration: 'none' }}>
+              <a key={c.id} href={`/castaways?id=${c.id}`} style={{ textDecoration: 'none' }}>
                 <div
                   className="hud-cast-card panel"
                   style={{ borderColor: isAlive ? 'var(--green)' : 'var(--wrong)', opacity: isAlive ? 1 : 0.45 }}
