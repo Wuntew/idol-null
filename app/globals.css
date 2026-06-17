@@ -522,7 +522,7 @@ input::placeholder, textarea::placeholder { color: #4a3a26; }
   .hud-tribe-box {
     display: flex;
     flex-direction: column;
-    border: 2px solid;
+    border: 1px solid;
     min-width: 0;
   }
 
