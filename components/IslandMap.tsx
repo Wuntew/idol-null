@@ -77,8 +77,9 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    const ctxOrNull = canvas.getContext('2d')
+    if (!ctxOrNull) return
+    const ctx: CanvasRenderingContext2D = ctxOrNull
 
     const rng = mulberry32(seasonSeed)
     const n1 = noise2d(16, 9, rng), n2 = noise2d(32, 18, rng), n3 = noise2d(64, 36, rng)
