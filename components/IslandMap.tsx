@@ -295,12 +295,11 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
 
         // ── Tribe camp markers ──────────────────────────────────────
         for (const tribe of tribes) {
-          if (tribe.is_merge_tribe) continue // skip merge camp until merged
+          if (tribe.is_merge_tribe) continue
           const sx = tribe.camp_x * TS + TS / 2
           const sy = tribe.camp_y * TS + TS / 2
           const res = resourceMap[tribe.id]
 
-          // Camp base: colored square
           ctx.fillStyle = tribe.color
           ctx.globalAlpha = 0.85
           ctx.fillRect(sx - 8, sy - 8, 16, 16)
@@ -308,19 +307,16 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
           ctx.strokeRect(sx - 8, sy - 8, 16, 16)
           ctx.globalAlpha = 1
 
-          // Tribe initial
           ctx.fillStyle = '#fff'
           ctx.font = 'bold 9px monospace'
           ctx.fillText(tribe.name[0], sx, sy)
 
-          // Tribe name label above camp
           ctx.font = 'bold 8px monospace'
           ctx.fillStyle = tribe.color
           ctx.globalAlpha = 0.95
           ctx.fillText(tribe.name, sx, sy - 14)
           ctx.globalAlpha = 1
 
-          // Resource icons below camp (food 🍖, water 💧, shelter 🏠, fire 🔥)
           if (res) {
             const iconY = sy + 14
             const icons: [string, number, string][] = [
@@ -354,7 +350,6 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
           ctx.font = 'bold 8px monospace'
           ctx.fillText(c.name[0], sx, sy)
 
-          // Name label
           ctx.font = '7px monospace'
           ctx.fillStyle = dotColor
           ctx.globalAlpha = alive ? 0.85 : 0.4
@@ -398,7 +393,6 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
           height={TH * TS}
           style={{ display: 'block', width: '100%', height: 'clamp(180px, 60vw, 280px)', imageRendering: 'pixelated' }}
         />
-        {/* Tappable legend toggle */}
         <button
           onClick={() => setLegendOpen(o => !o)}
           style={{
@@ -412,7 +406,6 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
         >
           ◈ KEY
         </button>
-        {/* Legend overlay */}
         {legendOpen && (
           <div style={{
             position: 'absolute', bottom: 24, right: 4,

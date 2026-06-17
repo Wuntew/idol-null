@@ -164,5 +164,5 @@ export function getDemoPreseasonData() {
 }
 
 export function getDemoLeaderboardData() {
-  return { rows: getDemoDashboardData().leaderboard, userId: 'u2' }
+  return { rows: getDemoDashboardData().leaderboard, user_id: 'u2' }
 }

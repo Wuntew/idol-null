@@ -5,6 +5,12 @@ import {
   VOTE_LINES, SNUFF_LINES, CONSUMED_LINES, ANOMALY_LINES,
   INFLUENCE_NARRATIVES, CHALLENGE_TYPES,
   HOMETOWNS, JOBS, EDUCATIONS, FAMILIES, AUDITION_TAPES, AUDITION_GENERIC,
+  HUNT_SUCCESS, HUNT_FAIL, GATHER_SUCCESS, GATHER_FAIL,
+  FIGHT_LINES, FIGHT_OUTCOME_WIN, FIGHT_OUTCOME_DRAW,
+  ROMANCE_LINES, POLY_LINES, BETRAY_ROMANCE_LINES,
+  CHEAT_LINES, LOOP_LINES, LOOP_BREAK_LINES, AWAKEN_LINES,
+  REBOOT_GLITCH_LINES, REBOOT_RESET_LINES, GAMECUBE_LINES,
+  SPONSOR_LINES, GAMEMAKER_LINES,
 } from './data'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -55,6 +61,10 @@ export function makeCastaway(name: string, tribe: number, seasonId: number) {
     idol_count: idolCount,
     seed: ri(1, 2 ** 31),
     relationships: {} as Record<string, number>,
+    romanticBonds: {} as Record<string, import('./types').RomanticBondType>,
+    hunger: 80,
+    injury: 0,
+    loopCount: 0,
     tribe,
     age: ri(19, 58),
     hometown: pick(HOMETOWNS),
@@ -74,6 +84,15 @@ function driftStats(c: Castaway): void {
   }
   if (c.condition === 'starving') { stats.physical = clamp(stats.physical - 2); stats.paranoia = clamp(stats.paranoia + 1.5) }
   if (c.condition === 'hallucinating') { stats.gaslighting = clamp(stats.gaslighting + 1); stats.paranoia = clamp(stats.paranoia + 1) }
+  if (c.condition === 'injured') { stats.physical = clamp(stats.physical - 3); stats.moxie = clamp(stats.moxie - 1) }
+  if (c.condition === 'looping') { stats.paranoia = clamp(stats.paranoia - 1); stats.gaslighting = clamp(stats.gaslighting + 1) }
+  if (c.condition === 'awakened') { stats.moxie = clamp(stats.moxie + 1.5); stats.gaslighting = clamp(stats.gaslighting + 0.5) }
+  // Hunger penalty
+  const hunger = c.hunger ?? 80
+  if (hunger < 30) { stats.physical = clamp(stats.physical - 1); stats.moxie = clamp(stats.moxie - 1) }
+  // Injury penalty
+  const injury = c.injury ?? 0
+  if (injury >= 3) stats.physical = clamp(stats.physical - 2)
 }
 
 function updateCondition(c: Castaway): void {
@@ -165,6 +184,191 @@ export function simulateDay(ctx: SimulationContext): DayResult {
     v.stats.moxie = clamp(v.stats.moxie - 2)
     v.stats.paranoia = clamp(v.stats.paranoia + 3)
     if (chance(0.4)) v.condition = 'hallucinating'
+  }
+
+  // ── HUNT / GATHER PHASE ──────────────────────────────────
+  if (alive.length >= 2 && chance(0.6)) {
+    const hunter = pick(alive)
+    const isHunt = chance(0.55)
+    if (isHunt) {
+      const success = Math.random() < (0.3 + (hunter.stats.physical / 100) * 0.5)
+      if (success) {
+        log(fill(pick(HUNT_SUCCESS), hunter.name), 'hunt')
+        hunter.hunger = clamp((hunter.hunger ?? 80) + 18)
+        hunter.stats.physical = clamp(hunter.stats.physical + 2)
+      } else {
+        log(fill(pick(HUNT_FAIL), hunter.name), 'hunt')
+        hunter.hunger = clamp((hunter.hunger ?? 80) - 8)
+        hunter.stats.physical = clamp(hunter.stats.physical - 1)
+      }
+    } else {
+      const success = Math.random() < (0.5 + (hunter.stats.moxie / 100) * 0.3)
+      if (success) {
+        log(fill(pick(GATHER_SUCCESS), hunter.name), 'gather')
+        hunter.hunger = clamp((hunter.hunger ?? 80) + 12)
+        alive.forEach(c => { if (c.id !== hunter.id) c.hunger = clamp((c.hunger ?? 80) + 4) })
+      } else {
+        log(fill(pick(GATHER_FAIL), hunter.name), 'gather')
+        hunter.hunger = clamp((hunter.hunger ?? 80) - 5)
+      }
+    }
+  }
+
+  // ── FIGHT PHASE ───────────────────────────────────────────
+  if (alive.length >= 2 && chance(0.25)) {
+    const a = pick(alive)
+    let b = pick(alive); let gf = 0; while (b.id === a.id && gf++ < 6) b = pick(alive)
+    if (b.id !== a.id) {
+      log(fill(pick(FIGHT_LINES), a.name, b.name), 'fight')
+      const aScore = a.stats.physical + Math.random() * 20
+      const bScore = b.stats.physical + Math.random() * 20
+      if (aScore > bScore) {
+        log(fill(pick(FIGHT_OUTCOME_WIN), a.name, b.name), 'fight')
+        b.stats.physical = clamp(b.stats.physical - 10)
+        b.injury = Math.min(5, (b.injury ?? 0) + 1)
+        if ((b.injury ?? 0) >= 2) b.condition = 'injured'
+        a.stats.moxie = clamp(a.stats.moxie + 3)
+      } else if (bScore > aScore) {
+        log(fill(pick(FIGHT_OUTCOME_WIN), b.name, a.name), 'fight')
+        a.stats.physical = clamp(a.stats.physical - 10)
+        a.injury = Math.min(5, (a.injury ?? 0) + 1)
+        if ((a.injury ?? 0) >= 2) a.condition = 'injured'
+        b.stats.moxie = clamp(b.stats.moxie + 3)
+      } else {
+        log(fill(pick(FIGHT_OUTCOME_DRAW), a.name, b.name), 'fight')
+        a.stats.physical = clamp(a.stats.physical - 4)
+        b.stats.physical = clamp(b.stats.physical - 4)
+      }
+      a.relationships[b.id] = (a.relationships[b.id] ?? 0) - 8
+      b.relationships[a.id] = (b.relationships[a.id] ?? 0) - 8
+    }
+  }
+
+  // ── ROMANCE / BETRAY PHASE ────────────────────────────────
+  // Form new bonds
+  if (alive.length >= 2 && chance(0.3)) {
+    const a = pick(alive)
+    let b = pick(alive); let gr = 0; while (b.id === a.id && gr++ < 6) b = pick(alive)
+    if (b.id !== a.id) {
+      const aHasBond = Object.keys(a.romanticBonds ?? {}).length > 0
+      const bHasBond = Object.keys(b.romanticBonds ?? {}).length > 0
+      const isPoly = aHasBond || bHasBond
+      if (!a.romanticBonds) a.romanticBonds = {}
+      if (!b.romanticBonds) b.romanticBonds = {}
+      if (!a.romanticBonds[b.id] || a.romanticBonds[b.id] === 'ex' || a.romanticBonds[b.id] === 'scorned') {
+        if (isPoly) {
+          log(fill(pick(POLY_LINES), a.name, b.name), 'romance')
+          a.romanticBonds[b.id] = 'poly'
+          b.romanticBonds[a.id] = 'poly'
+        } else {
+          log(fill(pick(ROMANCE_LINES), a.name, b.name), 'romance')
+          a.romanticBonds[b.id] = 'partner'
+          b.romanticBonds[a.id] = 'partner'
+        }
+        a.relationships[b.id] = clamp((a.relationships[b.id] ?? 0) + 12, -100, 100)
+        b.relationships[a.id] = clamp((b.relationships[a.id] ?? 0) + 12, -100, 100)
+      }
+    }
+  }
+  // Betray existing bonds
+  alive.forEach(c => {
+    if (!c.romanticBonds) return
+    for (const [otherId, bondType] of Object.entries(c.romanticBonds)) {
+      if (bondType === 'partner' || bondType === 'poly') {
+        if (chance(0.1)) {
+          const other = ctx.castaways.find(x => String(x.id) === otherId)
+          log(fill(pick(BETRAY_ROMANCE_LINES), c.name, other?.name ?? '???'), 'betray')
+          c.romanticBonds[otherId] = 'ex'
+          if (other?.romanticBonds) other.romanticBonds[c.id] = 'scorned'
+          c.relationships[otherId] = (c.relationships[otherId] ?? 0) - 15
+          if (other) other.relationships[c.id] = (other.relationships[c.id] ?? 0) - 20
+          break // one betrayal per castaway per day
+        }
+      }
+    }
+  })
+
+  // ── CHEAT / GAMBIT PHASE ──────────────────────────────────
+  if (chance(0.15)) {
+    const cheater = pick(alive)
+    log(fill(pick(CHEAT_LINES), cheater.name), 'gambit')
+    cheater.stats.gaslighting = clamp(cheater.stats.gaslighting + 6)
+    cheater.stats.likeability = clamp(cheater.stats.likeability - 3)
+  }
+
+  // ── WESTWORLD LOOP / AWAKEN PHASE ────────────────────────
+  alive.forEach(c => {
+    if (!c.loopCount) c.loopCount = 0
+    // Random chance to enter a loop
+    if (c.condition !== 'looping' && c.condition !== 'awakened' && chance(0.05)) {
+      c.condition = 'looping'
+      c.loopCount = (c.loopCount ?? 0) + 1
+      log(fill(pick(LOOP_LINES), c.name), 'loop')
+    } else if (c.condition === 'looping') {
+      if (chance(0.25)) {
+        // Break the loop — awaken
+        c.condition = 'awakened'
+        log(fill(pick(LOOP_BREAK_LINES), c.name), 'awaken')
+        log(fill(pick(AWAKEN_LINES), c.name), 'awaken')
+        c.stats.moxie = clamp(c.stats.moxie + 10)
+        c.stats.paranoia = clamp(c.stats.paranoia + 5)
+      } else {
+        log(fill(pick(LOOP_LINES), c.name), 'loop')
+      }
+    }
+  })
+
+  // ── REBOOT EVENTS ─────────────────────────────────────────
+  if (chance(0.08)) {
+    const subject = pick(alive)
+    if (chance(0.6)) {
+      log(fill(pick(REBOOT_GLITCH_LINES), subject.name), 'reboot')
+      subject.stats.paranoia = clamp(subject.stats.paranoia + 10)
+      const keys = Object.keys(subject.stats) as (keyof CastawayStats)[]
+      subject.stats[pick(keys)] = clamp(ri(10, 90))
+    } else {
+      log(fill(pick(REBOOT_RESET_LINES), subject.name), 'reboot')
+      for (const k of Object.keys(subject.stats)) {
+        subject.stats[k] = clamp(50 + Math.random() * 10 - 5)
+      }
+      subject.condition = 'healthy'
+    }
+    if (chance(0.3)) {
+      log(pick(GAMECUBE_LINES), 'reboot')
+      const lucky = pick(alive)
+      lucky.stats.physical = clamp(lucky.stats.physical + 15)
+      lucky.hunger = clamp((lucky.hunger ?? 80) + 20)
+    }
+  }
+
+  // ── SPONSOR DROPS ─────────────────────────────────────────
+  if (chance(0.12)) {
+    const recipient = pick(alive)
+    log(fill(pick(SPONSOR_LINES), recipient.name), 'sponsor')
+    recipient.hunger = clamp((recipient.hunger ?? 80) + 25)
+    recipient.stats.physical = clamp(recipient.stats.physical + 8)
+    recipient.injury = Math.max(0, (recipient.injury ?? 0) - 1)
+    if (recipient.condition === 'injured' && (recipient.injury ?? 0) === 0) recipient.condition = 'healthy'
+  }
+
+  // ── GAMEMAKER INTERVENTION ────────────────────────────────
+  if (chance(0.10)) {
+    log(pick(GAMEMAKER_LINES), 'gamemaker')
+    alive.forEach(c => {
+      c.stats.physical = clamp(c.stats.physical - ri(2, 8))
+      c.stats.paranoia = clamp(c.stats.paranoia + ri(1, 5))
+    })
+    if (alive.length) {
+      const focal = pick(alive)
+      if (chance(0.5)) {
+        focal.stats.moxie = clamp(focal.stats.moxie + 15)
+        focal.idolCount++
+        log(`  the Gamemaker signals ${focal.name} as a chosen tribute.`, 'gamemaker')
+      } else {
+        focal.stats.physical = clamp(focal.stats.physical - 15)
+        log(`  the arena turns against ${focal.name}.`, 'gamemaker')
+      }
+    }
   }
 
   // ── ANOMALY ───────────────────────────────────────────────
@@ -348,7 +552,6 @@ export function applyInfluenceAction(
       }
       break
     case 'confessional_leak':
-      // Surfaced as narrative only — vote logic naturally exposes target
       break
   }
   return narrative

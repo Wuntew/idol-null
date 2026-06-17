@@ -42,7 +42,7 @@ export default async function Nav() {
         </div>
         <div className="nav-info-row flex items-center gap-3 px-2 flex-wrap text-[12px]">
           {season && (
-            <>
+                <>
               <span className="nowrap c-purple">S<b>{season.season_number}</b></span>
               <span className="nowrap c-cyan">DAY <b>{season.current_day}</b></span>
               <span className={`nowrap tag ${season.status === 'active' ? 'c-green' : 'c-amber'}`}>{season.status.toUpperCase()}</span>

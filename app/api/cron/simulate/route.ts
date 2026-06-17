@@ -70,6 +70,10 @@ export async function GET(request: Request) {
     idolCount: c.idol_count,
     seed: c.seed,
     relationships: (c.relationships ?? {}) as Record<string, number>,
+    romanticBonds: (c.romantic_bonds ?? {}) as Record<string, import('@/lib/simulation/types').RomanticBondType>,
+    hunger: c.hunger ?? 80,
+    injury: c.injury ?? 0,
+    loopCount: c.loop_count ?? 0,
     tribe: c.tribe,
     eliminationDay: c.elimination_day ?? undefined,
   }))

@@ -7,6 +7,8 @@ export interface CastawayStats {
   [key: string]: number
 }
 
+export type RomanticBondType = 'partner' | 'poly' | 'ex' | 'rival_romantic' | 'scorned'
+
 export interface Castaway {
   id: number
   name: string
@@ -14,12 +16,16 @@ export interface Castaway {
   trait: string
   stats: CastawayStats
   status: 'alive' | 'ghost' | 'consumed'
-  condition: 'healthy' | 'starving' | 'hallucinating'
+  condition: 'healthy' | 'starving' | 'hallucinating' | 'injured' | 'looping' | 'awakened'
   idolCount: number
   seed: number
-  relationships: Record<string, number>
+  relationships: Record<string, number>             // alliance strength by id
+  romanticBonds: Record<string, RomanticBondType>   // romantic bonds by castaway id
   tribe: number
   eliminationDay?: number
+  loopCount?: number   // Westworld: how many loops they've run
+  hunger?: number      // 0–100 (100 = full)
+  injury?: number      // 0–5 (0 = healthy, 5 = critical)
 }
 
 export interface LogEntry {
@@ -31,13 +37,15 @@ export type LogType =
   | 'camp' | 'host' | 'trait' | 'ghost' | 'vote'
   | 'elim' | 'anomaly' | 'system' | 'bet' | 'win' | 'influence'
   | 'narrative' | 'confessional'
+  | 'hunt' | 'gather' | 'fight' | 'romance' | 'betray'
+  | 'sponsor' | 'gamemaker' | 'loop' | 'awaken' | 'reboot' | 'gambit'
 
 export interface DayResult {
   logs: LogEntry[]
   eliminatedId: number | null
   isSeasonOver: boolean
   winnerId: number | null
-  anomalyFired: boolean
+   anomalyFired: boolean
   idolPlayed: boolean
   castawayUpdates: Castaway[]
   challengeName: string
