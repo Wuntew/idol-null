@@ -110,6 +110,17 @@ export async function GET(request: Request) {
 
   const nextDay = season.current_day + 1
 
+  // ── Generate + store map events BEFORE simulation so they can affect the day ──
+  const { data: tribeData } = await supabase
+    .from('tribes')
+    .select('camp_x, camp_y, is_merge_tribe')
+    .eq('season_id', season.id)
+
+  const mapEventRows = generateDayMapEvents(season.id, nextDay, season.seed ?? 1337, tribeData ?? [])
+  if (mapEventRows.length) {
+    await supabase.from('map_events').insert(mapEventRows)
+  }
+
   // ── Consume pending influence actions ────────────────────────────────────
   const { data: pending } = await supabase
     .from('influence_actions')
@@ -132,7 +143,12 @@ export async function GET(request: Request) {
   }
 
   // ── Run simulation ───────────────────────────────────────────────────────
-  const result = simulateDay({ castaways, day: nextDay, merged: castaways.filter(c => c.status === 'alive').every(c => c.tribe === castaways.find(x => x.status === 'alive')?.tribe) })
+  const result = simulateDay({
+    castaways,
+    day: nextDay,
+    merged: castaways.filter(c => c.status === 'alive').every(c => c.tribe === castaways.find(x => x.status === 'alive')?.tribe),
+    mapEvents: mapEventRows.map(e => ({ ev_type: e.ev_type, tile_x: e.tile_x, tile_y: e.tile_y })),
+  })
 
   const { data: memoryRows } = await supabase
     .from('castaway_memories')
@@ -162,17 +178,6 @@ export async function GET(request: Request) {
     influenceCount: influenceLogs.length,
     challengeName: result.challengeName,
   })
-
-  // ── Generate map events ──────────────────────────────────────────────────
-  const { data: tribeData } = await supabase
-    .from('tribes')
-    .select('camp_x, camp_y, is_merge_tribe')
-    .eq('season_id', season.id)
-
-  const mapEventRows = generateDayMapEvents(season.id, nextDay, season.seed ?? 1337, tribeData ?? [])
-  if (mapEventRows.length) {
-    await supabase.from('map_events').insert(mapEventRows)
-  }
 
   // ── Write logs ───────────────────────────────────────────────────────────
   const logRows = [
@@ -429,13 +434,15 @@ async function bootstrapNewSeason(supabase: ReturnType<typeof createServiceClien
   if (!newSeason) return
 
   // Pull 18 unused castaways from the pool; fall back to any if pool is nearly exhausted
-  let { data: poolBatch } = await supabase
-    .from('castaway_pool').select('*').is('used_in_season', null).limit(60)
-  if (!poolBatch || poolBatch.length < 18) {
-    const fallback = await supabase.from('castaway_pool').select('*').limit(60)
-    poolBatch = fallback.data ?? []
+  const unusedRes = await supabase.from('castaway_pool').select('*').is('used_in_season', null).limit(60)
+  const poolBatch = (unusedRes.data && unusedRes.data.length >= 18)
+    ? unusedRes.data
+    : ((await supabase.from('castaway_pool').select('*').limit(60)).data ?? [])
+
+  if (poolBatch.length < 18) {
+    console.error('[bootstrap] castaway_pool too small:', poolBatch.length)
+    return
   }
-  if (poolBatch.length < 18) { console.error('castaway_pool too small'); return }
 
   const chosen = shuffled(poolBatch).slice(0, 18)
 
@@ -452,12 +459,12 @@ async function bootstrapNewSeason(supabase: ReturnType<typeof createServiceClien
   }
 
   // Insert both active tribes + merge tribe
-  const { data: insertedTribes } = await supabase.from('tribes').insert([
+  const { data: insertedTribes, error: tribeErr } = await supabase.from('tribes').insert([
     { season_id: newSeason.id, name: namePair[0], color: colorPair[0], camp_x: camps[0].x, camp_y: camps[0].y, is_merge_tribe: false },
     { season_id: newSeason.id, name: namePair[1], color: colorPair[1], camp_x: camps[1].x, camp_y: camps[1].y, is_merge_tribe: false },
     { season_id: newSeason.id, name: mergeName,   color: '#9933cc',    camp_x: mergeCamp.x, camp_y: mergeCamp.y, is_merge_tribe: true },
   ]).select()
-  if (!insertedTribes?.length) return
+  if (!insertedTribes?.length) { console.error('[bootstrap] tribe insert failed:', tribeErr); return }
 
   const [tribe0, tribe1] = insertedTribes
 
@@ -488,8 +495,8 @@ async function bootstrapNewSeason(supabase: ReturnType<typeof createServiceClien
     }
   })
 
-  const { data: insertedCastaways } = await supabase.from('castaways').insert(castawayRows).select()
-  if (!insertedCastaways?.length) return
+  const { data: insertedCastaways, error: castErr } = await supabase.from('castaways').insert(castawayRows).select()
+  if (!insertedCastaways?.length) { console.error('[bootstrap] castaway insert failed:', castErr); return }
 
   // Mark pool entries as used for this season
   await supabase.from('castaway_pool')

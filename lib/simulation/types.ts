@@ -78,4 +78,5 @@ export interface SimulationContext {
   day: number
   merged: boolean
   weather?: WeatherDef
+  mapEvents?: { ev_type: number; tile_x: number; tile_y: number }[]
 }

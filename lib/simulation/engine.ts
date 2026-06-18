@@ -13,6 +13,7 @@ import {
   SPONSOR_LINES, GAMEMAKER_LINES,
   REACTION_LINES, CHAIN_REACTION_LINES,
   VOTE_SPEECH_THREAT, VOTE_SPEECH_ENEMY, VOTE_SPEECH_BETRAY, VOTE_SPEECH_STRATEGIC,
+  MAP_EVENT_FIRE, MAP_EVENT_FLOOD, MAP_EVENT_ANOMALY, MAP_EVENT_LAVA,
 } from './data'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -205,6 +206,68 @@ export function simulateDay(ctx: SimulationContext): DayResult {
     if (chance(0.4)) v.condition = 'hallucinating'
   }
 
+  // ── MAP EVENT PHASE ──────────────────────────────────────
+  // Events generated from terrain/DB; each type has stat/condition effects
+  let anomalyBoost = false
+  for (const ev of ctx.mapEvents ?? []) {
+    const victim = pick(alive)
+    switch (ev.ev_type) {
+      case 1: { // Fire
+        const injuredByFire = chance(0.40)
+        const line = pick(MAP_EVENT_FIRE)
+        log(fill(line, injuredByFire ? victim.name : ''), 'anomaly')
+        alive.forEach(c => { c.hunger = clamp((c.hunger ?? 80) - 8) })
+        if (injuredByFire) {
+          victim.injury = Math.min(5, (victim.injury ?? 0) + 1)
+          victim.hunger = clamp((victim.hunger ?? 80) - 12)
+          victim.stats.physical = clamp(victim.stats.physical - 8)
+          if ((victim.injury ?? 0) >= 2) victim.condition = 'injured'
+        }
+        break
+      }
+      case 3: { // Flood
+        const caughtInFlood = chance(0.35)
+        const line = pick(MAP_EVENT_FLOOD)
+        log(fill(line, caughtInFlood ? victim.name : ''), 'anomaly')
+        alive.forEach(c => {
+          c.hunger = clamp((c.hunger ?? 80) - 6)
+          c.stats.physical = clamp(c.stats.physical - 3)
+          c.stats.moxie    = clamp(c.stats.moxie - 2)
+        })
+        if (caughtInFlood) {
+          victim.injury = Math.min(5, (victim.injury ?? 0) + 1)
+          if ((victim.injury ?? 0) >= 2) victim.condition = 'injured'
+        }
+        break
+      }
+      case 9: { // Anomaly
+        log(fill(pick(MAP_EVENT_ANOMALY), victim.name), 'anomaly')
+        alive.forEach(c => { c.stats.paranoia = clamp(c.stats.paranoia + ri(4, 10)) })
+        // Corrupt one stat for the victim
+        const keys = Object.keys(victim.stats) as (keyof CastawayStats)[]
+        victim.stats[pick(keys)] = clamp(ri(10, 60))
+        anomalyBoost = true // raises anomaly fire chance later in the day
+        break
+      }
+      case 12: { // Lava
+        const caughtInLava = chance(0.50)
+        const line = pick(MAP_EVENT_LAVA)
+        log(fill(line, caughtInLava ? victim.name : ''), 'anomaly')
+        alive.forEach(c => {
+          c.hunger = clamp((c.hunger ?? 80) - 10)
+          c.stats.paranoia = clamp(c.stats.paranoia + 5)
+        })
+        if (caughtInLava) {
+          victim.injury = Math.min(5, (victim.injury ?? 0) + 2)
+          victim.stats.physical = clamp(victim.stats.physical - 15)
+          victim.hunger = clamp((victim.hunger ?? 80) - 20)
+          if ((victim.injury ?? 0) >= 3) victim.condition = 'injured'
+        }
+        break
+      }
+    }
+  }
+
   // ── HUNT / GATHER PHASE ──────────────────────────────────
   if (alive.length >= 2 && chance(0.6)) {
     const hunter = pick(alive)
@@ -392,7 +455,7 @@ export function simulateDay(ctx: SimulationContext): DayResult {
 
   // ── ANOMALY ───────────────────────────────────────────────
   let anomalyFired = false
-  if (chance(0.15)) {
+  if (chance(anomalyBoost ? 0.55 : 0.15)) {
     anomalyFired = true
     log(pick(ANOMALY_LINES), 'anomaly')
     const mode = ri(0, 2)

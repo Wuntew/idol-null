@@ -752,6 +752,46 @@ export const VOTE_SPEECH_STRATEGIC = [
   '${a}: "Every player still alive is someone I had a conversation with this week. ${b}\'s conversation didn\'t go the way it needed to."',
 ]
 
+// ── Map Event Narratives ──────────────────────────────────────────────────────
+// ${a} = affected castaway (used in injury lines). Non-${a} lines are scene-setting.
+export const MAP_EVENT_FIRE = [
+  'A fire erupts near camp. The smoke column is visible from both shores.',
+  'The signal doesn\'t explain the fire. It starts at the treeline and moves fast.',
+  'Smoke. Then heat. Then everyone running. The island set something burning.',
+  'The arena is on fire. The Gamemakers didn\'t announce this one.',
+  'Orange light across the valley. It started before dawn.',
+  '${a} gets caught on the wrong side of the fire line. The burns are survivable. Barely.',
+  '${a} tries to save camp supplies. Comes back with singed hands and half of what they grabbed.',
+]
+
+export const MAP_EVENT_FLOOD = [
+  'Water rises from the river. The camp was not built high enough.',
+  'The flood arrives without warning. The island drains uphill.',
+  'A wall of grey water moves through the valley. Everyone was already wet.',
+  'The flood recedes. Leaves mud. Leaves damage. Leaves everyone tired.',
+  '${a} loses footing in the current. Gets back up. Looks at the damage. Says nothing.',
+  '${a}\'s supplies are underwater. Everything they saved from before is gone.',
+]
+
+export const MAP_EVENT_ANOMALY = [
+  '▚ A signal anomaly activates at grid coordinates unknown. The island knows.',
+  '▚ Something in the terrain doesn\'t match what it was yesterday. The island is rewriting.',
+  '▚ The anomaly manifests at the edge of camp. The castaways feel it before they see it.',
+  '▚ SIGNAL READ: sector corrupted. Recommend clearance. Clearance denied.',
+  '▚ A null-pointer event destabilizes the trust matrix. The alliances don\'t know yet.',
+  '▚ ${a} is standing in the wrong place when the anomaly hits. Their stats don\'t stabilize for hours.',
+]
+
+export const MAP_EVENT_LAVA = [
+  'The ground opens near camp. The island is showing its insides.',
+  'Lava flow detected at the island\'s west quadrant. Nobody was briefed on this.',
+  'The ground runs orange. The island is boiling. The castaways run.',
+  'SYSTEM: thermal event active. Evacuation recommended. Nobody listens.',
+  'The lava doesn\'t reach camp. It gets close enough to matter.',
+  '${a} gets closest. The heat is medical. The burns are real.',
+  '${a} doesn\'t get clear in time. The island doesn\'t apologize.',
+]
+
 // ── Season Bootstrap ──────────────────────────────────────────────────────────
 export const TRIBE_NAME_PAIRS: [string, string][] = [
   ['KALA',   'VORA'],
