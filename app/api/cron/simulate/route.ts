@@ -4,6 +4,7 @@ import { simulateDay, applyInfluenceAction, computeOdds } from '@/lib/simulation
 import type { Castaway } from '@/lib/simulation/types'
 import { getMissingProductionEnv } from '@/lib/runtime'
 import { generateAiNarrative } from '@/lib/ai/narrative'
+import { generateCastawayDossier } from '@/lib/ai/dossier'
 import { TRIBE_NAME_PAIRS, TRIBE_COLOR_PAIRS, MERGE_TRIBE_NAMES } from '@/lib/simulation/data'
 
 export const dynamic = 'force-dynamic'
@@ -502,6 +503,24 @@ async function bootstrapNewSeason(supabase: ReturnType<typeof createServiceClien
   await supabase.from('castaway_pool')
     .update({ used_in_season: newSeason.id })
     .in('id', chosen.map(p => p.id))
+
+  // Generate dossiers via DeepSeek — fire concurrently, store per-castaway
+  await Promise.all(insertedCastaways.map(async (c) => {
+    const dossier = await generateCastawayDossier({
+      name:      c.name,
+      archetype: c.archetype,
+      trait:     c.trait,
+      age:       c.age,
+      hometown:  c.hometown,
+      job:       c.job,
+      education: c.education,
+      family:    c.family,
+      stats:     c.stats,
+    })
+    if (dossier) {
+      await supabase.from('castaways').update({ dossier }).eq('id', c.id)
+    }
+  }))
 
   // Seed starting relationships (random -3..+3 between every pair)
   for (const c of insertedCastaways) {

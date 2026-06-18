@@ -4,6 +4,24 @@ import { useMemo, useState } from 'react'
 import CastawayCard from './CastawayCard'
 import Portrait from './Portrait'
 
+type IntakeInterview = {
+  on_strategy: string
+  on_others: string
+  on_the_island: string
+}
+
+type AiDossier = {
+  audition_tape?: string
+  intake_interview?: IntakeInterview
+  background_signal?: string
+  first_contact?: string
+  field_observation?: string
+  social_architecture?: string
+  pressure_signature?: string
+  threat_read?: string
+  analyst_note?: string
+}
+
 type Castaway = {
   id: number
   name: string
@@ -24,6 +42,7 @@ type Castaway = {
   family?: string | null
   audition_tape?: string | null
   portrait_file?: string | null
+  dossier?: AiDossier | null
 }
 
 type CastawayMemory = {
@@ -301,11 +320,66 @@ export default function CastawayRoster({
             </div>
 
             <div className="dossier-grid mt-3">
-              <div className="dossier-section dossier-section-wide">
-                <div className="c-amber text-[10px] tracking-wider mb-1">ORIGIN FILE</div>
-                <div className="c-dim text-[10px] dossier-backstory">{getBackstory(selected, selectedMemory)}</div>
-              </div>
+              {/* ── AI DOSSIER sections (when generated) ──────────────────── */}
+              {selected.dossier?.audition_tape ? (
+                <div className="dossier-section dossier-section-wide">
+                  <div className="c-amber text-[10px] tracking-wider mb-1">AUDITION TAPE</div>
+                  <div className="c-amber text-[11px]" style={{ fontStyle: 'italic', lineHeight: 1.5 }}>{selected.dossier.audition_tape}</div>
+                </div>
+              ) : selected.audition_tape ? (
+                <div className="dossier-section dossier-section-wide">
+                  <div className="c-amber text-[10px] tracking-wider mb-1">AUDITION TAPE TRANSCRIPT</div>
+                  <div className="c-amber text-[11px]" style={{ fontStyle: 'italic', lineHeight: 1.4 }}>{selected.audition_tape}</div>
+                </div>
+              ) : null}
 
+              {selected.dossier?.intake_interview && (
+                <div className="dossier-section dossier-section-wide">
+                  <div className="c-cyan text-[10px] tracking-wider mb-1">INTAKE INTERVIEW</div>
+                  <div className="grid gap-2">
+                    <div>
+                      <div className="c-dim text-[10px] mb-0.5">On strategy</div>
+                      <div className="c-white text-[10px]" style={{ lineHeight: 1.5 }}>{selected.dossier.intake_interview.on_strategy}</div>
+                    </div>
+                    <div>
+                      <div className="c-dim text-[10px] mb-0.5">On others</div>
+                      <div className="c-white text-[10px]" style={{ lineHeight: 1.5 }}>{selected.dossier.intake_interview.on_others}</div>
+                    </div>
+                    <div>
+                      <div className="c-dim text-[10px] mb-0.5">On the island</div>
+                      <div className="c-white text-[10px]" style={{ lineHeight: 1.5 }}>{selected.dossier.intake_interview.on_the_island}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {selected.dossier?.background_signal ? (
+                <div className="dossier-section dossier-section-wide">
+                  <div className="c-amber text-[10px] tracking-wider mb-1">BACKGROUND SIGNAL</div>
+                  <div className="c-dim text-[10px]" style={{ lineHeight: 1.5 }}>{selected.dossier.background_signal}</div>
+                </div>
+              ) : (
+                <div className="dossier-section dossier-section-wide">
+                  <div className="c-amber text-[10px] tracking-wider mb-1">ORIGIN FILE</div>
+                  <div className="c-dim text-[10px] dossier-backstory">{getBackstory(selected, selectedMemory)}</div>
+                </div>
+              )}
+
+              {selected.dossier?.first_contact && (
+                <div className="dossier-section dossier-section-wide">
+                  <div className="c-green text-[10px] tracking-wider mb-1">FIRST CONTACT</div>
+                  <div className="c-dim text-[10px]" style={{ lineHeight: 1.5 }}>{selected.dossier.first_contact}</div>
+                </div>
+              )}
+
+              {selected.dossier?.field_observation && (
+                <div className="dossier-section dossier-section-wide">
+                  <div className="c-yellow text-[10px] tracking-wider mb-1">FIELD OBSERVATION</div>
+                  <div className="c-dim text-[10px]" style={{ lineHeight: 1.5, whiteSpace: 'pre-line' }}>{selected.dossier.field_observation}</div>
+                </div>
+              )}
+
+              {/* ── Personal file always shown ──────────────────────────── */}
               {(selected.job || selected.education || selected.family) && (
                 <div className="dossier-section dossier-section-wide">
                   <div className="c-cyan text-[10px] tracking-wider mb-1">PERSONAL FILE</div>
@@ -314,13 +388,6 @@ export default function CastawayRoster({
                     {selected.education && <div className="flex justify-between gap-2 text-[10px]"><span className="c-dim">Education</span><span className="c-white">{selected.education}</span></div>}
                     {selected.family && <div className="flex justify-between gap-2 text-[10px]"><span className="c-dim">Family</span><span className="c-white">{selected.family}</span></div>}
                   </div>
-                </div>
-              )}
-
-              {selected.audition_tape && (
-                <div className="dossier-section dossier-section-wide">
-                  <div className="c-amber text-[10px] tracking-wider mb-1">AUDITION TAPE TRANSCRIPT</div>
-                  <div className="c-amber text-[11px]" style={{ fontStyle: 'italic', lineHeight: 1.4 }}>{selected.audition_tape}</div>
                 </div>
               )}
 
@@ -361,11 +428,11 @@ export default function CastawayRoster({
               <div className="dossier-section">
                 <div className="c-green text-[10px] tracking-wider mb-1">RELATIONSHIP WEB</div>
                 <div className="grid gap-1 text-[10px]">
-                  <div className="flex justify-between gap-2"><span className="c-dim">Closest bond</span><span className="c-green">{ally ? `${nameLookup[ally.id] ?? ally.id} +${Math.round(ally.score)}` : 'none'}</span></div>
-                  <div className="flex justify-between gap-2"><span className="c-dim">Open wound</span><span className="c-red">{enemy ? `${nameLookup[enemy.id] ?? enemy.id} ${Math.round(enemy.score)}` : 'none'}</span></div>
+                  <div className="flex justify-between gap-2"><span className="c-dim">Closest bond</span><span className="c-green">{ally ? (nameLookup[ally.id] ?? ally.id) + ' +' + Math.round(ally.score) : 'none'}</span></div>
+                  <div className="flex justify-between gap-2"><span className="c-dim">Open wound</span><span className="c-red">{enemy ? (nameLookup[enemy.id] ?? enemy.id) + ' ' + Math.round(enemy.score) : 'none'}</span></div>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {selectedBonds.map(rel => (
-                      <span key={rel.id} className={`tag ${rel.score > 2 ? 'c-green' : rel.score < -2 ? 'c-red' : 'c-dim'}`}>
+                      <span key={rel.id} className={rel.score > 2 ? 'tag c-green' : rel.score < -2 ? 'tag c-red' : 'tag c-dim'}>
                         {nameLookup[rel.id] ?? rel.id} {rel.score > 0 ? '+' : ''}{Math.round(rel.score)}
                       </span>
                     ))}
@@ -381,10 +448,10 @@ export default function CastawayRoster({
                       <div className="c-dim text-[10px]">{selectedMemory.lastSeen}</div>
                     )}
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {cleanMemoryItems(selectedMemory.grudges, selected).slice(0, 2).map(item => <span key={`g-${item}`} className="tag c-red">{item}</span>)}
-                      {cleanMemoryItems(selectedMemory.fears, selected).slice(0, 2).map(item => <span key={`f-${item}`} className="tag c-amber">{item}</span>)}
-                      {cleanMemoryItems(selectedMemory.bonds, selected).slice(0, 2).map(item => <span key={`b-${item}`} className="tag c-green">{item}</span>)}
-                      {cleanMemoryItems(selectedMemory.scars, selected).slice(0, 2).map(item => <span key={`s-${item}`} className="tag c-purple">{item}</span>)}
+                      {cleanMemoryItems(selectedMemory.grudges, selected).slice(0, 2).map(item => <span key={'g-' + item} className="tag c-red">{item}</span>)}
+                      {cleanMemoryItems(selectedMemory.fears, selected).slice(0, 2).map(item => <span key={'f-' + item} className="tag c-amber">{item}</span>)}
+                      {cleanMemoryItems(selectedMemory.bonds, selected).slice(0, 2).map(item => <span key={'b-' + item} className="tag c-green">{item}</span>)}
+                      {cleanMemoryItems(selectedMemory.scars, selected).slice(0, 2).map(item => <span key={'s-' + item} className="tag c-purple">{item}</span>)}
                     </div>
                   </>
                 ) : (
@@ -400,6 +467,34 @@ export default function CastawayRoster({
                   ))}
                 </div>
               </div>
+
+              {selected.dossier?.social_architecture && (
+                <div className="dossier-section dossier-section-wide">
+                  <div className="c-green text-[10px] tracking-wider mb-1">SOCIAL ARCHITECTURE</div>
+                  <div className="c-dim text-[10px]" style={{ lineHeight: 1.5 }}>{selected.dossier.social_architecture}</div>
+                </div>
+              )}
+
+              {selected.dossier?.pressure_signature && (
+                <div className="dossier-section dossier-section-wide">
+                  <div className="c-purple text-[10px] tracking-wider mb-1">PRESSURE SIGNATURE</div>
+                  <div className="c-dim text-[10px]" style={{ lineHeight: 1.5 }}>{selected.dossier.pressure_signature}</div>
+                </div>
+              )}
+
+              {selected.dossier?.threat_read && (
+                <div className="dossier-section dossier-section-wide">
+                  <div className="c-red text-[10px] tracking-wider mb-1">THREAT READ</div>
+                  <div className="c-dim text-[10px]" style={{ lineHeight: 1.5 }}>{selected.dossier.threat_read}</div>
+                </div>
+              )}
+
+              {selected.dossier?.analyst_note && (
+                <div className="dossier-section dossier-section-wide">
+                  <div className="c-amber text-[10px] tracking-wider mb-1">ANALYST NOTE</div>
+                  <div className="c-dim text-[10px]" style={{ lineHeight: 1.5, fontStyle: 'italic' }}>{selected.dossier.analyst_note}</div>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -413,7 +508,7 @@ export default function CastawayRoster({
             key={c.id}
             castaway={c}
             selected={c.id === selected?.id}
-               onSelect={() => setSelectedId(c.id)}
+            onSelect={() => setSelectedId(c.id)}
           />
         ))}
       </div>
