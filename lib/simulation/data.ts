@@ -751,3 +751,39 @@ export const VOTE_SPEECH_STRATEGIC = [
   '"I don\'t enjoy this part. But ${b} is going home tonight and the reason is pure strategy." ${a} slides the parchment in.',
   '${a}: "Every player still alive is someone I had a conversation with this week. ${b}\'s conversation didn\'t go the way it needed to."',
 ]
+
+// ── Season Bootstrap ──────────────────────────────────────────────────────────
+export const TRIBE_NAME_PAIRS: [string, string][] = [
+  ['KALA',   'VORA'],
+  ['NAGA',   'TOLO'],
+  ['SOVA',   'KIRA'],
+  ['IRON',   'ASHEN'],
+  ['EMBER',  'BRACK'],
+  ['SPIRE',  'DIRGE'],
+  ['MESA',   'REBUS'],
+  ['DELTA',  'CANON'],
+  ['HELIX',  'AXIOM'],
+  ['SABLE',  'THORN'],
+  ['VAPOR',  'CINDER'],
+  ['NEXUS',  'DREAD'],
+  ['ONYX',   'SOLUM'],
+  ['PRISM',  'VANTA'],
+  ['KAIROS', 'TELOS'],
+]
+
+export const TRIBE_COLOR_PAIRS: [string, string][] = [
+  ['#cc6600', '#1166aa'],
+  ['#cc3300', '#007744'],
+  ['#8833cc', '#aa8800'],
+  ['#cc0066', '#007799'],
+  ['#447700', '#cc5500'],
+  ['#884400', '#006688'],
+  ['#993300', '#008855'],
+  ['#1155bb', '#bb5500'],
+]
+
+export const MERGE_TRIBE_NAMES = [
+  'NULL', 'TERRA', 'APEX', 'ZERO', 'SIGNAL',
+  'PRIME', 'AETHER', 'LOOP', 'FRACTURE', 'STATIC',
+  'LIMINAL', 'VOID', 'ECHO', 'REMNANT',
+]

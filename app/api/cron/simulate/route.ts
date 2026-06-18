@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { simulateDay, applyInfluenceAction, makeCastaway, computeOdds } from '@/lib/simulation/engine'
+import { simulateDay, applyInfluenceAction, computeOdds } from '@/lib/simulation/engine'
 import type { Castaway } from '@/lib/simulation/types'
 import { getMissingProductionEnv } from '@/lib/runtime'
 import { generateAiNarrative } from '@/lib/ai/narrative'
-import { generateAuditionTape } from '@/lib/ai/dossier'
+import { TRIBE_NAME_PAIRS, TRIBE_COLOR_PAIRS, MERGE_TRIBE_NAMES } from '@/lib/simulation/data'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,14 +40,44 @@ export async function GET(request: Request) {
     return NextResponse.json({ message: 'New season bootstrapped — preseason begins.' })
   }
 
-  // If still in preseason, transition to active
+  // If still in preseason, transition to active + log tribe reveal
   if (season.status === 'preseason') {
+    const [{ data: tribes }, { data: castawaysForReveal }] = await Promise.all([
+      supabase.from('tribes').select('id, name').eq('season_id', season.id).eq('is_merge_tribe', false).order('id'),
+      supabase.from('castaways').select('id, name, tribe_id, archetype').eq('season_id', season.id).eq('status', 'alive'),
+    ])
+
     await supabase.from('seasons').update({ status: 'active' }).eq('id', season.id)
-    await supabase.from('game_log').insert({
-      season_id: season.id, day: 1,
-      text: `▓▓ SEASON ${season.season_number} BEGINS. The signal is live. ▓▓`,
-      type: 'system',
-    })
+
+    const castawayCount = castawaysForReveal?.length ?? 0
+    const revealLogs: { season_id: number; day: number; text: string; type: string }[] = [
+      {
+        season_id: season.id, day: 1,
+        text: `▓▓ SEASON ${season.season_number} BEGINS. ${castawayCount} CASTAWAYS. ${tribes?.length ?? 2} TRIBES. ONE SIGNAL. ▓▓`,
+        type: 'system',
+      },
+    ]
+
+    if (tribes?.length && castawaysForReveal?.length) {
+      for (const tribe of tribes) {
+        const members = castawaysForReveal.filter(c => c.tribe_id === tribe.id)
+        revealLogs.push({
+          season_id: season.id, day: 1,
+          text: `◉ TRIBE ${tribe.name}: ${members.map(c => c.name).join(', ')}`,
+          type: 'system',
+        })
+      }
+      for (const c of castawaysForReveal) {
+        const tribe = tribes.find(t => t.id === c.tribe_id)
+        revealLogs.push({
+          season_id: season.id, day: 1,
+          text: `${c.name} — ${c.archetype} — steps off the boat and looks around. TRIBE ${tribe?.name ?? '???'}.`,
+          type: 'host',
+        })
+      }
+    }
+
+    await supabase.from('game_log').insert(revealLogs)
     return NextResponse.json({ message: 'Season started.' })
   }
 
@@ -379,77 +409,126 @@ async function resolveOutstandingMarketAsLoss(supabase: ReturnType<typeof create
 }
 
 async function bootstrapNewSeason(supabase: ReturnType<typeof createServiceClient>) {
-  const { data: last } = await supabase.from('seasons').select('season_number').order('season_number', { ascending: false }).limit(1).single()
+  const { data: last } = await supabase.from('seasons')
+    .select('season_number').order('season_number', { ascending: false }).limit(1).single()
   const nextNum = (last?.season_number ?? 0) + 1
+
+  const seasonSeed = Math.floor(Math.random() * 900000) + 100000
 
   const { data: newSeason } = await supabase
     .from('seasons')
-    .insert({ season_number: nextNum, status: 'preseason', start_date: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0] })
+    .insert({
+      season_number: nextNum,
+      status: 'preseason',
+      start_date: new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0],
+      seed: seasonSeed,
+    })
     .select()
     .single()
 
   if (!newSeason) return
 
-  // Generate 8 castaways
-  const names = shuffled(['Garbage Kevin','Babs','Trent','DeShawn','Moonpie','Brad','Crystal','Nguyen','Skylar','Hoss','Patches','Vex','Ramona','Cleetus','Bex','Tofu Greg','Sister Mary','Gizz','Lurleen','Chadwick','Mama Sue','Pixel','Worm','Daphne','Roach','Bunny','Tank','Esmerelda']).slice(0, 8)
-  const castawayRows = names.map((name, i) => {
-    const c = makeCastaway(name, i < 4 ? 0 : 1, newSeason.id)
-    return { ...c, season_id: newSeason.id }
+  // Pull 18 unused castaways from the pool; fall back to any if pool is nearly exhausted
+  let { data: poolBatch } = await supabase
+    .from('castaway_pool').select('*').is('used_in_season', null).limit(60)
+  if (!poolBatch || poolBatch.length < 18) {
+    const fallback = await supabase.from('castaway_pool').select('*').limit(60)
+    poolBatch = fallback.data ?? []
+  }
+  if (poolBatch.length < 18) { console.error('castaway_pool too small'); return }
+
+  const chosen = shuffled(poolBatch).slice(0, 18)
+
+  // Pick tribe names, colors, and merge tribe name
+  const namePair  = TRIBE_NAME_PAIRS[Math.floor(Math.random() * TRIBE_NAME_PAIRS.length)]
+  const colorPair = TRIBE_COLOR_PAIRS[Math.floor(Math.random() * TRIBE_COLOR_PAIRS.length)]
+  const mergeName = MERGE_TRIBE_NAMES[Math.floor(Math.random() * MERGE_TRIBE_NAMES.length)]
+
+  // Compute camp positions from season seed (mirrors IslandMap.tsx mulberry32 logic)
+  const camps = computeCampPositions(seasonSeed)
+  const mergeCamp = {
+    x: Math.floor((camps[0].x + camps[1].x) / 2),
+    y: Math.floor((camps[0].y + camps[1].y) / 2),
+  }
+
+  // Insert both active tribes + merge tribe
+  const { data: insertedTribes } = await supabase.from('tribes').insert([
+    { season_id: newSeason.id, name: namePair[0], color: colorPair[0], camp_x: camps[0].x, camp_y: camps[0].y, is_merge_tribe: false },
+    { season_id: newSeason.id, name: namePair[1], color: colorPair[1], camp_x: camps[1].x, camp_y: camps[1].y, is_merge_tribe: false },
+    { season_id: newSeason.id, name: mergeName,   color: '#9933cc',    camp_x: mergeCamp.x, camp_y: mergeCamp.y, is_merge_tribe: true },
+  ]).select()
+  if (!insertedTribes?.length) return
+
+  const [tribe0, tribe1] = insertedTribes
+
+  // Build 18 castaway rows from pool profiles (9 per tribe)
+  const castawayRows = chosen.map((p, i) => {
+    const tribeIdx = i < 9 ? 0 : 1
+    const tribeRow = tribeIdx === 0 ? tribe0 : tribe1
+    return {
+      season_id:    newSeason.id,
+      name:         p.name,
+      archetype:    p.archetype,
+      trait:        p.trait,
+      stats:        p.stats,
+      status:       'alive',
+      condition:    'healthy',
+      idol_count:   Math.random() < 0.22 ? 1 : 0,
+      seed:         p.seed,
+      relationships: {},
+      tribe:        tribeIdx,
+      tribe_id:     tribeRow.id,
+      age:          p.age,
+      hometown:     p.hometown,
+      job:          p.job,
+      education:    p.education,
+      family:       p.family,
+      audition_tape: p.audition_tape,
+      portrait_file: p.portrait_file,
+    }
   })
 
   const { data: insertedCastaways } = await supabase.from('castaways').insert(castawayRows).select()
   if (!insertedCastaways?.length) return
 
-  // LLM-enriched audition tapes (best-effort; pool-based tape from makeCastaway is the fallback)
-  try {
-    const tapes = await Promise.all(insertedCastaways.map(c => generateAuditionTape({
-      name: c.name,
-      trait: c.trait,
-      archetype: c.archetype,
-      age: c.age,
-      hometown: c.hometown,
-      job: c.job,
-      education: c.education,
-      family: c.family,
-    })))
-    await Promise.all(insertedCastaways.map((c, i) =>
-      tapes[i] ? supabase.from('castaways').update({ audition_tape: tapes[i] }).eq('id', c.id) : null
-    ))
-  } catch (error) {
-    console.error('Audition tape enrichment failed', error)
-  }
+  // Mark pool entries as used for this season
+  await supabase.from('castaway_pool')
+    .update({ used_in_season: newSeason.id })
+    .in('id', chosen.map(p => p.id))
 
-  // Set up relationships
+  // Seed starting relationships (random -3..+3 between every pair)
   for (const c of insertedCastaways) {
     const rels: Record<number, number> = {}
-    insertedCastaways.forEach(other => { if (other.id !== c.id) rels[other.id] = Math.floor(Math.random() * 7) - 3 })
+    insertedCastaways.forEach(other => {
+      if (other.id !== c.id) rels[other.id] = Math.floor(Math.random() * 7) - 3
+    })
     await supabase.from('castaways').update({ relationships: rels }).eq('id', c.id)
   }
 
   await supabase.from('castaway_memories').insert(insertedCastaways.map(c => ({
-    season_id: newSeason.id,
+    season_id:   newSeason.id,
     castaway_id: c.id,
     memory: {
-      grudges: [],
-      fears: [],
-      bonds: [],
-      scars: [],
-      obsessions: [`finding out what the island wants from ${c.name}`],
-      lastSeen: `${c.name} arrived as a ${c.archetype} on Tribe ${c.tribe + 1}.`,
+      grudges:     [],
+      fears:       [],
+      bonds:       [],
+      scars:       [],
+      obsessions:  [`finding out what the island wants from ${c.name}`],
+      lastSeen:    `${c.name} arrived as a ${c.archetype} on Tribe ${c.tribe === 0 ? namePair[0] : namePair[1]}.`,
     },
   })))
 
   // Create pre-season prediction markets
   const preseasonClose = new Date(newSeason.start_date!); preseasonClose.setHours(23, 45, 0, 0)
   await supabase.from('prediction_markets').insert([
-    { season_id: newSeason.id, day: null, type: 'season_winner', label: `Who wins Season ${nextNum}?`, closes_at: preseasonClose.toISOString() },
-    { season_id: newSeason.id, day: null, type: 'first_boot', label: 'Who gets eliminated first?', closes_at: preseasonClose.toISOString() },
-    { season_id: newSeason.id, day: null, type: 'first_consumed', label: 'Who gets consumed first?', closes_at: preseasonClose.toISOString() },
+    { season_id: newSeason.id, day: null, type: 'season_winner',  label: `Who wins Season ${nextNum}?`,      closes_at: preseasonClose.toISOString() },
+    { season_id: newSeason.id, day: null, type: 'first_boot',     label: 'Who gets eliminated first?',       closes_at: preseasonClose.toISOString() },
+    { season_id: newSeason.id, day: null, type: 'first_consumed', label: 'Who gets consumed first?',         closes_at: preseasonClose.toISOString() },
   ])
 
   await supabase.from('game_log').insert({
     season_id: newSeason.id, day: 0,
-    text: `—— SEASON ${nextNum} FORMING. Pre-season lobby is open for ${3} days. ——`,
+    text: `—— SEASON ${nextNum} FORMING. TRIBES: ${namePair[0]} vs ${namePair[1]}. Pre-season lobby is open for 3 days. ——`,
     type: 'system',
   })
 }
@@ -469,6 +548,22 @@ function seededRng(seed: number) {
     t ^= t + Math.imul(t ^ (t >>> 7), 61 | t)
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
+}
+
+// Mirrors IslandMap.tsx camp placement so stored positions match the rendered map.
+function computeCampPositions(seed: number) {
+  const cx = MAP_TW / 2, cy = MAP_TH / 2
+  const rng = seededRng((seed ^ 0xCAFE) >>> 0)
+  const camps: { x: number; y: number }[] = []
+  for (let c = 0; c < 2; c++) {
+    const a = (c / 2) * Math.PI * 2 + rng() * 0.8
+    const r = 0.35 + rng() * 0.15
+    camps.push({
+      x: Math.floor(cx + Math.cos(a) * cx * r),
+      y: Math.floor(cy + Math.sin(a) * cy * r),
+    })
+  }
+  return camps
 }
 
 function generateDayMapEvents(
