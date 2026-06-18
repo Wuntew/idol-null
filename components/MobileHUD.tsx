@@ -469,6 +469,83 @@ function FullDossier({ castaway: c, tribeColor, onBack }: any) {
           </div>
         )}
 
+        {/* AI Dossier sections */}
+        {c.dossier && (
+          <>
+            {c.dossier.first_contact && (
+              <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
+                <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>FIRST CONTACT</div>
+                <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.first_contact}</div>
+              </div>
+            )}
+            {c.dossier.background_signal && (
+              <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
+                <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>BACKGROUND</div>
+                <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.background_signal}</div>
+              </div>
+            )}
+            {c.dossier.intake_interview && (
+              <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
+                <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>INTAKE INTERVIEW</div>
+                {c.dossier.intake_interview.on_strategy && (
+                  <div style={{ marginBottom: 6 }}>
+                    <div className="c-cyan" style={{ fontSize: 8, marginBottom: 2 }}>ON STRATEGY</div>
+                    <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.intake_interview.on_strategy}</div>
+                  </div>
+                )}
+                {c.dossier.intake_interview.on_others && (
+                  <div style={{ marginBottom: 6 }}>
+                    <div className="c-cyan" style={{ fontSize: 8, marginBottom: 2 }}>ON OTHERS</div>
+                    <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.intake_interview.on_others}</div>
+                  </div>
+                )}
+                {c.dossier.intake_interview.on_the_island && (
+                  <div>
+                    <div className="c-cyan" style={{ fontSize: 8, marginBottom: 2 }}>ON THE ISLAND</div>
+                    <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.intake_interview.on_the_island}</div>
+                  </div>
+                )}
+              </div>
+            )}
+            {c.dossier.field_observation && (
+              <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
+                <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>FIELD OBSERVATIONS</div>
+                <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55, whiteSpace: 'pre-line' }}>{c.dossier.field_observation}</div>
+              </div>
+            )}
+            {c.dossier.social_architecture && (
+              <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
+                <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>SOCIAL ARCHITECTURE</div>
+                <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.social_architecture}</div>
+              </div>
+            )}
+            {c.dossier.pressure_signature && (
+              <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
+                <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>PRESSURE SIGNATURE</div>
+                <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.pressure_signature}</div>
+              </div>
+            )}
+            {c.dossier.threat_read && (
+              <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
+                <div className="c-red" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>THREAT READ</div>
+                <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.threat_read}</div>
+              </div>
+            )}
+            {c.dossier.rival_dynamic && (
+              <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
+                <div className="c-red" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>RIVAL DYNAMIC</div>
+                <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.rival_dynamic}</div>
+              </div>
+            )}
+            {c.dossier.analyst_note && (
+              <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
+                <div className="c-amber" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>ANALYST NOTE</div>
+                <div className="c-amber" style={{ fontSize: 10, lineHeight: 1.55, fontStyle: 'italic' }}>{c.dossier.analyst_note}</div>
+              </div>
+            )}
+          </>
+        )}
+
         <div style={{ height: 12 }} />
       </div>
     </div>
