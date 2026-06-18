@@ -120,10 +120,10 @@ export default function MobileHUD({
 
           {/* ── BOTTOM — Tab Panel ── */}
           <div className="hud-zone hud-panel panel">
-            {tab === 'feed'  && <FeedPanel  season={season} aliveCount={aliveCount} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} latestSummary={latestSummary} onSwitchTab={setTab} />}
+            {tab === 'feed'  && <FeedPanel  season={season} aliveCount={aliveCount} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} latestSummary={latestSummary} />}
             {tab === 'cast'  && <CastPanel  castaways={castaways} tribes={tribes} onOpenDossier={setDossier} />}
             {tab === 'bet'   && <BetPanel   groupedMarkets={groupedMarkets} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} />}
-            {tab === 'noise' && <NoisePanel castaways={castaways} profile={profile} user={user} seasonActive={seasonActive} isDemo={isDemo} onSwitchTab={setTab} />}
+            {tab === 'noise' && <NoisePanel castaways={castaways} profile={profile} user={user} seasonActive={seasonActive} isDemo={isDemo} />}
             {tab === 'more'  && <MorePanel  season={season} aliveCount={aliveCount} profile={profile} user={user} isDemo={isDemo} onOpenArchive={openArchive} onSwitchTab={setTab} />}
           </div>
         </>
@@ -151,7 +151,7 @@ export default function MobileHUD({
 /* ─────────────────────────────────────────────
    FEED TAB — season status + last narrative
 ───────────────────────────────────────────── */
-function FeedPanel({ season, aliveCount, openMarketCount, profile, user, isDemo, latestSummary, onSwitchTab }: any) {
+function FeedPanel({ season, aliveCount, openMarketCount, profile, user, isDemo, latestSummary }: any) {
   return (
     <div className="hud-panel-inner">
       <div className="hdr hud-hdr">
@@ -508,11 +508,7 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo }: an
             ))}
           </div>
         ))}
-        <div style={{ padding: '8px', textAlign: 'center', borderTop: '1px solid #0a1a0a' }}>
-          <button onClick={() => onSwitchTab('bet')} className="btn amber" style={{ display: 'block', width: '100%', textAlign: 'center', fontSize: 11 }}>
-            OPEN MARKETS →
-          </button>
-        </div>
+
       </div>
     </div>
   )
@@ -521,7 +517,7 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo }: an
 /* ─────────────────────────────────────────────
    NOISE TAB — influence bars + link
 ───────────────────────────────────────────── */
-function NoisePanel({ castaways, profile, user, seasonActive, isDemo, onSwitchTab }: any) {
+function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
   const alive = (castaways ?? []).filter((c: any) => c.status === 'alive')
 
   return (
