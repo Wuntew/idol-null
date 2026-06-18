@@ -26,6 +26,7 @@ export interface Castaway {
   loopCount?: number   // Westworld: how many loops they've run
   hunger?: number      // 0–100 (100 = full)
   injury?: number      // 0–5 (0 = healthy, 5 = critical)
+  challengeWins?: number  // immunity challenge wins this season
 }
 
 export interface LogEntry {

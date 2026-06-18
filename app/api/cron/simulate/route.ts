@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { simulateDay, applyInfluenceAction, computeOdds } from '@/lib/simulation/engine'
 import type { Castaway } from '@/lib/simulation/types'
-import { getMissingProductionEnv } from '@/lib/runtime'
+import { getMissingProductionEnv, getMissingAiEnv } from '@/lib/runtime'
 import { generateAiNarrative } from '@/lib/ai/narrative'
 import { generateCastawayDossier } from '@/lib/ai/dossier'
 import { generateConfessionals, selectConfessionalSubjects } from '@/lib/ai/confessionals'
@@ -15,12 +15,19 @@ export const dynamic = 'force-dynamic'
 // Called by Vercel cron daily at midnight UTC.
 // Also callable manually by POSTing with the CRON_SECRET header.
 export async function GET(request: Request) {
+  // Hard check — Supabase + CRON_SECRET required; block if missing
   const missing = getMissingProductionEnv()
   if (missing.length) {
     return NextResponse.json(
       { error: 'deployment_not_configured', missing },
       { status: 503 }
     )
+  }
+
+  // Advisory check — DEEPSEEK_API_KEY absence means AI features are skipped, not blocked
+  const missingAi = getMissingAiEnv()
+  if (missingAi.length) {
+    console.warn('[cron] AI env vars missing — simulation will run but AI features will be skipped:', missingAi)
   }
 
   const auth = request.headers.get('authorization')
@@ -689,15 +696,12 @@ function generateDayMapEvents(
       baseY = Math.floor(rng() * MAP_TH)
     }
 
-    const ox = Math.floor((rng() - 0.5) * 24)
-    const oy = Math.floor((rng() - 0.5) * 16)
-    const tx = Math.max(4, Math.min(MAP_TW - 4, baseX + ox))
-    const ty = Math.max(4, Math.min(MAP_TH - 4, baseY + oy))
+    // Spread slightly from base position
+    const spread = 8
+    const tile_x = Math.max(0, Math.min(MAP_TW - 1, baseX + Math.floor((rng() - 0.5) * spread)))
+    const tile_y = Math.max(0, Math.min(MAP_TH - 1, baseY + Math.floor((rng() - 0.5) * spread)))
 
-    rows.push({ season_id: seasonId, day, ev_type: evType, tile_x: tx, tile_y: ty })
+    rows.push({ season_id: seasonId, day, ev_type: evType, tile_x, tile_y })
   }
-
   return rows
 }
-
-export const POST = GET

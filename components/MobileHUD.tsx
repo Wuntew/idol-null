@@ -45,11 +45,17 @@ export default function MobileHUD({
   const [tab, setTab] = useState<Tab>('feed')
   const [mapOpen, setMapOpen] = useState(false)
   const [dossier, setDossier] = useState<any>(null)
+  const [dossierList, setDossierList] = useState<any[]>([])
   const [archive, setArchive] = useState<{ season: any; castaways: any[]; tribes: any[]; logs: any[]; resources: any[]; challenges: any[]; mapEvents: any[] } | null>(null)
 
   const tribeColor: Record<number, string> = Object.fromEntries(
     (tribes ?? []).map((t: any) => [t.id, t.color ?? 'var(--cyan)'])
   )
+
+  function openDossier(c: any, list?: any[]) {
+    setDossier(c)
+    setDossierList(list ?? castaways ?? [])
+  }
 
   async function openArchive(seasonId: number) {
     const data = await fetch(`/api/seasons/${seasonId}`).then(r => r.json()).catch(() => null)
@@ -80,10 +86,12 @@ export default function MobileHUD({
             ? Object.fromEntries((archive.tribes ?? []).map((t: any) => [t.id, t.color ?? 'var(--cyan)']))
             : tribeColor}
           onBack={() => setDossier(null)}
+          castaways={dossierList.length ? dossierList : (castaways ?? [])}
+          onNavigate={setDossier}
         />
       ) : archive ? (
         /* ── SEASON ARCHIVE — replaces feed + panel ── */
-        <SeasonArchive archive={archive} onBack={() => setArchive(null)} onOpenDossier={setDossier} />
+        <SeasonArchive archive={archive} onBack={() => setArchive(null)} onOpenDossier={(c: any) => openDossier(c, archive.castaways)} />
       ) : (
         <>
           {/* ── TOP zone — Island Map + Live Feed ── */}
@@ -108,10 +116,11 @@ export default function MobileHUD({
               />
               <div style={{
                 position: 'absolute', top: 4, left: 4,
-                background: 'rgba(0,0,0,0.7)', border: '1px solid #1a3a1a',
-                color: '#2a6a2a', fontSize: 8, padding: '1px 5px',
+                background: 'rgba(0,0,0,0.82)', border: '1px solid var(--green)',
+                color: 'var(--green)', fontSize: 8, padding: '2px 6px',
                 fontFamily: 'monospace', pointerEvents: 'none',
-              }}>⤢ MAP</div>
+                letterSpacing: '.06em',
+              }}>TAP ⤢ MAP</div>
             </div>
             <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               <GameFeed initialLogs={logs} seasonId={season?.id ?? null} />
@@ -121,8 +130,8 @@ export default function MobileHUD({
           {/* ── BOTTOM — Tab Panel ── */}
           <div className="hud-zone hud-panel panel">
             {tab === 'feed'  && <FeedPanel  season={season} aliveCount={aliveCount} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} latestSummary={latestSummary} />}
-            {tab === 'cast'  && <CastPanel  castaways={castaways} tribes={tribes} onOpenDossier={setDossier} />}
-            {tab === 'bet'   && <BetPanel   groupedMarkets={groupedMarkets} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} />}
+            {tab === 'cast'  && <CastPanel  castaways={castaways} tribes={tribes} onOpenDossier={openDossier} season={season} />}
+            {tab === 'bet'   && <BetPanel   groupedMarkets={groupedMarkets} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} castaways={castaways} />}
             {tab === 'noise' && <NoisePanel castaways={castaways} profile={profile} user={user} seasonActive={seasonActive} isDemo={isDemo} />}
             {tab === 'more'  && <MorePanel  season={season} aliveCount={aliveCount} profile={profile} user={user} isDemo={isDemo} onOpenArchive={openArchive} onSwitchTab={setTab} />}
           </div>
@@ -158,6 +167,18 @@ function FeedPanel({ season, aliveCount, openMarketCount, profile, user, isDemo,
         <span>◉ SIGNAL STATUS</span>
       </div>
       <div className="hud-panel-body">
+        {/* AI Narrative — top position */}
+        {latestSummary?.summary_data?.aiNarrative && (
+          <div className="panel" style={{ margin: '8px 8px 0', padding: '10px 10px', borderColor: 'var(--cyan)', borderWidth: 1, borderStyle: 'solid' }}>
+            <div style={{ color: 'var(--cyan)', fontSize: 10, letterSpacing: '.1em', fontWeight: 'bold', marginBottom: 6 }}>
+              {latestSummary.summary_data.aiNarrative.title ?? '◉ SIGNAL NARRATIVE'}
+            </div>
+            <div className="c-white" style={{ fontSize: 10, lineHeight: 1.65 }}>
+              {latestSummary.summary_data.aiNarrative.recap}
+            </div>
+          </div>
+        )}
+
         {/* 2 × 2 stat grid */}
         <div className="hud-stat-grid">
           <div className="panel p-cyan hud-stat">
@@ -178,17 +199,7 @@ function FeedPanel({ season, aliveCount, openMarketCount, profile, user, isDemo,
           </div>
         </div>
 
-        {/* Latest day narrative */}
-        {latestSummary?.summary_data?.aiNarrative && (
-          <div className="panel p-cyan" style={{ margin: '0 8px 8px', padding: 8 }}>
-            <div className="c-cyan" style={{ fontSize: 9, letterSpacing: '.1em', marginBottom: 4 }}>
-              {latestSummary.summary_data.aiNarrative.title ?? 'SIGNAL NARRATIVE'}
-            </div>
-            <div className="c-dim" style={{ fontSize: 9, lineHeight: 1.45 }}>
-              {latestSummary.summary_data.aiNarrative.recap}
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   )
@@ -225,9 +236,22 @@ function castWinner(c: any) {
   return { label: 'Long shot', cls: 'c-dim' }
 }
 
-function CastCard({ c, tribeColor, onSelect }: { c: any; tribeColor: Record<number,string>; onSelect: (c: any) => void }) {
+function CastCard({ c, tribeColor, onSelect, season }: { c: any; tribeColor: Record<number,string>; onSelect: (c: any) => void; season?: any }) {
   const isAlive = c.status === 'alive'
-  const portraitBorder = isAlive ? (tribeColor[c.tribe_id] ?? 'var(--cyan)') : 'var(--wrong)'
+  const isGhost = c.status === 'ghost'
+  const isConsumed = c.status === 'consumed'
+  const isAwakened = isAlive && c.condition === 'awakened'
+  const isRunnerUp = isAlive && season?.status === 'complete' && season?.winner_id != null && c.id !== season?.winner_id
+  const portraitBorder = isAlive
+    ? (isAwakened ? 'var(--yellow)' : (tribeColor[c.tribe_id] ?? 'var(--cyan)'))
+    : isGhost ? 'var(--purple)' : 'var(--wrong)'
+  const cardBorder = isAlive ? (isAwakened ? 'var(--yellow)' : 'var(--green)') : isGhost ? '#5a3a8a' : 'var(--wrong)'
+  const cardOpacity = isAlive ? 1 : isGhost ? 0.6 : 0.35
+  const imgFilter = isGhost
+    ? 'grayscale(50%) brightness(0.65) sepia(0.4)'
+    : isConsumed ? 'grayscale(100%) brightness(0.4)'
+    : undefined
+  const nameColor = isAlive ? (isAwakened ? 'var(--yellow)' : 'var(--green)') : isGhost ? 'var(--purple)' : '#3a2a2a'
   return (
     <button
       onClick={() => onSelect(c)}
@@ -235,36 +259,34 @@ function CastCard({ c, tribeColor, onSelect }: { c: any; tribeColor: Record<numb
     >
       <div
         className="hud-cast-card panel"
-        style={{ borderColor: isAlive ? 'var(--green)' : 'var(--wrong)', opacity: isAlive ? 1 : 0.45 }}
+        style={{ borderColor: cardBorder, opacity: cardOpacity }}
       >
         {c.portrait_file ? (
           <img src={`/portraits/${c.portrait_file}`} alt={c.name} className="hud-cast-portrait"
-            style={{ borderColor: portraitBorder, filter: !isAlive ? 'grayscale(100%)' : undefined }} />
+            style={{ borderColor: portraitBorder, filter: imgFilter }} />
         ) : (
           <div className="hud-cast-portrait" style={{ borderColor: portraitBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold', color: portraitBorder }}>
             {c.name[0]}
           </div>
         )}
-        <div className="hud-cast-name" style={{ color: isAlive ? 'var(--green)' : '#4a3a3a' }}>
+        <div className="hud-cast-name" style={{ color: nameColor }}>
           {c.name}
         </div>
+        {isAwakened && <div style={{ fontSize: 7, color: 'var(--yellow)', textAlign: 'center', letterSpacing: '.06em' }}>⚡ AWAKE</div>}
+        {isConsumed && <div style={{ fontSize: 7, color: 'var(--red)', textAlign: 'center', letterSpacing: '.05em' }}>CONSUMED</div>}
+        {isRunnerUp && <div style={{ fontSize: 7, color: 'var(--amber)', textAlign: 'center', letterSpacing: '.05em' }}>RUNNER-UP</div>}
       </div>
     </button>
   )
 }
 
-function CastPanel({ castaways, tribes, onOpenDossier }: any) {
-  const [selected, setSelected] = useState<any>(null)
+function CastPanel({ castaways, tribes, onOpenDossier, season }: any) {
   const all = castaways ?? []
   const alive = all.filter((c: any) => c.status === 'alive').length
   const tribeList: any[] = tribes ?? []
   const tribeColor: Record<number, string> = Object.fromEntries(
     tribeList.map((t: any) => [t.id, t.color ?? 'var(--cyan)'])
   )
-
-  if (selected) {
-    return <CastProfile castaway={selected} tribeColor={tribeColor} onBack={() => setSelected(null)} onOpenDossier={onOpenDossier} />
-  }
 
   const tribeGroups: { tribe: any; members: any[] }[] = tribeList.map(t => ({
     tribe: t,
@@ -288,7 +310,7 @@ function CastPanel({ castaways, tribes, onOpenDossier }: any) {
               </div>
               <div className="hud-cast-grid">
                 {members.map((c: any) => (
-                  <CastCard key={c.id} c={c} tribeColor={tribeColor} onSelect={setSelected} />
+                  <CastCard key={c.id} c={c} tribeColor={tribeColor} onSelect={onOpenDossier} season={season} />
                 ))}
               </div>
             </div>
@@ -298,7 +320,7 @@ function CastPanel({ castaways, tribes, onOpenDossier }: any) {
               <div className="hud-tribe-name" style={{ color: 'var(--dim)', borderBottom: '1px solid var(--dim)' }}>JURY / OUT</div>
               <div className="hud-cast-grid">
                 {ungrouped.map((c: any) => (
-                  <CastCard key={c.id} c={c} tribeColor={tribeColor} onSelect={setSelected} />
+                  <CastCard key={c.id} c={c} tribeColor={tribeColor} onSelect={onOpenDossier} season={season} />
                 ))}
               </div>
             </div>
@@ -352,7 +374,7 @@ function CastProfile({ castaway: c, tribeColor, onBack, onOpenDossier }: any) {
           <div style={{ fontSize: 9, color: tribeBorder, marginTop: 2 }}>◈ {c.trait}</div>
         </div>
         <div className="c-dim" style={{ fontSize: 9 }}>
-          {c.condition !== 'healthy' && <span className={c.condition === 'hallucinating' ? 'c-purple' : 'c-amber'}>{c.condition} · </span>}
+          {c.condition !== 'healthy' && <span className={c.condition === 'awakened' ? 'c-yellow' : c.condition === 'hallucinating' ? 'c-purple' : 'c-amber'}>{c.condition === 'awakened' ? '⚡ AWAKENED' : c.condition} · </span>}
           {c.idol_count > 0 && <span className="c-yellow">✦×{c.idol_count} · </span>}
           {[c.age ? `age ${c.age}` : null, c.hometown].filter(Boolean).join(' · ')}
         </div>
@@ -371,6 +393,15 @@ function CastProfile({ castaway: c, tribeColor, onBack, onOpenDossier }: any) {
               <span className="c-dim" style={{ fontSize: 8, width: 16, textAlign: 'right', flexShrink: 0 }}>{Math.round(Number(v))}</span>
             </div>
           ))}
+          {c.hunger !== undefined && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 8, color: 'var(--amber)', width: 22, flexShrink: 0 }}>HNG</span>
+              <div style={{ flex: 1, height: 3, background: '#0a1a0a', borderRadius: 1 }}>
+                <div style={{ width: `${Math.round(c.hunger)}%`, height: '100%', background: c.hunger < 30 ? 'var(--red)' : 'var(--amber)', borderRadius: 1 }} />
+              </div>
+              <span className="c-dim" style={{ fontSize: 8, width: 16, textAlign: 'right', flexShrink: 0 }}>{Math.round(c.hunger)}</span>
+            </div>
+          )}
         </div>
         <button
           onClick={() => onOpenDossier(c)}
@@ -385,7 +416,7 @@ function CastProfile({ castaway: c, tribeColor, onBack, onOpenDossier }: any) {
 /* ─────────────────────────────────────────────
    FULL DOSSIER — occupies entire HUD body (feed + panel), scrollable
 ───────────────────────────────────────────── */
-function FullDossier({ castaway: c, tribeColor, onBack }: any) {
+function FullDossier({ castaway: c, tribeColor, onBack, castaways, onNavigate }: any) {
   const isAlive = c.status === 'alive'
   const tribeBorder = isAlive ? (tribeColor[c.tribe_id] ?? 'var(--cyan)') : 'var(--wrong)'
   const threat = castThreat(c)
@@ -401,6 +432,21 @@ function FullDossier({ castaway: c, tribeColor, onBack }: any) {
           padding: '0 6px 0 0', fontSize: 14, lineHeight: 1, fontFamily: 'monospace' }}>{'←'}</button>
         <span className="c-white" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 'bold' }}>{c.name}</span>
         <span className={`tag ${c.status === 'alive' ? 'c-green' : c.status === 'ghost' ? 'c-purple' : 'c-red'}`} style={{ fontSize: 9 }}>{c.status}</span>
+        {castaways && castaways.length > 1 && (() => {
+          const idx = castaways.findIndex((x: any) => x.id === c.id)
+          const prev = idx > 0 ? castaways[idx - 1] : null
+          const next = idx < castaways.length - 1 ? castaways[idx + 1] : null
+          return (
+            <div style={{ display: 'flex', gap: 0, marginLeft: 4 }}>
+              <button onClick={() => prev && onNavigate(prev)} disabled={!prev}
+                style={{ background: 'none', border: 'none', color: prev ? 'var(--cyan)' : '#1a2a1a',
+                  cursor: prev ? 'pointer' : 'default', fontSize: 13, padding: '0 3px', fontFamily: 'monospace', lineHeight: 1 }}>◀</button>
+              <button onClick={() => next && onNavigate(next)} disabled={!next}
+                style={{ background: 'none', border: 'none', color: next ? 'var(--cyan)' : '#1a2a1a',
+                  cursor: next ? 'pointer' : 'default', fontSize: 13, padding: '0 3px', fontFamily: 'monospace', lineHeight: 1 }}>▶</button>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Scrollable body */}
@@ -423,7 +469,7 @@ function FullDossier({ castaway: c, tribeColor, onBack }: any) {
             <div className="c-dim" style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.08em' }}>{c.archetype}</div>
             <div style={{ fontSize: 11, color: tribeBorder }}>◈ {c.trait}</div>
             <div className="c-dim" style={{ fontSize: 9 }}>
-              {c.condition !== 'healthy' && <span className={c.condition === 'hallucinating' ? 'c-purple' : 'c-amber'}>{c.condition}<br/></span>}
+              {c.condition !== 'healthy' && <span className={c.condition === 'awakened' ? 'c-yellow' : c.condition === 'hallucinating' ? 'c-purple' : 'c-amber'}>{c.condition === 'awakened' ? '⚡ AWAKENED' : c.condition}<br/></span>}
               {c.idol_count > 0 && <span className="c-yellow">✦ idol ×{c.idol_count}<br/></span>}
               {c.age && <span>Age {c.age}<br/></span>}
               {c.hometown && <span>{c.hometown}<br/></span>}
@@ -451,6 +497,15 @@ function FullDossier({ castaway: c, tribeColor, onBack }: any) {
               <span className="c-dim" style={{ fontSize: 9, width: 22, textAlign: 'right', flexShrink: 0 }}>{Math.round(Number(v))}</span>
             </div>
           ))}
+          {c.hunger !== undefined && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 9, color: 'var(--amber)', width: 26, flexShrink: 0 }}>HNG</span>
+              <div style={{ flex: 1, height: 5, background: '#0a1a0a', borderRadius: 1 }}>
+                <div style={{ width: `${Math.round(c.hunger)}%`, height: '100%', background: c.hunger < 30 ? 'var(--red)' : 'var(--amber)', borderRadius: 1 }} />
+              </div>
+              <span className="c-dim" style={{ fontSize: 9, width: 22, textAlign: 'right', flexShrink: 0 }}>{Math.round(c.hunger)}</span>
+            </div>
+          )}
         </div>
 
         {/* Audition tape */}
@@ -555,8 +610,29 @@ function FullDossier({ castaway: c, tribeColor, onBack }: any) {
 /* ─────────────────────────────────────────────
    BET TAB — markets summary + link
 ───────────────────────────────────────────── */
-function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo }: any) {
+function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, castaways }: any) {
   const groups = Object.entries(groupedMarkets ?? {}) as [string, any[]][]
+  const alive = (castaways ?? []).filter((c: any) => c.status === 'alive')
+  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [betAmt, setBetAmt] = useState('25')
+  const [betTarget, setBetTarget] = useState('')
+  const [betBool, setBetBool] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [betResults, setBetResults] = useState<Record<number, 'ok' | 'err'>>({})
+
+  async function submitBet(m: any) {
+    if (submitting) return
+    const amt = parseInt(betAmt, 10)
+    if (!amt || amt < 1) return
+    setSubmitting(true)
+    const body: any = { market_id: m.id, amount: amt }
+    if (m.type === 'boolean') body.choice_bool = betBool
+    else { body.castaway_id = parseInt(betTarget, 10); if (!body.castaway_id) { setSubmitting(false); return } }
+    const res = await fetch('/api/predictions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    setBetResults(prev => ({ ...prev, [m.id]: res.ok ? 'ok' : 'err' }))
+    if (res.ok) setExpandedId(null)
+    setSubmitting(false)
+  }
 
   return (
     <div className="hud-panel-inner">
@@ -566,26 +642,77 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo }: an
           {openMarketCount} open&nbsp;·&nbsp;<span className="c-yellow">{profile?.points ?? 0}pts</span>
         </span>
       </div>
-      <div className="hud-panel-body">
+      <div className="hud-panel-body" style={{ padding: 0 }}>
         {openMarketCount === 0 && (
-          <div className="c-dim" style={{ padding: '8px', fontSize: 10 }}>No open markets.</div>
+          <div className="c-dim" style={{ padding: '8px 10px', fontSize: 10 }}>No open markets.</div>
+        )}
+        {(isDemo || !user) && openMarketCount > 0 && (
+          <div style={{ padding: '5px 10px', background: '#0a1a0a', borderBottom: '1px solid #1a2a1a' }}>
+            <span className="c-amber" style={{ fontSize: 9 }}>Sign in to place bets.</span>
+          </div>
         )}
         {groups.map(([group, ms]) => (
           <div key={group}>
-            <div className="hud-mkt-group-hdr">
-              {group.toUpperCase()} · {ms.length} market{ms.length !== 1 ? 's' : ''}
-            </div>
-            {ms.map((m: any) => (
-              <div key={m.id} className="hud-mkt-row">
-                <span className="hud-mkt-label">{m.label}</span>
-                <span className={`tag hud-mkt-type ${m.type === 'boolean' ? 'c-cyan' : 'c-amber'}`}>
-                  {m.type?.toUpperCase()}
-                </span>
-              </div>
-            ))}
+            <div className="hud-mkt-group-hdr">{group.toUpperCase()} · {ms.length}</div>
+            {ms.map((m: any) => {
+              const isOpen = m.status === 'open'
+              const expanded = expandedId === m.id
+              const result = betResults[m.id]
+              const canBet = isOpen && !!user && !isDemo
+              return (
+                <div key={m.id} style={{ borderBottom: '1px solid #0a1a0a' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', cursor: canBet ? 'pointer' : 'default' }}
+                    onClick={() => { if (!canBet) return; setExpandedId(expanded ? null : m.id); setBetTarget(''); setBetBool(true) }}>
+                    <span className="hud-mkt-label" style={{ flex: 1 }}>{m.label}</span>
+                    <span className={`tag hud-mkt-type ${m.type === 'boolean' ? 'c-cyan' : 'c-amber'}`} style={{ fontSize: 8 }}>
+                      {m.type?.toUpperCase()}
+                    </span>
+                    {result === 'ok' && <span className="c-green" style={{ fontSize: 9 }}>✓</span>}
+                    {result === 'err' && <span className="c-red" style={{ fontSize: 9 }}>✗</span>}
+                    {canBet && !result && <span style={{ color: 'var(--cyan)', fontSize: 10 }}>{expanded ? '▲' : '▼'}</span>}
+                  </div>
+                  {expanded && (
+                    <div style={{ padding: '8px 10px 10px', background: '#050d05', borderTop: '1px solid #0a1a0a' }}>
+                      {m.type === 'boolean' ? (
+                        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                          {['YES', 'NO'].map(opt => {
+                            const active = opt === 'YES' ? betBool : !betBool
+                            return (
+                              <button key={opt} onClick={() => setBetBool(opt === 'YES')}
+                                style={{ flex: 1, padding: '4px', background: active ? (opt === 'YES' ? 'var(--green)' : 'var(--red)') : 'none',
+                                  border: `1px solid ${active ? (opt === 'YES' ? 'var(--green)' : 'var(--red)') : '#1a2a1a'}`,
+                                  color: active ? '#000' : (opt === 'YES' ? 'var(--green)' : 'var(--red)'),
+                                  cursor: 'pointer', fontFamily: 'monospace', fontSize: 9, letterSpacing: '.05em' }}>{opt}</button>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <select value={betTarget} onChange={e => setBetTarget(e.target.value)}
+                          style={{ width: '100%', background: '#050d05', border: '1px solid #1a3a1a', color: 'var(--white)',
+                            fontFamily: 'monospace', fontSize: 9, padding: '4px', marginBottom: 8 }}>
+                          <option value="">— pick castaway —</option>
+                          {alive.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      )}
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <input type="number" value={betAmt} onChange={e => setBetAmt(e.target.value)} min={1} max={profile?.points ?? 0}
+                          style={{ flex: 1, background: '#050d05', border: '1px solid #1a3a1a', color: 'var(--amber)',
+                            fontFamily: 'monospace', fontSize: 10, padding: '4px 6px', minWidth: 0 }} />
+                        <span className="c-dim" style={{ fontSize: 9 }}>pts</span>
+                        <button onClick={() => submitBet(m)} disabled={submitting || (m.type !== 'boolean' && !betTarget)}
+                          style={{ padding: '4px 10px', background: 'none', border: '1px solid var(--cyan)',
+                            color: submitting ? 'var(--dim)' : 'var(--cyan)', cursor: submitting ? 'default' : 'pointer',
+                            fontFamily: 'monospace', fontSize: 9, letterSpacing: '.05em', flexShrink: 0 }}>
+                          {submitting ? '...' : 'BET ▶'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         ))}
-
       </div>
     </div>
   )
@@ -594,37 +721,137 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo }: an
 /* ─────────────────────────────────────────────
    NOISE TAB — influence bars + link
 ───────────────────────────────────────────── */
+const INFLUENCE_ACTIONS = [
+  { type: 'gift_idol',           cost: 150, label: 'Gift Idol',         desc: "Force an idol into target's pocket",    twoTarget: false, noTarget: false },
+  { type: 'broadcast_rumor',     cost: 100, label: 'Broadcast Rumor',   desc: 'Spike paranoia, tank likeability',       twoTarget: false, noTarget: false },
+  { type: 'poison_relationship', cost:  75, label: 'Poison Bond',       desc: 'Corrode alliance between two players',   twoTarget: true,  noTarget: false },
+  { type: 'confessional_leak',   cost:  50, label: 'Leak Confessional', desc: 'Expose secrets, drop likeability',       twoTarget: false, noTarget: false },
+  { type: 'ghost_boost',         cost: 200, label: 'Ghost Boost',       desc: 'Ghost haunts a target, spikes paranoia', twoTarget: true,  noTarget: false },
+  { type: 'inject_anomaly',      cost: 300, label: 'Inject Anomaly',    desc: 'Fire a random anomaly into the season',  twoTarget: false, noTarget: true  },
+] as const
+
 function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
   const alive = (castaways ?? []).filter((c: any) => c.status === 'alive')
+  const [expandedAction, setExpandedAction] = useState<string | null>(null)
+  const [targetA, setTargetA] = useState('')
+  const [targetB, setTargetB] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [actionResult, setActionResult] = useState<Record<string, 'ok' | 'err'>>({})
+  const pts = profile?.points ?? 0
+
+  async function submitAction(act: typeof INFLUENCE_ACTIONS[number]) {
+    if (submitting) return
+    if (pts < act.cost) return
+    if (!act.noTarget && !targetA) return
+    if (act.twoTarget && !targetB) return
+    setSubmitting(true)
+    const body: any = { type: act.type }
+    if (!act.noTarget) body.target_id = parseInt(targetA, 10)
+    if (act.twoTarget) body.target_b_id = parseInt(targetB, 10)
+    const res = await fetch('/api/influence', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    setActionResult(prev => ({ ...prev, [act.type]: res.ok ? 'ok' : 'err' }))
+    if (res.ok) setExpandedAction(null)
+    setSubmitting(false)
+  }
 
   return (
     <div className="hud-panel-inner">
       <div className="hdr hud-hdr">
         <span>⛧ NOISE</span>
         <span className="c-dim" style={{ fontSize: 10, fontWeight: 'normal' }}>
-          <span className="c-yellow">{profile?.points ?? 0}</span> pts
+          <span className="c-yellow">{pts}</span> pts
         </span>
       </div>
-      <div className="hud-panel-body">
+      <div className="hud-panel-body" style={{ padding: 0 }}>
         {!seasonActive ? (
-          <div className="c-dim" style={{ padding: 10, fontSize: 10 }}>
+          <div className="c-dim" style={{ padding: '10px 10px', fontSize: 10 }}>
             Influence opens during an active season.
           </div>
         ) : (
-          alive.map((c: any) => {
-            const pct = Math.min(100, (c.challenge_wins ?? 0) * 15)
-            return (
-              <div key={c.id} className="hud-noise-row">
-                <span className="hud-noise-name c-green">{c.name.slice(0, 8)}</span>
-                <div className="hud-noise-bar">
-                  <div className="hud-noise-fill" style={{ width: `${pct}%` }} />
-                </div>
-                <span className="c-purple hud-noise-pts">{c.influence_points ?? 0}</span>
-              </div>
-            )
-          })
-        )}
+          <>
+            {/* Cast influence bars */}
+            <div style={{ padding: '6px 10px 4px' }}>
+              {(() => {
+                const maxInfluence = Math.max(1, ...alive.map((c: any) => c.influence_points ?? 0))
+                return alive.map((c: any) => {
+                  const ip = c.influence_points ?? 0
+                  const cw = c.challenge_wins ?? 0
+                  const pct = Math.round((ip / maxInfluence) * 100)
+                  return (
+                    <div key={c.id} className="hud-noise-row">
+                      <span className="hud-noise-name c-green">{c.name.slice(0, 8)}</span>
+                      <div className="hud-noise-bar" title={`${ip} pts · ${cw}W`}>
+                        <div className="hud-noise-fill" style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="c-purple hud-noise-pts">{ip}</span>
+                      {cw > 0 && <span className="c-amber" style={{ fontSize: 8, marginLeft: 3 }}>W{cw}</span>}
+                    </div>
+                  )
+                })
+              })()}
+            </div>
 
+            <div style={{ borderTop: '1px solid #1a2a1a' }} />
+
+            {(!user || isDemo) && (
+              <div style={{ padding: '6px 10px' }}>
+                <span className="c-amber" style={{ fontSize: 9 }}>Sign in to influence the game.</span>
+              </div>
+            )}
+
+            {(user && !isDemo) && INFLUENCE_ACTIONS.map(act => {
+              const canAfford = pts >= act.cost
+              const expanded = expandedAction === act.type
+              const result = actionResult[act.type]
+              return (
+                <div key={act.type} style={{ borderBottom: '1px solid #0a1a0a' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
+                    cursor: canAfford ? 'pointer' : 'default', opacity: canAfford ? 1 : 0.45 }}
+                    onClick={() => {
+                      if (!canAfford) return
+                      setExpandedAction(expanded ? null : act.type)
+                      setTargetA(''); setTargetB('')
+                    }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 10, color: canAfford ? 'var(--cyan)' : 'var(--dim)' }}>{act.label}</div>
+                      <div className="c-dim" style={{ fontSize: 8, marginTop: 1 }}>{act.desc}</div>
+                    </div>
+                    {result === 'ok' && <span className="c-green" style={{ fontSize: 9 }}>✓</span>}
+                    {result === 'err' && <span className="c-red" style={{ fontSize: 9 }}>✗</span>}
+                    <span style={{ color: canAfford ? 'var(--amber)' : 'var(--dim)', fontSize: 9, flexShrink: 0 }}>{act.cost}pt</span>
+                    {canAfford && !result && <span style={{ color: 'var(--cyan)', fontSize: 10 }}>{expanded ? '▲' : '▼'}</span>}
+                  </div>
+                  {expanded && (
+                    <div style={{ padding: '6px 10px 10px', background: '#050d05', borderTop: '1px solid #0a1a0a' }}>
+                      {!act.noTarget && (
+                        <select value={targetA} onChange={e => setTargetA(e.target.value)}
+                          style={{ width: '100%', background: '#050d05', border: '1px solid #1a3a1a', color: 'var(--white)',
+                            fontFamily: 'monospace', fontSize: 9, padding: '4px', marginBottom: act.twoTarget ? 6 : 10 }}>
+                          <option value="">— pick target —</option>
+                          {alive.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      )}
+                      {act.twoTarget && (
+                        <select value={targetB} onChange={e => setTargetB(e.target.value)}
+                          style={{ width: '100%', background: '#050d05', border: '1px solid #1a3a1a', color: 'var(--white)',
+                            fontFamily: 'monospace', fontSize: 9, padding: '4px', marginBottom: 10 }}>
+                          <option value="">— pick second target —</option>
+                          {alive.filter((c: any) => String(c.id) !== targetA).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      )}
+                      <button onClick={() => submitAction(act)} disabled={submitting}
+                        style={{ width: '100%', padding: '5px', background: 'none', border: '1px solid var(--purple)',
+                          color: submitting ? 'var(--dim)' : 'var(--purple)', cursor: submitting ? 'default' : 'pointer',
+                          fontFamily: 'monospace', fontSize: 9, letterSpacing: '.08em' }}>
+                        {submitting ? '...' : `DEPLOY · ${act.cost}pts`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </>
+        )}
       </div>
     </div>
   )
@@ -635,9 +862,11 @@ function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
 ───────────────────────────────────────────── */
 function MorePanel({ season, aliveCount, profile, user, isDemo, onOpenArchive, onSwitchTab }: any) {
   const [seasons, setSeasons] = useState<any[]>([])
+  const [leaderboard, setLeaderboard] = useState<any[]>([])
 
   useEffect(() => {
     fetch('/api/seasons').then(r => r.json()).then(setSeasons).catch(() => {})
+    fetch('/api/leaderboard').then(r => r.json()).then(setLeaderboard).catch(() => {})
   }, [])
 
   const pastSeasons = seasons.filter((s: any) => s.status === 'complete')
@@ -694,10 +923,33 @@ function MorePanel({ season, aliveCount, profile, user, isDemo, onOpenArchive, o
             <span className="c-dim" style={{ float: 'right' }}>→</span>
           </button>
         ))}
-        <a href="/leaderboard" className="hud-more-link c-cyan">
-          ◈ LEADERBOARD
-          <span className="c-dim" style={{ float: 'right' }}>↗</span>
-        </a>
+        {/* Inline leaderboard */}
+        {leaderboard.length > 0 && (
+          <div style={{ padding: '4px 8px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span className="c-cyan" style={{ fontSize: 9, letterSpacing: '.08em' }}>◈ LEADERBOARD</span>
+              <a href="/leaderboard" className="c-dim" style={{ fontSize: 8, textDecoration: 'none' }}>full view →</a>
+            </div>
+            {leaderboard.slice(0, 5).map((entry: any, i: number) => (
+              <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', borderBottom: '1px solid #0a1a0a' }}>
+                <span className="c-dim" style={{ fontSize: 8, width: 14, textAlign: 'center', flexShrink: 0 }}>#{i + 1}</span>
+                <span className="c-white" style={{ flex: 1, fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {entry.username ?? 'player'}
+                </span>
+                <span className="c-yellow" style={{ fontSize: 9, flexShrink: 0 }}>{entry.points}pts</span>
+                {entry.predictions_won != null && (
+                  <span className="c-dim" style={{ fontSize: 8, flexShrink: 0 }}>{entry.predictions_won}/{entry.predictions_total ?? 0}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {leaderboard.length === 0 && (
+          <a href="/leaderboard" className="hud-more-link c-cyan">
+            ◈ LEADERBOARD
+            <span className="c-dim" style={{ float: 'right' }}>↗</span>
+          </a>
+        )}
 
         {/* Account */}
         <div className="hud-more-account">
@@ -780,7 +1032,9 @@ function SeasonArchive({ archive, onBack, onOpenDossier }: {
       if (b.status === 'alive' && a.status !== 'alive') return 1
       return (b.elimination_day ?? 0) - (a.elimination_day ?? 0)
     })
-    const winner = sorted.find((c: any) => c.status === 'alive')
+    const winner = season?.winner_id
+      ? sorted.find((c: any) => c.id === season.winner_id)
+      : sorted.find((c: any) => c.status === 'alive')
     return (
       <div className="hud-zone hud-feed panel" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div className="hdr hud-hdr" style={{ flexShrink: 0, gap: 6 }}>
@@ -805,7 +1059,8 @@ function SeasonArchive({ archive, onBack, onOpenDossier }: {
         )}
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: '#1f2a1f #000' }}>
           {sorted.map((c: any, i: number) => {
-            const isWinner = c.status === 'alive'
+            const isWinner = c.id === (season?.winner_id ?? winner?.id)
+            const isRunnerUp = c.status === 'alive' && !isWinner
             const border = isWinner ? 'var(--yellow)' : (tribeColor[c.tribe_id] ?? 'var(--dim)')
             return (
               <button key={c.id} onClick={() => onOpenDossier(c)}
@@ -834,7 +1089,9 @@ function SeasonArchive({ archive, onBack, onOpenDossier }: {
                   <div style={{ fontSize: 8, color: tribeColor[c.tribe_id] ?? 'var(--dim)', marginTop: 1 }}>{tribeName[c.tribe_id] ?? ''}</div>
                 </div>
                 <div style={{ flexShrink: 0, textAlign: 'right' }}>
-                  {isWinner ? <span style={{ color: 'var(--yellow)', fontSize: 9 }}>WINNER</span> : (
+                  {isWinner ? <span style={{ color: 'var(--yellow)', fontSize: 9 }}>WINNER</span> : isRunnerUp ? (
+                    <span style={{ color: 'var(--amber)', fontSize: 9 }}>RUNNER-UP</span>
+                  ) : (
                     <>
                       <div className="c-dim" style={{ fontSize: 9 }}>day {c.elimination_day ?? '?'}</div>
                       <div style={{ fontSize: 8, color: c.status === 'consumed' ? 'var(--red)' : 'var(--dim)' }}>

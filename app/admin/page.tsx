@@ -15,7 +15,7 @@ function Check({ label, ok }: { label: string; ok: boolean }) {
 
 export default async function AdminStatusPage() {
   const missing = getMissingProductionEnv()
-  const openaiConfigured = !!process.env.OPENAI_API_KEY
+  const deepseekConfigured = !!process.env.DEEPSEEK_API_KEY
   const cronConfigured = !!process.env.CRON_SECRET
   const resendConfigured = !!process.env.RESEND_API_KEY
 
@@ -55,7 +55,7 @@ export default async function AdminStatusPage() {
             <Check label="Supabase (public)" ok={SUPABASE_CONFIGURED} />
             <Check label="Supabase (service role)" ok={SUPABASE_SERVICE_CONFIGURED} />
             <Check label="CRON_SECRET" ok={cronConfigured} />
-            <Check label="OPENAI_API_KEY" ok={openaiConfigured} />
+            <Check label="DEEPSEEK_API_KEY" ok={deepseekConfigured} />
             <Check label="RESEND_API_KEY" ok={resendConfigured} />
             {missing.length > 0 && (
               <div className="c-amber text-[11px] mt-2">Missing for production: {missing.join(', ')}</div>

@@ -1,7 +1,7 @@
 import type { Castaway, CastawayStats, DayResult, LogEntry, LogType, SimulationContext } from './types'
 import {
   ARCHETYPES, CASTAWAY_NAMES, TRAITS, INSULTS,
-  GENERIC_CAMP, TRAIT_CAMP, GHOST_LINES, HOST_LINES,
+  GENERIC_CAMP, TRAIT_CAMP, GHOST_LINES_FRESH, GHOST_LINES_ANCIENT, HOST_LINES,
   VOTE_LINES, SNUFF_LINES, CONSUMED_LINES, ANOMALY_LINES,
   INFLUENCE_NARRATIVES, CHALLENGE_TYPES,
   HOMETOWNS, JOBS, EDUCATIONS, FAMILIES, AUDITION_TAPES, AUDITION_GENERIC,
@@ -14,6 +14,7 @@ import {
   REACTION_LINES, CHAIN_REACTION_LINES,
   VOTE_SPEECH_THREAT, VOTE_SPEECH_ENEMY, VOTE_SPEECH_BETRAY, VOTE_SPEECH_STRATEGIC,
   MAP_EVENT_FIRE, MAP_EVENT_FLOOD, MAP_EVENT_ANOMALY, MAP_EVENT_LAVA,
+  MERGE_LINES_ANNOUNCE, MERGE_LINES_CAMP, MERGE_LINES_CASTAWAY,
 } from './data'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -196,14 +197,23 @@ export function simulateDay(ctx: SimulationContext): DayResult {
     })
   }
 
-  // Ghost haunting
+  // Ghost haunting — escalates based on days since elimination
   if (ghosts.length && alive.length && chance(0.7)) {
     const g = pick(ghosts), v = pick(alive)
-    log(fill(pick(GHOST_LINES), g.name, v.name), 'ghost')
-    v.stats.likeability = clamp(v.stats.likeability - 2)
-    v.stats.moxie = clamp(v.stats.moxie - 2)
-    v.stats.paranoia = clamp(v.stats.paranoia + 3)
-    if (chance(0.4)) v.condition = 'hallucinating'
+    const daysSince = g.eliminationDay !== undefined ? Math.max(0, ctx.day - g.eliminationDay) : 99
+    const ghostPool = daysSince <= 3 ? GHOST_LINES_FRESH : GHOST_LINES_ANCIENT
+    log(fill(pick(ghostPool), g.name, v.name), 'ghost')
+    // Fresh ghosts hit harder on paranoia; ancient ghosts are more diffuse
+    if (daysSince <= 3) {
+      v.stats.paranoia = clamp(v.stats.paranoia + 5)
+      v.stats.moxie = clamp(v.stats.moxie - 3)
+      if (chance(0.5)) v.condition = 'hallucinating'
+    } else {
+      v.stats.likeability = clamp(v.stats.likeability - 2)
+      v.stats.moxie = clamp(v.stats.moxie - 2)
+      v.stats.paranoia = clamp(v.stats.paranoia + 3)
+      if (chance(0.3)) v.condition = 'hallucinating'
+    }
   }
 
   // ── MAP EVENT PHASE ──────────────────────────────────────
@@ -482,7 +492,23 @@ export function simulateDay(ctx: SimulationContext): DayResult {
   const challenge = pick(CHALLENGE_TYPES)
   log(challenge.announce, 'host')
 
-  const merged = ctx.merged || alive.every(c => c.tribe === alive[0].tribe)
+  const justMerged = !ctx.merged && alive.every(c => c.tribe === alive[0].tribe)
+  const merged = ctx.merged || justMerged
+
+  // ── MERGE EVENT ───────────────────────────────────────────────────────────
+  if (justMerged) {
+    log(pick(MERGE_LINES_ANNOUNCE), 'system')
+    for (const line of MERGE_LINES_CAMP) log(line, 'host')
+    const announced = new Set<number>()
+    for (let i = 0; i < Math.min(3, alive.length); i++) {
+      const c = pick(alive)
+      if (!announced.has(c.id)) {
+        announced.add(c.id)
+        log(fill(pick(MERGE_LINES_CASTAWAY), c.name), 'camp')
+      }
+    }
+  }
+
   let candidates: Castaway[]
   let immuneId: number | null = null
 
@@ -524,7 +550,17 @@ export function simulateDay(ctx: SimulationContext): DayResult {
       else log(fill(pick(challenge.progressLines), c.name), 'host')
     })
     immuneId = sorted[0]?.id ?? null
-    if (sorted[0]) log(fill(challenge.winTemplate, sorted[0].name), 'host')
+    if (sorted[0]) {
+      log(fill(challenge.winTemplate, sorted[0].name), 'host')
+      // Increment challenge win counter and log streaks
+      const winner = sorted[0]
+      winner.challengeWins = (winner.challengeWins ?? 0) + 1
+      if (winner.challengeWins >= 3) {
+        log(`  ${winner.name} has now won ${winner.challengeWins} immunity challenges this season.`, 'host')
+      } else if (winner.challengeWins === 2) {
+        log(`  ${winner.name} has won back-to-back immunity. The tribe is watching.`, 'host')
+      }
+    }
     candidates = sorted.slice(1)
   }
 
@@ -553,12 +589,17 @@ export function simulateDay(ctx: SimulationContext): DayResult {
     if (!target) return
     votes[target.id] = (votes[target.id] ?? 0) + 1
 
-    // Determine speech type from relationship context
+    // Determine speech type — romance history takes priority over current relationship value
     const rel = voter.relationships[target.id] ?? 0
     const tScore = threatScore(target)
     const maxThreat = Math.max(...pool.map(threatScore))
+    const voterBond = voter.romanticBonds?.[target.id]
+    const targetWasRomantic = voterBond === 'ex' || voterBond === 'scorned' || voterBond === 'partner' || voterBond === 'poly'
     let speech: string
-    if (rel < -5) {
+    if (targetWasRomantic) {
+      // Romance history always triggers betrayal speech regardless of current rel value
+      speech = fill(pick(VOTE_SPEECH_BETRAY), voter.name, target.name)
+    } else if (rel < -5) {
       speech = fill(pick(VOTE_SPEECH_ENEMY), voter.name, target.name)
     } else if (rel > 5) {
       speech = fill(pick(VOTE_SPEECH_BETRAY), voter.name, target.name)
@@ -628,77 +669,121 @@ export function simulateDay(ctx: SimulationContext): DayResult {
     })
     if (winner) {
       winnerId = (winner as Castaway).id
-      log(`★ THE JURY OF GHOSTS SPEAKS. SOLE SURVIVOR: ${(winner as Castaway).name}! ★`, 'win')
-      // Mark all other surviving finalists as runner-up (eliminated this day)
-      stillAlive.forEach(c => {
-        if (c.id !== winnerId) {
-          c.status = 'ghost'
-          c.eliminationDay = ctx.day
-        }
-      })
+      const w = winner as Castaway
+      const finalists = stillAlive.filter(c => c.id !== winnerId)
+      const ghosts = ctx.castaways.filter(c => c.status === 'ghost')
+
+      // ── Finale narrative sequence ────────────────────────────────────────
+      log('▓▓ FINALE. THE ISLAND GOES QUIET. ▓▓', 'system')
+      log(`▒ The jury of ghosts assembles. ${ghosts.length} voices from the static. ▒`, 'ghost')
+
+      // Finalist arrival lines
+      for (const f of stillAlive) {
+        const isWinner = f.id === winnerId
+        log(`${f.name} stands at the final tribal council. ${isWinner ? 'The winner steps forward.' : 'A finalist to the end.'}`, 'host')
+      }
+
+      // Jury vote sequence
+      for (const g of ghosts) {
+        log(`${g.name} casts their jury vote from beyond.`, 'ghost')
+      }
+
+      // Winner reveal
+      log(`★ SOLE SURVIVOR: ${w.name}. ★`, 'win')
+
+      // Runner-up acknowledgment
+      for (const f of finalists) {
+        log(`${f.name} finishes as runner-up. The island remembers.`, 'host')
+      }
+
+      log('▓▓ SIGNAL LOST. THE SEASON IS OVER. ▓▓', 'system')
     }
   }
 
-  return { logs, eliminatedId, isSeasonOver, winnerId, anomalyFired, idolPlayed, castawayUpdates: ctx.castaways, challengeName: challenge.name }
+  return {
+    logs,
+    eliminatedId,
+    isSeasonOver,
+    winnerId,
+    anomalyFired,
+    idolPlayed,
+    castawayUpdates: ctx.castaways,
+    challengeName: challenge?.name ?? '',
+  }
 }
 
-// ── Apply influence actions ───────────────────────────────────────────────────
+// ── computeOdds ───────────────────────────────────────────────────────────────
+// Returns a map of castaway id → win probability (0-1) based on current stats.
+export function computeOdds(castaways: Castaway[]): Record<number, number> {
+  const alive = castaways.filter(c => c.status === 'alive')
+  if (alive.length === 0) return {}
+  const scores = alive.map(c => ({
+    id: c.id,
+    score: Math.max(0.01,
+      c.stats.likeability * 0.32 +
+      c.stats.moxie * 0.28 +
+      c.stats.gaslighting * 0.18 +
+      c.stats.physical * 0.12 -
+      c.stats.paranoia * 0.18 +
+      (c.idolCount ?? 0) * 8
+    ),
+  }))
+  const total = scores.reduce((s, x) => s + x.score, 0)
+  return Object.fromEntries(scores.map(x => [x.id, x.score / total]))
+}
+
+// ── applyInfluenceAction ──────────────────────────────────────────────────────
+// Applies mechanical effect of an influence action; returns a fallback narrative string.
 export function applyInfluenceAction(
   type: string,
   target: Castaway | undefined,
   targetB: Castaway | undefined,
-  alive: Castaway[]
+  alive: Castaway[],
 ): string {
-  const templates = INFLUENCE_NARRATIVES[type]
-  const tpl = templates ? pick(templates) : 'An outside force acts on the island.'
-  const narrative = fill(tpl, target?.name ?? '???', targetB?.name ?? '???')
+  if (!target) return 'An influence action was processed — target not found.'
 
   switch (type) {
-    case 'gift_idol':
-      if (target) target.idolCount++
-      break
-    case 'poison_relationship':
-      if (target && targetB) {
-        target.relationships[targetB.id] = Math.min((target.relationships[targetB.id] ?? 0) - 15, -10)
-        targetB.relationships[target.id] = Math.min((targetB.relationships[target.id] ?? 0) - 10, -5)
-      }
-      break
-    case 'broadcast_rumor':
-      if (target) {
-        target.stats.paranoia = clamp(target.stats.paranoia + 12)
-        alive.forEach(c => { if (c.id !== target.id) c.relationships[target.id] = (c.relationships[target.id] ?? 0) - 3 })
-      }
-      break
-    case 'inject_anomaly':
-      alive.forEach(c => {
-        const keys = Object.keys(c.stats) as (keyof CastawayStats)[]
-        c.stats[pick(keys)] = clamp(ri(10, 90))
-      })
-      break
-    case 'ghost_boost':
+    case 'gift_idol': {
+      target.idolCount = (target.idolCount ?? 0) + 1
+      return `${target.name} received an anonymous idol delivery. Their position just got stronger.`
+    }
+    case 'poison_relationship': {
       if (targetB) {
-        targetB.stats.paranoia = clamp(targetB.stats.paranoia + 18)
-        targetB.stats.moxie = clamp(targetB.stats.moxie - 10)
+        const cur = target.relationships[String(targetB.id)] ?? 0
+        target.relationships[String(targetB.id)] = Math.max(-100, cur - 20)
+        const curB = targetB.relationships[String(target.id)] ?? 0
+        targetB.relationships[String(target.id)] = Math.max(-100, curB - 20)
+        return `The relationship between ${target.name} and ${targetB.name} was poisoned from the outside.`
       }
-      break
-    case 'confessional_leak':
-      break
+      return `${target.name}'s alliances were subtly compromised.`
+    }
+    case 'broadcast_rumor': {
+      target.stats.paranoia = Math.min(100, (target.stats.paranoia ?? 50) + 15)
+      target.stats.likeability = Math.max(0, (target.stats.likeability ?? 50) - 10)
+      return `A rumor was broadcast about ${target.name}. Trust is eroding.`
+    }
+    case 'inject_anomaly': {
+      // Random stat drift on target
+      const keys = ['paranoia', 'gaslighting', 'likeability', 'physical', 'moxie'] as const
+      const k = keys[Math.floor(Math.random() * keys.length)]
+      const delta = (Math.random() < 0.5 ? 1 : -1) * (10 + Math.floor(Math.random() * 15))
+      target.stats[k] = Math.max(0, Math.min(100, (target.stats[k] ?? 50) + delta))
+      return `An anomaly was injected near ${target.name}. The island recalibrated.`
+    }
+    case 'ghost_boost': {
+      // Boost ghost's influence on an alive target
+      if (target.status === 'ghost' && targetB) {
+        targetB.stats.paranoia = Math.min(100, (targetB.stats.paranoia ?? 50) + 12)
+        return `${target.name}'s ghost reached out to ${targetB.name}. Memory intrusion successful.`
+      }
+      return `A ghost signal was amplified across the island.`
+    }
+    case 'confessional_leak': {
+      // Reduce likeability — something private became public
+      target.stats.likeability = Math.max(0, (target.stats.likeability ?? 50) - 15)
+      return `${target.name}'s confessional was leaked. What was private is now in circulation.`
+    }
+    default:
+      return `An influence action (${type}) was processed on ${target.name}.`
   }
-  return narrative
-}
-
-// ── Odds calculator ───────────────────────────────────────────────────────────
-export function computeOdds(castaways: Castaway[]): Record<number, number> {
-  const raw: Record<number, number> = {}
-  let sum = 0
-  castaways.forEach(c => {
-    const r = (c.stats.paranoia + c.stats.gaslighting) / Math.max(8, c.stats.likeability)
-    raw[c.id] = r; sum += r
-  })
-  const result: Record<number, number> = {}
-  castaways.forEach(c => {
-    const p = raw[c.id] / sum
-    result[c.id] = Math.round(clamp(1 / p, 1.2, 18) * 10) / 10
-  })
-  return result
 }

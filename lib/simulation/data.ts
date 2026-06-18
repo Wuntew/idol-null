@@ -336,6 +336,7 @@ export const AUDITION_GENERIC = [
 ]
 
 export const GENERIC_CAMP = [
+  // original 10
   '${a} accuses ${b} of rigging the matrix while everyone pretends to sleep.',
   '${a} and ${b} forge a fragile alliance over a fire that will not stop whispering.',
   '${a} hides the machete and blames the static for ${b} losing it.',
@@ -346,6 +347,43 @@ export const GENERIC_CAMP = [
   '${a} starts a rumor that ${b} is not actually human. The rumor is gaining votes.',
   '${a} cries to the cameras that ${b} is gaslighting the entire beach.',
   '${a} and ${b} pinky-swear final two, both already drafting the betrayal.',
+  // expanded — 36 new entries
+  '${a} tells ${b} exactly what they think of them. It takes twenty minutes.',
+  '${a} watches ${b} sleep and says nothing when ${b} opens their eyes.',
+  '${a} volunteers for the camp chores nobody else wants. ${b} notices. Neither says anything.',
+  '${a} and ${b} sit on opposite sides of the fire and don\'t speak for an hour.',
+  '${a} steals ${b}\'s spot in the shelter. The displacement is intentional.',
+  '${a} tells the camera that ${b} is more dangerous than anyone is giving them credit for.',
+  '${a} asks ${b} three direct questions. ${b} answers none of them directly.',
+  '${a} finds ${b}\'s hidden supply cache and says nothing. For now.',
+  '${a} and ${b} volunteer to gather wood together. Neither returns with wood.',
+  '${a} whispers the same name three times in the same hour to three different people.',
+  '${a} sabotages the shelter repair. ${b} gets the blame. The tribe believes it.',
+  '${a} sits too close to ${b} at the fire. ${b} moves. ${a} moves with them.',
+  '${a} tries to read ${b}\'s face and decides what they see there. They are wrong.',
+  '${a} laughs at something ${b} says. It does not sound like a genuine laugh.',
+  '${a} refuses to let ${b} finish a sentence for the third time today.',
+  '${a} asks ${b} to help haul water. It is not about the water.',
+  '${a} gets caught going through ${b}\'s bag. Claims they were looking for flint.',
+  '${a} tells ${b} they\'re safe. ${b} has heard that before.',
+  '${a} runs the same scenario by ${b} six different ways until ${b} says what ${a} wants to hear.',
+  '${a} and ${b} exchange a look across camp that lasts too long. Nobody misses it.',
+  '${a} shares the last fish with ${b}. The tribe draws the wrong conclusion.',
+  '${a} says ${b}\'s name under their breath when they think no one is recording. The feed always records.',
+  '${a} disagrees with every decision ${b} makes today. Loudly. On camera.',
+  '${a} sits down next to ${b} and starts talking as if they were mid-conversation.',
+  '${a} helps ${b} with the fire and then immediately goes to tell someone else what they saw.',
+  '${a} insists ${b} is running the show. Nobody else has noticed. That is the point.',
+  '${a} offers ${b} half their ration. ${b} takes it. Neither trusts the other.',
+  '${a} writes something in the sand. ${b} walks over it. The message is gone.',
+  '${a} builds a fire alone and doesn\'t invite ${b}. It is noticed.',
+  '${a} lists every alliance ${b} has made in this game to the camera. Gets most of them right.',
+  '${a} confronts ${b} at the water\'s edge. There is no version of this conversation that helps ${a}.',
+  '${a} overhears ${b} talking to the wrong person. Stores it. The storage has been building for days.',
+  '${a} mirrors ${b}\'s body language perfectly. ${b} doesn\'t know why they feel uneasy.',
+  '${a} tells the camera ${b} is playing too hard. ${a} is playing twice as hard.',
+  '${a} gives ${b} a compliment. It lands wrong. ${b} doesn\'t know how to take it.',
+  '${a} talks to ${b} for an hour and reveals nothing. ${b} does the same. Neither of them wanted to be here.',
 ]
 
 export const TRAIT_CAMP: Record<string, string[]> = {
@@ -378,20 +416,54 @@ export const TRAIT_CAMP: Record<string, string[]> = {
     '${a} stares through ${b} for eleven minutes without blinking.',
     '${a} agrees with everything ${b} says and has nothing behind the eyes when they do.',
     '${a} forgets ${b}\'s name mid-sentence and fills the gap with static.',
+    '${a} smiles at ${b} at exactly the wrong moment. The smile is technically correct.',
+    '${a} has not reacted to anything ${b} has done today. Not the argument. Not the vote talk. Nothing.',
+    '${a} is present but not in the way ${b} needs them to be.',
+  ],
+  Haunted: [
+    '${a} warns ${b} about someone who was voted out three days ago. Insists they are still here.',
+    '${a} falls silent mid-sentence and stares at the treeline. ${b} checks. Nothing is there.',
+    '${a} knows something happened to ${b} last night. ${b} cannot explain how ${a} knows.',
+    '${a} apologizes to ${b} for something ${b} doesn\'t remember happening.',
+    '${a} draws a name in the dirt and then erases it before ${b} can read it.',
+    '${a} tells ${b} the island has been talking. Tells ${b} what it said. ${b} stops sleeping well.',
+  ],
+  Obsessed: [
+    '${a} redirects every conversation with ${b} back to the same person. The same name. Every time.',
+    '${a} describes ${b} in terms of whether they are useful for reaching their actual target.',
+    '${a} recites ${b}\'s alliance history unprompted. Gets one detail wrong on purpose.',
   ],
 }
 
 
 // ── Camp / Ghost / Vote narrative pools ───────────────────────────────────────
-export const GHOST_LINES = [
-  '${a}\'s ghost drifts through camp and settles behind ${b}\'s eyes.',
-  '${a} cannot vote but ${b} can feel the static trailing them.',
-  '${a} whispers from the signal and ${b} wakes up changed.',
-  '${a}\'s presence warps the feed around ${b}.',
-  '${a} reaches back from the ghost layer and adjusts ${b}\'s paranoia upward.',
-  '${a} no longer exists in the game but ${b} checks over their shoulder anyway.',
-  '${a}\'s data-echo finds ${b} at the water source. The encounter leaves a mark.',
+// Fresh ghosts (eliminated 0–3 days ago): immediate, angry, recognizable
+export const GHOST_LINES_FRESH = [
+  '${a} was just here. ${b} can still hear the vote. The fire agrees.',
+  '${a}\'s ghost arrives before the static has finished processing the elimination.',
+  '${a} finds ${b} and says the name of the person who voted for them. It is accurate.',
+  '${a} is not done. The torch went out but the signal didn\'t.',
+  '${b} reaches for ${a}\'s spot in the shelter before remembering. Something reaches back.',
+  '${a}\'s data-echo is clean and sharp and pointed directly at ${b}.',
+  '${a} walks through camp and everybody sees them for a second. Nobody says it.',
+  '${b} wakes up with ${a}\'s strategy in their head. Doesn\'t know whose it is.',
 ]
+
+// Ancient ghosts (4+ days): ambient, corrupted, barely coherent
+export const GHOST_LINES_ANCIENT = [
+  '${a}\'s ghost drifts through camp and settles behind ${b}\'s eyes. Something is still there.',
+  '${a} cannot vote but ${b} can feel the static trailing them across the camp perimeter.',
+  '${a} whispers from deep in the signal and ${b} wakes up changed. Doesn\'t know why.',
+  '${a}\'s presence warps the feed around ${b}. Nobody else notices the distortion.',
+  '${a} reaches back from the ghost layer. The reach is degraded. It still adjusts ${b}\'s paranoia.',
+  '${a} no longer exists as a player. The island still routes them through ${b}\'s nightmares.',
+  '${a}\'s data-echo is fragmented and slow. It finds ${b} at the water source anyway.',
+  '${b} hears a name they can\'t quite place. The voice sounds like someone who is no longer here.',
+  '${a}\'s ghost has been here long enough to become ambient noise. ${b} calls it the island.',
+]
+
+// Keep the original export as a fallback alias
+export const GHOST_LINES = GHOST_LINES_ANCIENT
 
 export const HOST_LINES = [
   'The signal speaks. A new day has loaded.',
@@ -653,25 +725,30 @@ export const GAMECUBE_LINES = [
 
 // ── Sponsor Drops / Gamemaker Events ─────────────────────────────────────────
 export const SPONSOR_LINES = [
-  '${a}\'s sponsor package drops from the sky. The parachute is silver. The contents are better.',
-  '${a} receives a gift from the Capitol: medicine, food, a note that says nothing useful.',
-  '${a}\'s alliance back home pooled their coins. The drop hits the riverbank at dawn.',
-  'A silver parachute finds ${a} and only ${a}. The tribe watches the sky for more.',
-  '${a}\'s sponsor believes in them. The package proves it.',
-  '${a} opens the sponsor drop before telling anyone it arrived.',
-  '${a} receives enough medicine to heal one wound and enough food to feel safe.',
+  // Signal drops — Idol.Null aesthetic (no Hunger Games language)
+  'A corporate signal drop descends on coordinates matching ${a}\'s last registered position.',
+  '${a} receives an unsolicited equipment cache. The manifest is encoded. The contents are not.',
+  'The arena\'s logistics system routes a care package to ${a}. Origin: unspecified.',
+  'An unmarked supply canister lands near ${a}\'s camp zone. Nobody authorized this drop.',
+  '${a} opens the cache before telling the tribe. Standard protocol. Nobody calls it cheating.',
+  '${a} receives enough field medicine to close one wound and enough rations to stop counting hours.',
+  'The arena\'s support tier activates for ${a}. It does not explain why ${a} was selected.',
+  'A signal-coded package materializes at ${a}\'s coordinates. The island had it queued.',
+  '${a}\'s external support network came through. The drop is discrete. The tribe notices anyway.',
 ]
 
 export const GAMEMAKER_LINES = [
-  'The Gamemakers have been watching. They adjust the arena.',
-  'High in the control room, someone decides the island has been too quiet.',
-  'The Gamemakers release something into the western quadrant. Nobody knows what yet.',
-  'A Gamemaker event flag activates. The island reads it before the castaways do.',
-  'The arena shifts. Not dramatically. Just enough.',
-  'The Gamemakers force the survivors toward the center. The map shrinks.',
-  'Someone in the control room marks a tribute as "interesting." The arena responds.',
-  'A tracker jacker nest descends from the canopy. The Gamemakers needed a reaction.',
-  'The Gamemakers override the water supply. Dehydration becomes the episode\'s arc.',
+  'The arena operators have been watching. They introduce a variable.',
+  'High in the production infrastructure, someone decides the feed has been too stable.',
+  'A new parameter deploys to the island\'s western sector. No briefing was sent.',
+  'An event flag activates in the arena backend. The island processes it before the castaways do.',
+  'The arena shifts configuration. Not dramatically. Just enough to notice.',
+  'The arena operators compress the viable zone. The map gets smaller.',
+  'Someone in the control layer flags a castaway as a priority signal. The arena reconfigures around them.',
+  'The arena deploys a biohazard event to the canopy zone. The operators needed a response.',
+  'The arena\'s resource distribution is rebalanced. Dehydration becomes the episode\'s logic.',
+  'A system-level intervention targets the most comfortable castaway in the current session.',
+  'The production layer decides the island needs a new variable. The castaways are the last to find out.',
 ]
 
 // ── Camp Reactions ────────────────────────────────────────────────────────────
@@ -790,6 +867,34 @@ export const MAP_EVENT_LAVA = [
   'The lava doesn\'t reach camp. It gets close enough to matter.',
   '${a} gets closest. The heat is medical. The burns are real.',
   '${a} doesn\'t get clear in time. The island doesn\'t apologize.',
+]
+
+// ── Merge Event ──────────────────────────────────────────────────────────────
+// Fired on the first day both tribes converge to one.
+export const MERGE_LINES_ANNOUNCE = [
+  '▓▓ THE TRIBES HAVE MERGED. ONE CAMP. ONE FIRE. ONE SIGNAL. ▓▓',
+  '▓▓ MERGE EVENT: the island collapses the two tribes into one. The game changes now. ▓▓',
+  '▓▓ SYSTEM: tribe boundaries dissolved. All players compete as individuals. The signal reconfigures. ▓▓',
+]
+
+export const MERGE_LINES_CAMP = [
+  'The merge camp looks the same as yesterday. Nothing is the same as yesterday.',
+  'Old alliances recalculate in real time. Nobody says it out loud.',
+  'Two tribes worth of paranoia has been condensed into one camp. The math is bad.',
+  'Everyone is smiling. Everyone knows what the smiling means.',
+  'The fire is bigger tonight. The trust is smaller.',
+  'Old tribal lines don\'t disappear. They just go underground.',
+  'The Gamemakers drop the merge buff like a grenade. The fallout is immediate.',
+]
+
+export const MERGE_LINES_CASTAWAY = [
+  '${a} reads the room and starts making new handshakes before the sun sets.',
+  '${a} had a plan for this. The plan does not survive contact with the merge.',
+  '${a} takes stock. Counts allies. Counts threats. Doesn\'t like the math.',
+  '${a} is the most dangerous person here. Three people have thought that. None of them agree on who it is.',
+  '${a} smiles, shakes hands, and immediately starts tracking who is talking to whom.',
+  '${a} sits at the edge of the new camp and watches every conversation that isn\'t theirs.',
+  '${a} already has a post-merge name in mind. Just one.',
 ]
 
 // ── Season Bootstrap ──────────────────────────────────────────────────────────
