@@ -5,6 +5,9 @@ import type { Castaway } from '@/lib/simulation/types'
 import { getMissingProductionEnv } from '@/lib/runtime'
 import { generateAiNarrative } from '@/lib/ai/narrative'
 import { generateCastawayDossier } from '@/lib/ai/dossier'
+import { generateConfessionals, selectConfessionalSubjects } from '@/lib/ai/confessionals'
+import { generateEulogy } from '@/lib/ai/eulogy'
+import { generateInfluenceNarrative } from '@/lib/ai/influence'
 import { TRIBE_NAME_PAIRS, TRIBE_COLOR_PAIRS, MERGE_TRIBE_NAMES } from '@/lib/simulation/data'
 
 export const dynamic = 'force-dynamic'
@@ -135,7 +138,17 @@ export async function GET(request: Request) {
       const target = castaways.find(c => c.id === action.target_id)
       const targetB = castaways.find(c => c.id === action.target_b_id)
       const alive = castaways.filter(c => c.status === 'alive')
-      const narrative = applyInfluenceAction(action.type, target, targetB, alive)
+      const fallback = applyInfluenceAction(action.type, target, targetB, alive)
+      // AI-flavored narrative — falls back to deterministic string on failure
+      const narrative = await generateInfluenceNarrative({
+        type: action.type,
+        targetName: target?.name ?? '???',
+        targetTrait: target?.trait ?? 'Hollow',
+        targetArchetype: target?.archetype ?? 'Unknown',
+        targetBName: targetB?.name ?? null,
+        targetBTrait: targetB?.trait ?? null,
+        fallback,
+      })
       influenceLogs.push(narrative)
       await supabase.from('influence_actions')
         .update({ status: 'executed', executed_day: nextDay, narrative })
@@ -180,11 +193,66 @@ export async function GET(request: Request) {
     challengeName: result.challengeName,
   })
 
+  // ── Generate confessionals ───────────────────────────────────────────────
+  const allLogs = [
+    ...influenceLogs,
+    ...result.logs.map(l => l.text),
+    ...aiNarrative.stylizedLogs.map(l => l.text),
+  ]
+  const nameLookupById = Object.fromEntries(rawCastaways.map(c => [c.id, c.name]))
+  const confessionalSubjects = selectConfessionalSubjects(
+    rawCastaways.map(c => ({
+      id: c.id, name: c.name, trait: c.trait, archetype: c.archetype,
+      condition: c.condition, status: c.status, stats: c.stats,
+      relationships: c.relationships ?? {},
+      dossier: c.dossier ?? null,
+    })),
+    nameLookupById,
+    result.eliminatedId,
+  )
+  const confessionalEntries = await generateConfessionals({
+    day: nextDay,
+    castaways: confessionalSubjects,
+    todayLogs: allLogs,
+  })
+
+  // ── Generate eulogy for eliminated castaway ──────────────────────────────
+  let eulogyText: string | null = null
+  if (result.eliminatedId) {
+    const elimRaw = rawCastaways.find(c => c.id === result.eliminatedId)
+    const elimUpdated = result.castawayUpdates.find(c => c.id === result.eliminatedId)
+    if (elimRaw) {
+      const rels = Object.entries(elimUpdated?.relationships ?? {})
+        .map(([id, score]) => ({ name: nameLookupById[Number(id)] ?? id, score: Number(score) }))
+        .sort((a, b) => b.score - a.score)
+      const topAlly = rels.find(r => r.score > 0) ?? null
+      const topEnemy = [...rels].reverse().find(r => r.score < 0) ?? null
+
+      eulogyText = await generateEulogy({
+        name: elimRaw.name,
+        archetype: elimRaw.archetype,
+        trait: elimRaw.trait,
+        eliminationDay: nextDay,
+        wasConsumed: elimUpdated?.status === 'consumed',
+        analystNote: elimRaw.dossier?.analyst_note ?? null,
+        finalCondition: elimRaw.condition,
+        topAlly,
+        topEnemy,
+      })
+    }
+  }
+
   // ── Write logs ───────────────────────────────────────────────────────────
   const logRows = [
     ...influenceLogs.map(text => ({ season_id: season.id, day: nextDay, text, type: 'influence' })),
     ...result.logs.map(l => ({ season_id: season.id, day: nextDay, text: l.text, type: l.type })),
     ...aiNarrative.stylizedLogs.map(l => ({ season_id: season.id, day: nextDay, text: l.text, type: l.type })),
+    ...(confessionalEntries ?? []).map(e => ({
+      season_id: season.id, day: nextDay,
+      text: `[${nameLookupById[e.castawayId] ?? e.castawayId}] ${e.text}`,
+      type: 'confessional',
+    })),
+    ...(eulogyText ? [{ season_id: season.id, day: nextDay, text: eulogyText, type: 'eulogy' }] : []),
   ]
   if (logRows.length) await supabase.from('game_log').insert(logRows)
 

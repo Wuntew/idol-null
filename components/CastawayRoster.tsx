@@ -20,6 +20,7 @@ type AiDossier = {
   pressure_signature?: string
   threat_read?: string
   analyst_note?: string
+  rival_dynamic?: string
 }
 
 type Castaway = {
@@ -493,6 +494,13 @@ export default function CastawayRoster({
                 <div className="dossier-section dossier-section-wide">
                   <div className="c-amber text-[10px] tracking-wider mb-1">ANALYST NOTE</div>
                   <div className="c-dim text-[10px]" style={{ lineHeight: 1.5, fontStyle: 'italic' }}>{selected.dossier.analyst_note}</div>
+                </div>
+              )}
+
+              {selected.dossier?.rival_dynamic && (
+                <div className="dossier-section dossier-section-wide">
+                  <div className="c-red text-[10px] tracking-wider mb-1">RIVAL DYNAMIC</div>
+                  <div className="c-dim text-[10px]" style={{ lineHeight: 1.5 }}>{selected.dossier.rival_dynamic}</div>
                 </div>
               )}
             </div>

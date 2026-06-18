@@ -1,5 +1,5 @@
 import type { Castaway, LogEntry } from '@/lib/simulation/types'
-import { callOpenAiJson } from './openai'
+import { callDeepSeekJson } from './deepseek'
 
 type MemoryState = {
   grudges?: string[]
@@ -118,93 +118,64 @@ function normalizeResult(parsed: any, input: NarrativeInput): AiNarrativeResult 
   }
 }
 
-export async function generateAiNarrative(input: NarrativeInput): Promise<AiNarrativeResult> {
-  const parsed = await callOpenAiJson(
-    [
-      {
-        role: 'system',
-        content: [
-          'You are the narrative layer for Idol.Null, a cosmic horror survival simulation.',
-          'The simulation facts are immutable. Do not invent eliminations, winners, idols, payouts, or mechanical effects.',
-          'Write flavorful prose and memory updates only. Keep the tone occult, corrupted, tense, and readable.',
-          'Return JSON only matching the requested schema.',
-        ].join(' '),
-      },
-      {
-        role: 'user',
-        content: JSON.stringify({
-          seasonNumber: input.seasonNumber,
-          day: input.day,
-          facts: {
-            eliminatedId: input.eliminatedId,
-            winnerId: input.winnerId,
-            anomalyFired: input.anomalyFired,
-            idolPlayed: input.idolPlayed,
-            influenceCount: input.influenceCount,
-            challengeName: input.challengeName,
-          },
-          castaways: input.castaways.map(compactCastaway),
-          priorMemories: input.memories,
-          deterministicLogs: input.logs.map(l => ({ type: l.type, text: l.text })),
-          instructions: {
-            episodeRecap: 'One tight paragraph summarizing what happened and why it matters. Reference challengeName naturally if relevant.',
-            stylizedLogs: '2-5 short optional feed lines. Confessionals must be from alive, ghost, or consumed castaways present in input.',
-            memoryUpdates: 'Update only memories supported by today facts, relationships, traits, or prior memory.',
-          },
-        }),
-      },
-    ],
+const SCHEMA_DESCRIPTION = `Return JSON with exactly these keys:
+{
+  "episodeTitle": "string — short evocative episode title",
+  "episodeRecap": "string — one tight paragraph, max 300 words",
+  "stylizedLogs": [
+    { "text": "string — max 420 chars", "type": "narrative" | "confessional" }
+  ],
+  "memoryUpdates": [
     {
-      name: 'idol_null_narrative',
-      schema: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['episodeTitle', 'episodeRecap', 'stylizedLogs', 'memoryUpdates'],
-        properties: {
-          episodeTitle: { type: 'string' },
-          episodeRecap: { type: 'string' },
-          stylizedLogs: {
-            type: 'array',
-            maxItems: 6,
-            items: {
-              type: 'object',
-              additionalProperties: false,
-              required: ['text', 'type'],
-              properties: {
-                text: { type: 'string' },
-                type: { type: 'string', enum: ['narrative', 'confessional'] },
-              },
-            },
-          },
-          memoryUpdates: {
-            type: 'array',
-            maxItems: 12,
-            items: {
-              type: 'object',
-              additionalProperties: false,
-              required: ['castawayId', 'memory'],
-              properties: {
-                castawayId: { type: 'number' },
-                memory: {
-                  type: 'object',
-                  additionalProperties: false,
-                  required: ['grudges', 'fears', 'bonds', 'scars', 'obsessions', 'lastSeen'],
-                  properties: {
-                    grudges: { type: 'array', maxItems: 6, items: { type: 'string' } },
-                    fears: { type: 'array', maxItems: 6, items: { type: 'string' } },
-                    bonds: { type: 'array', maxItems: 6, items: { type: 'string' } },
-                    scars: { type: 'array', maxItems: 6, items: { type: 'string' } },
-                    obsessions: { type: 'array', maxItems: 6, items: { type: 'string' } },
-                    lastSeen: { type: 'string' },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+      "castawayId": number,
+      "memory": {
+        "grudges": ["string", ...],
+        "fears": ["string", ...],
+        "bonds": ["string", ...],
+        "scars": ["string", ...],
+        "obsessions": ["string", ...],
+        "lastSeen": "string"
+      }
     }
-  )
+  ]
+}
+
+Rules:
+- stylizedLogs: 2-5 items max. Confessionals must be first-person from a castaway in the input.
+- memoryUpdates: only update memories supported by today's facts. Max 12 entries.
+- Do NOT invent eliminations, winners, idol plays, or mechanical effects not in the facts.`
+
+export async function generateAiNarrative(input: NarrativeInput): Promise<AiNarrativeResult> {
+  const parsed = await callDeepSeekJson([
+    {
+      role: 'system',
+      content: [
+        'You are the narrative layer for Idol.Null, a cosmic horror survival simulation.',
+        'The simulation facts are immutable. Do not invent eliminations, winners, idols, payouts, or mechanical effects.',
+        'Write flavorful prose and memory updates only. Keep the tone occult, corrupted, tense, and readable.',
+        'Return JSON only.',
+      ].join(' '),
+    },
+    {
+      role: 'user',
+      content: JSON.stringify({
+        seasonNumber: input.seasonNumber,
+        day: input.day,
+        facts: {
+          eliminatedId: input.eliminatedId,
+          winnerId: input.winnerId,
+          anomalyFired: input.anomalyFired,
+          idolPlayed: input.idolPlayed,
+          influenceCount: input.influenceCount,
+          challengeName: input.challengeName,
+        },
+        castaways: input.castaways.map(compactCastaway),
+        priorMemories: input.memories,
+        deterministicLogs: input.logs.map(l => ({ type: l.type, text: l.text })),
+        schema: SCHEMA_DESCRIPTION,
+      }),
+    },
+  ])
 
   if (!parsed) return emptyResult(input)
   return normalizeResult(parsed, input)
