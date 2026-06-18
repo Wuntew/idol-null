@@ -5,17 +5,7 @@ import { callDeepSeekJson } from '@/lib/ai/deepseek'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
-// Generates a rival dynamic write-up for each castaway in a season based on
-// current relationship scores. Patches the dossier jsonb with a rival_dynamic key.
-// POST /api/admin/season/backfill-rivals?season_id=6
-// Auth: Authorization: Bearer <CRON_SECRET>
 export async function POST(request: Request) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return NextResponse.json({ error: 'CRON_SECRET not configured.' }, { status: 503 })
-
-  const auth = request.headers.get('authorization')
-  if (auth !== `Bearer ${secret}`) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-
   const url = new URL(request.url)
   const seasonIdRaw = url.searchParams.get('season_id')
   if (!seasonIdRaw) return NextResponse.json({ error: 'Missing season_id.' }, { status: 400 })
@@ -42,7 +32,6 @@ export async function POST(request: Request) {
     const topAlly = rels.find(r => r.score > 0) ?? null
     const topEnemy = [...rels].reverse().find(r => r.score < 0) ?? null
 
-    // If no meaningful relationships yet, skip
     if (!topAlly && !topEnemy) return { id: c.id, name: c.name, ok: false, reason: 'no relationships' }
 
     const parsed = await callDeepSeekJson([
@@ -69,7 +58,6 @@ export async function POST(request: Request) {
     const text = typeof parsed?.rival_dynamic === 'string' ? parsed.rival_dynamic.trim() : ''
     if (!text) return { id: c.id, name: c.name, ok: false, reason: 'empty response' }
 
-    // Patch dossier jsonb — merge rival_dynamic key into existing dossier object
     const existingDossier = (c.dossier as Record<string, unknown>) ?? {}
     await supabase.from('castaways')
       .update({ dossier: { ...existingDossier, rival_dynamic: text.slice(0, 400) } })

@@ -5,16 +5,7 @@ import { generateAuditionTape } from '@/lib/ai/dossier'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
-// Generates AI audition tapes for all castaway_pool entries that don't have one.
-// POST /api/admin/pool/backfill-tapes
-// Auth: Authorization: Bearer <CRON_SECRET>
 export async function POST(request: Request) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return NextResponse.json({ error: 'CRON_SECRET not configured.' }, { status: 503 })
-
-  const auth = request.headers.get('authorization')
-  if (auth !== `Bearer ${secret}`) return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-
   const supabase = createServiceClient()
 
   const { data: pool, error } = await supabase

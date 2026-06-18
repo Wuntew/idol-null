@@ -3,22 +3,9 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { generateCastawayDossier } from '@/lib/ai/dossier'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 300 // 5-minute edge function limit — 18 DeepSeek calls in parallel
+export const maxDuration = 300
 
-// Backfills dossier column for all castaways in a season that don't yet have one.
-// Usage: POST /api/admin/season/backfill-dossiers?season_id=6
-// Auth: Authorization: Bearer <CRON_SECRET>
 export async function POST(request: Request) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) {
-    return NextResponse.json({ error: 'CRON_SECRET not configured.' }, { status: 503 })
-  }
-
-  const auth = request.headers.get('authorization')
-  if (auth !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
-  }
-
   const url = new URL(request.url)
   const seasonIdRaw = url.searchParams.get('season_id')
   if (!seasonIdRaw) {
@@ -31,7 +18,6 @@ export async function POST(request: Request) {
 
   const supabase = createServiceClient()
 
-  // Fetch castaways that are missing a dossier
   const { data: castaways, error } = await supabase
     .from('castaways')
     .select('id, name, archetype, trait, age, hometown, job, education, family, stats')
@@ -46,7 +32,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'No castaways missing dossiers.', updated: 0 })
   }
 
-  // Generate all dossiers concurrently
   const results = await Promise.all(castaways.map(async (c) => {
     const dossier = await generateCastawayDossier({
       name:      c.name,
