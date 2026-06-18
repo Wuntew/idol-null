@@ -40,38 +40,170 @@ export const CHALLENGE_TYPES: ChallengeType[] = [
   {
     name: 'Endurance Gauntlet',
     statWeights: { physical: 1.4, moxie: 0.6 },
-    announce: '⚔ Today\'s trial is an ENDURANCE GAUNTLET. Last signal standing wins.',
-    winTemplate: '${a} outlasts the gauntlet, body shaking, signal still strong, and claims immunity.',
+    announce: '⚔ TODAY\'S TRIAL: ENDURANCE GAUNTLET. Each castaway stands on a platform above the pit, arms gripping the overhead bar. Last signal standing wins immunity.',
+    winTemplate: '${a} is the last one standing — arms shaking, jaw locked, feet not moving. ${a} wins immunity.',
+    progressLines: [
+      '${a} grips the bar and sets their jaw. They are pacing, not struggling.',
+      '${a} sways once and rights themselves. The body is listening.',
+      '${a} breathes through the nose, counts seconds. Survivable.',
+      '${a}\'s arms are shaking but the feet are not moving.',
+      '${a} stares at nothing in particular. Somewhere else in their head. Still holding.',
+      '${a} is not pretty to watch. But has not let go.',
+    ],
+    strongLines: [
+      '${a} isn\'t showing anything. No expression. Just holding. Everyone else notices.',
+      '${a} hasn\'t moved in twenty minutes. Their platform looks cemented in.',
+      '${a} anchors to the bar like this is the only thing they have ever done.',
+      '${a} is built for exactly this and the body knows it. Nothing is happening in their face.',
+      '${a} settles in. This could go for hours. That is fine with ${a}.',
+    ],
+    weakLines: [
+      '${a} is fighting their own legs. The legs are winning.',
+      '${a} drops off the platform and lands badly. That is over.',
+      '${a} lasted longer than expected. That is the kindest thing to say.',
+      '${a} overtightens the grip and loses the arms first.',
+      '${a} taps out and steps back. Calls it tactical. The tribe says nothing.',
+    ],
   },
   {
     name: 'Puzzle Array',
     statWeights: { gaslighting: 1.2, paranoia: 0.5 },
-    announce: '⚔ Today\'s trial is a PUZZLE ARRAY. The matrix rewards a cunning, suspicious mind.',
-    winTemplate: '${a} cracks the puzzle array first, eyes gleaming with the answer, and claims immunity.',
+    announce: '⚔ TODAY\'S TRIAL: PUZZLE ARRAY. Each castaway faces a locked grid of signal tiles. Decode the sequence, reconstruct the array, raise your flag. The cunning and the suspicious have the advantage.',
+    winTemplate: '${a} slots the final tile, raises the flag, and wins immunity — the array solved before anyone else found the pattern.',
+    progressLines: [
+      '${a} stares at the board and begins pulling pieces apart methodically.',
+      '${a} is talking through the sequence under their breath. The logic is there, just slow.',
+      '${a} rotates a piece four times, places it wrong, places it again.',
+      '${a} pauses for ten seconds before moving. Then moves correctly.',
+      '${a} keeps glancing at the other boards. Their own is half-done.',
+      '${a} makes a mistake, spots it, corrects it without commentary.',
+    ],
+    strongLines: [
+      '${a} finds a pattern in the array nobody else has located. The board snaps into shape.',
+      '${a} disassembles and rebuilds the front section in half the expected time.',
+      '${a}\'s solution is wrong for one second, then immediately right. They knew it before it landed.',
+      '${a} slots the final pieces without slowing down. Finishes before the host calls it.',
+      '${a} is three moves ahead of the puzzle. The puzzle doesn\'t know it yet.',
+    ],
+    weakLines: [
+      '${a} dismantles and rebuilds the same corner for the third time.',
+      '${a}\'s section is in the same configuration it was at the start.',
+      '${a} looks at the board like it insulted them personally.',
+      '${a} guesses. Several times. The array does not respond well to guessing.',
+      '${a} stops engaging. Just stares at the pieces. Something has disconnected.',
+    ],
   },
   {
     name: 'Balance Trial',
     statWeights: { physical: 0.8, paranoia: -0.8 },
-    announce: '⚔ Today\'s trial demands BALANCE. Steady hands, steady minds — the paranoid fall first.',
-    winTemplate: '${a} holds steady long after the others wobble and drop, and claims immunity.',
+    announce: '⚔ TODAY\'S TRIAL: BALANCE TRIAL. Each castaway stands on a narrow beam over the water, arms out, feet still. The paranoid fall first. Clear your mind or go home wet.',
+    winTemplate: '${a} holds the beam long after the others have gone into the water — last one standing, immunity earned.',
+    progressLines: [
+      '${a} holds position with arms out and eyes level.',
+      '${a} controls a wobble. Not easy. Makes it look like it was.',
+      '${a} breathes slow and locks the platform. Not spectacular. Effective.',
+      '${a}\'s legs are clearly burning. The face is not confirming this.',
+      '${a} shifts weight slowly and recenters. They know what they are doing.',
+      '${a} stands still in a way that looks expensive.',
+    ],
+    strongLines: [
+      '${a} isn\'t thinking about the drop. ${a} is thinking about the vote. Still hasn\'t moved.',
+      '${a} makes tiny corrections nobody can see from the shore. Remains stable.',
+      '${a} glances at the water once. Goes back to the horizon. Doesn\'t wobble.',
+      '${a} has gone somewhere peaceful. The body stays. The mind is already elsewhere.',
+      '${a} looks like they could read a book up there.',
+    ],
+    weakLines: [
+      '${a} spirals into their own head and the beam punishes it immediately.',
+      '${a} looks down. That was the last thing they needed to do.',
+      '${a} is wobbling before the first minute is over.',
+      '${a} overthinks the balance and the balance takes it personally.',
+      '${a} steps off before falling. Calls it strategic. Nobody buys it.',
+    ],
   },
   {
     name: 'Memory Wall',
     statWeights: { gaslighting: 0.6, likeability: 0.6 },
-    announce: '⚔ Today\'s trial is a MEMORY WALL. Recall the lies you\'ve told, and the ones told to you.',
-    winTemplate: '${a} recalls every twisted detail without flinching, and claims the memory wall.',
+    announce: '⚔ TODAY\'S TRIAL: MEMORY WALL. The host reads thirty encoded signals aloud once. Castaways must reconstruct the sequence on their wall — block by block, in order. Recall everything. Or go to tribal.',
+    winTemplate: '${a} places the final block without hesitation — every sequence correct, every symbol in order — and claims immunity.',
+    progressLines: [
+      '${a} studies the blank wall for twelve full seconds before touching a block.',
+      '${a} reads each symbol twice and places the block with moderate confidence.',
+      '${a} makes a mistake, spots it, corrects it without commentary.',
+      '${a} moves to the second row and stops. The sequence is harder here.',
+      '${a}\'s recall is fine. Their nerves are not fine.',
+      '${a} answers the questions in under three seconds. Not always correctly.',
+    ],
+    strongLines: [
+      '${a} moves through the wall like they built it.',
+      '${a} clears the first section without pausing. The host makes a note.',
+      '${a} rattles off the sequence like a grocery list.',
+      '${a}\'s memory for things that would not normally matter is impeccable.',
+      '${a} finishes the row and looks around. The others are still on block two.',
+    ],
+    weakLines: [
+      '${a} blanks completely on a symbol they saw eleven seconds ago.',
+      '${a}\'s sequence is close. Three errors. Enough to bury them.',
+      '${a} hesitates on every placement and gets most of them wrong anyway.',
+      '${a} can not explain why they can\'t recall it. They were right there.',
+      '${a} is guessing by the third row. The wall knows.',
+    ],
   },
   {
     name: 'Social Trust Fall',
     statWeights: { likeability: 1.3, moxie: 0.4 },
-    announce: '⚔ Today\'s trial is a SOCIAL TRUST FALL. The tribe must believe in you, or you hit the ground.',
-    winTemplate: '${a} is trusted without a flicker of hesitation, and clears the trust trial clean.',
+    announce: '⚔ TODAY\'S TRIAL: SOCIAL TRUST FALL. Each castaway must stand before the tribe and make the case that they are worth protecting. The tribe votes. High trust clears. Low trust hits the ground.',
+    winTemplate: '${a} stands before the tribe and is trusted — completely, without hesitation — and wins immunity.',
+    progressLines: [
+      '${a} works the group quietly, checking each face before speaking.',
+      '${a} speaks to every castaway before making their appeal. Plants seeds.',
+      '${a} holds eye contact and nods in the right places. Listening first.',
+      '${a} delivers the speech. Whether the tribe believes it is another question.',
+      '${a} is performing trust. The audience is evaluating the performance.',
+      '${a} says the words. The delivery is technically correct.',
+    ],
+    strongLines: [
+      '${a} doesn\'t even have to ask for it. The tribe turns toward ${a} without prompting.',
+      '${a}\'s sincerity reads as real from twenty feet away.',
+      '${a} says exactly the thing that needed to be said. Nobody rehearsed this.',
+      '${a} has spent a week making people feel seen. It is paying out now.',
+      '${a} is trusted. Maybe undeservedly. Possibly the same thing in this game.',
+    ],
+    weakLines: [
+      '${a}\'s tribe doesn\'t reach for them. Nobody says why.',
+      '${a} overexplains. The more they talk, the further everyone moves.',
+      '${a} makes it uncomfortable. Specifically, uncomfortably transparent.',
+      '${a} looks around for support and finds careful, neutral expressions.',
+      '${a}\'s trust numbers are not landing. They can feel it.',
+    ],
   },
   {
     name: 'Brute Force Relay',
     statWeights: { physical: 1.0, moxie: 1.0 },
-    announce: '⚔ Today\'s trial is a BRUTE FORCE RELAY. No tricks. Just power and nerve.',
-    winTemplate: '${a} muscles through the relay on power and nerve alone, and claims immunity.',
+    announce: '⚔ TODAY\'S TRIAL: BRUTE FORCE RELAY. Six legs: sandbag carry, wall climb, rope drag, beam cross, knot release, flag pull. No tricks. No puzzles. Just power and nerve.',
+    winTemplate: '${a} slams the final flag post into the sand first — muddy, wrecked, and winning immunity.',
+    progressLines: [
+      '${a} charges the sandbag leg. Heavy. Fast. Not elegant.',
+      '${a} takes the wall at a run and gets over clean.',
+      '${a} grunts through the rope drag. Still moving.',
+      '${a} hits the beam and slows down — crosses carefully, gains time back on the knot.',
+      '${a}\'s form is rough. Their time is not bad.',
+      '${a} makes up ground on the incline. This leg was built for them.',
+    ],
+    strongLines: [
+      '${a} blows through their leg. The tribe doesn\'t need to yell.',
+      '${a} carries twice the bag weight anyone else would attempt. Does not break.',
+      '${a} completes their leg before the other castaway is halfway through theirs.',
+      '${a} has extra in the tank and makes sure everyone can see that.',
+      '${a} runs this relay like the island owes them something.',
+    ],
+    weakLines: [
+      '${a} hits the obstacle and stalls. Momentum is gone.',
+      '${a} drops the bag. Recovers. Has already lost the gap.',
+      '${a} gives everything this leg. It is not enough today.',
+      '${a} finishes last on their section and knows it.',
+      '${a} is running. The math is just not working out.',
+    ],
   },
 ]
 
@@ -540,4 +672,82 @@ export const GAMEMAKER_LINES = [
   'Someone in the control room marks a tribute as "interesting." The arena responds.',
   'A tracker jacker nest descends from the canopy. The Gamemakers needed a reaction.',
   'The Gamemakers override the water supply. Dehydration becomes the episode\'s arc.',
+]
+
+// ── Camp Reactions ────────────────────────────────────────────────────────────
+// ${a} = person reacting, ${b} = person they are reacting to
+export const REACTION_LINES = [
+  '${a} doesn\'t respond to ${b}. That silence is the response.',
+  '${a} laughs it off in front of the cameras. Then walks away and pulls two people aside.',
+  '${a} watches ${b} go and immediately starts running new numbers.',
+  '${a} says "okay" in a tone that means the exact opposite of okay.',
+  '${a} walks to the water\'s edge and stands there. Processing.',
+  '${a} lets it go — in a way that is absolutely going to come back at tribal.',
+  '${a} tells the cameras that ${b} just made a very expensive mistake.',
+  '${a} doesn\'t react visibly. Stores it. The storage is getting full.',
+  '${a} smiles when ${b} turns away. It is not a friendly smile.',
+  '${a} goes to find their closest ally before ${b} can get there first.',
+  '${a} says nothing. Mutters something. The feed picks it up. The tribe doesn\'t.',
+  '${a} stares at ${b}\'s back until ${b} rounds the corner. Then moves.',
+]
+
+// ── Camp Chain Reactions ──────────────────────────────────────────────────────
+// ${a} = third-party observer who gets drawn in
+export const CHAIN_REACTION_LINES = [
+  '${a} watched the whole thing from the tree line. Doesn\'t move. Files it.',
+  '${a} looks between both of them and very deliberately picks a side.',
+  '${a} heard enough. The vote was already decided; this just made it cleaner.',
+  '${a} catches it all from across camp. The file will be opened at tribal.',
+  '${a} pulls two people away from the fire. Whatever was planned is now changing.',
+  '${a} doesn\'t intervene. Just watches. Learns something useful.',
+  '${a} is visibly recalculating. Nobody pretends they can\'t see it.',
+  '${a} absorbs the fallout from twenty feet away and quietly decides this is good for them.',
+  '${a} was minding their own business until they weren\'t. Now they are involved.',
+  '${a} realizes they just became a swing vote and the feeling is complicated.',
+]
+
+// ── Vote Speeches ─────────────────────────────────────────────────────────────
+// ${a} = voter, ${b} = target. Used when voter has high threat-read on target.
+export const VOTE_SPEECH_THREAT = [
+  '"${b}." ${a} holds up the parchment. "I\'ve watched you since day one. You are the most dangerous person out here. Tonight is the night."',
+  '${a} writes the name deliberately. "${b} is good at this. That\'s exactly why they can\'t stay."',
+  '"Tonight I\'m writing ${b} because if I wait any longer I won\'t get the chance. Simple math." ${a} folds the parchment.',
+  '"${b} has been in everyone\'s ear since day one and won every challenge they needed to. I need them gone before jury." ${a} caps the pen.',
+  '${a} to the urn: "${b}. They are going to win this game if they make it to the end. I cannot let them make it to the end."',
+  '"${b} has played a better game than anyone wants to admit out loud. That\'s why they have to go first." ${a} caps the pen.',
+  '${a}: "Writing ${b} because if this tribe was smart we\'d all be writing ${b}. They are the biggest threat and we keep pretending they\'re not."',
+]
+
+// ${a} = voter, ${b} = target. Used when voter actively dislikes target (neg relationship).
+export const VOTE_SPEECH_ENEMY = [
+  '"${b}." ${a} doesn\'t hesitate. "They know exactly what they did. I don\'t need to explain it to the cameras."',
+  '${a} scrawls the name. "${b} has made my time here genuinely miserable and this vote is the first good thing I\'ve had in days."',
+  '"I have been waiting to write this name since day three." ${a} underlines it. Twice.',
+  '"${b} has lied to me, cut me out, and taken credit for my work in front of everyone on this beach. This is long overdue." ${a} folds the slip.',
+  '${a}: "I don\'t even want the money right now. I just want ${b} gone. I want to sit down tomorrow morning and not see that face."',
+  '${a} stares at the name after writing it. "Feels right." Folds the paper.',
+  '"${b} came for me before I could come for them. They almost got there." ${a} tucks the parchment away.',
+]
+
+// ${a} = voter, ${b} = target. Used when voter had positive relationship but is voting against (betrayal).
+export const VOTE_SPEECH_BETRAY = [
+  '"${b}, I am sorry. I genuinely am. But I need this more than I need you to be okay with me right now." ${a} folds the parchment.',
+  '"${b} trusted me. I trusted ${b}. And I\'m writing this name anyway — which tells you where we are in this game." ${a} doesn\'t look at the camera.',
+  '${a}: "I promised ${b} final two. I\'m breaking that promise because promises don\'t have a place this late in the season. I\'m sorry."',
+  '"${b} is my closest ally here. That\'s exactly why they have to go before jury. They\'re the one person who could beat me." ${a} doesn\'t meet the camera.',
+  '"${b} and I came into this together. I\'m hoping we can talk about it on the other side." ${a} folds the slip quickly.',
+  '${a} hesitates, pen on parchment. "I know you think this isn\'t coming. I need you to know I didn\'t want it to." Then writes it.',
+  '"${b} was always going to be my biggest problem in the end. I just got there first." ${a} slides it into the urn.',
+]
+
+// ${a} = voter, ${b} = target. Default/neutral strategic vote.
+export const VOTE_SPEECH_STRATEGIC = [
+  '${a}: "${b}. I\'ve run the numbers and this is the move that keeps me alive longest."',
+  '"I\'m voting ${b} tonight because the game requires it. Nothing personal on my end." ${a} sets the pen down.',
+  '${a} to the urn: "${b}. The tribe has a direction and I\'m voting with the tribe."',
+  '"${b} isn\'t someone I hate. I\'m just someone they should have worked harder to keep." ${a} writes the name.',
+  '${a}: "Writing ${b} because the math works out for me that way going forward."',
+  '"${b} is the name that makes sense for my game at this specific moment." ${a} folds it neatly.',
+  '"I don\'t enjoy this part. But ${b} is going home tonight and the reason is pure strategy." ${a} slides the parchment in.',
+  '${a}: "Every player still alive is someone I had a conversation with this week. ${b}\'s conversation didn\'t go the way it needed to."',
 ]

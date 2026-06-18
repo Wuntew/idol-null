@@ -11,6 +11,8 @@ import {
   CHEAT_LINES, LOOP_LINES, LOOP_BREAK_LINES, AWAKEN_LINES,
   REBOOT_GLITCH_LINES, REBOOT_RESET_LINES, GAMECUBE_LINES,
   SPONSOR_LINES, GAMEMAKER_LINES,
+  REACTION_LINES, CHAIN_REACTION_LINES,
+  VOTE_SPEECH_THREAT, VOTE_SPEECH_ENEMY, VOTE_SPEECH_BETRAY, VOTE_SPEECH_STRATEGIC,
 } from './data'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -162,6 +164,23 @@ export function simulateDay(ctx: SimulationContext): DayResult {
     } else {
       log(fill(pick(GENERIC_CAMP), a.name, b.name), 'camp')
       a.relationships[b.id] = (a.relationships[b.id] ?? 0) + ri(-1, 1)
+    }
+
+    // ── Reaction: b responds to what a just did ───────────────────────────
+    if (chance(0.65)) {
+      log(fill(pick(REACTION_LINES), b.name, a.name), 'camp')
+
+      // ── Chain reaction: a third castaway witnesses and gets drawn in ────
+      if (alive.length > 2 && chance(0.40)) {
+        let c3 = pick(alive); let gc = 0
+        while ((c3.id === a.id || c3.id === b.id) && gc++ < 8) c3 = pick(alive)
+        if (c3.id !== a.id && c3.id !== b.id) {
+          log(fill(pick(CHAIN_REACTION_LINES), c3.name), 'camp')
+          // c3 gets slightly drawn into the conflict
+          c3.relationships[a.id] = (c3.relationships[a.id] ?? 0) + ri(-2, 1)
+          c3.relationships[b.id] = (c3.relationships[b.id] ?? 0) + ri(-1, 2)
+        }
+      }
     }
   }
 
@@ -412,13 +431,35 @@ export function simulateDay(ctx: SimulationContext): DayResult {
     } else {
       const sum = (arr: Castaway[]) => arr.reduce((s, c) => s + challengeScore(c, challenge.statWeights), 0)
       const s0 = sum(t0), s1 = sum(t1)
-      log(`IMMUNITY (${challenge.name}): Tribe A ${Math.round(s0)} vs Tribe B ${Math.round(s1)}.`, 'system')
+      const maxScore = Math.max(...alive.map(c => challengeScore(c, challenge.statWeights)))
+      const narrated = new Set<number>()
+      const narrateC = (c: Castaway) => {
+        if (narrated.has(c.id)) return
+        narrated.add(c.id)
+        const ratio = maxScore > 0 ? challengeScore(c, challenge.statWeights) / maxScore : 0.5
+        if (ratio >= 0.72) log(fill(pick(challenge.strongLines), c.name), 'host')
+        else if (ratio < 0.40) log(fill(pick(challenge.weakLines), c.name), 'host')
+        else log(fill(pick(challenge.progressLines), c.name), 'host')
+      }
+      const topT0 = [...t0].sort((a, b) => challengeScore(b, challenge.statWeights) - challengeScore(a, challenge.statWeights))
+      const topT1 = [...t1].sort((a, b) => challengeScore(b, challenge.statWeights) - challengeScore(a, challenge.statWeights))
+      ;[topT0[0], topT1[0], topT0[topT0.length - 1], topT1[topT1.length - 1]].filter(Boolean).forEach(narrateC)
+      if (chance(0.5) && topT0[1]) narrateC(topT0[1])
+      if (chance(0.5) && topT1[1]) narrateC(topT1[1])
+      log(`  ${challenge.name}: Tribe A ${Math.round(s0)} — Tribe B ${Math.round(s1)}.`, 'system')
       const losing = s0 < s1 ? t0 : s1 < s0 ? t1 : chance(0.5) ? t0 : t1
       candidates = losing
       log(`✔ Losing tribe marches to council: ${losing.map(c => c.name).join(', ')}.`, 'host')
     }
   } else {
     const sorted = [...alive].sort((a, b) => challengeScore(b, challenge.statWeights) - challengeScore(a, challenge.statWeights))
+    const maxScore = challengeScore(sorted[0], challenge.statWeights)
+    sorted.forEach(c => {
+      const ratio = maxScore > 0 ? challengeScore(c, challenge.statWeights) / maxScore : 0.5
+      if (ratio >= 0.72) log(fill(pick(challenge.strongLines), c.name), 'host')
+      else if (ratio < 0.40) log(fill(pick(challenge.weakLines), c.name), 'host')
+      else log(fill(pick(challenge.progressLines), c.name), 'host')
+    })
     immuneId = sorted[0]?.id ?? null
     if (sorted[0]) log(fill(challenge.winTemplate, sorted[0].name), 'host')
     candidates = sorted.slice(1)
@@ -432,6 +473,10 @@ export function simulateDay(ctx: SimulationContext): DayResult {
   const votes: Record<number, number> = {}
   const voters = merged ? alive : candidates
 
+  // Compute threat scores once for vote speech context
+  const threatScore = (c: Castaway) =>
+    challengeScore(c, challenge.statWeights) * 0.5 + c.stats.likeability * 0.3 + c.stats.moxie * 0.2
+
   voters.forEach(voter => {
     const pool = candidates.filter(c => c.id !== voter.id && c.id !== immuneId)
     if (!pool.length) return
@@ -441,10 +486,25 @@ export function simulateDay(ctx: SimulationContext): DayResult {
       const score = -rel * 10 + t.stats.paranoia * 0.3 - t.stats.likeability * 0.25 + Math.random() * 16
       if (score > bs) { bs = score; best = t }
     })
-    const winner = best as Castaway | null
-    if (!winner) return
-    votes[winner.id] = (votes[winner.id] ?? 0) + 1
-    if (chance(0.7)) log(fill(pick(VOTE_LINES), voter.name, winner.name), 'vote')
+    const target = best as Castaway | null
+    if (!target) return
+    votes[target.id] = (votes[target.id] ?? 0) + 1
+
+    // Determine speech type from relationship context
+    const rel = voter.relationships[target.id] ?? 0
+    const tScore = threatScore(target)
+    const maxThreat = Math.max(...pool.map(threatScore))
+    let speech: string
+    if (rel < -5) {
+      speech = fill(pick(VOTE_SPEECH_ENEMY), voter.name, target.name)
+    } else if (rel > 5) {
+      speech = fill(pick(VOTE_SPEECH_BETRAY), voter.name, target.name)
+    } else if (pool.length > 1 && tScore >= maxThreat * 0.82) {
+      speech = fill(pick(VOTE_SPEECH_THREAT), voter.name, target.name)
+    } else {
+      speech = fill(pick(VOTE_SPEECH_STRATEGIC), voter.name, target.name)
+    }
+    log(speech, 'vote')
   })
 
   const ranked = Object.keys(votes)

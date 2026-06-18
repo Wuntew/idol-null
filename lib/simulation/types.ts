@@ -61,6 +61,9 @@ export interface ChallengeType {
   statWeights: Partial<CastawayStats>
   announce: string
   winTemplate: string
+  progressLines: string[]   // mid-challenge, average performer
+  strongLines: string[]     // high scorer, doing well
+  weakLines: string[]       // low scorer, struggling
 }
 
 export interface WeatherDef {
