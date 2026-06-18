@@ -113,7 +113,7 @@ export default function MobileHUD({
                 fontFamily: 'monospace', pointerEvents: 'none',
               }}>⤢ MAP</div>
             </div>
-            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               <GameFeed initialLogs={logs} seasonId={season?.id ?? null} />
             </div>
           </div>
