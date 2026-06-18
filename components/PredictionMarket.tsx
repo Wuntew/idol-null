@@ -1,6 +1,7 @@
 'use client'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { isBinaryMarket, isMarketOpen, marketTypeLabel } from '@/lib/markets'
 
 const AMOUNTS = [25, 50, 100, 250]
 const WRONGNESS_THRESHOLD = 70
@@ -11,7 +12,7 @@ function entityTag(c: Castaway): string | null {
 }
 
 interface Market {
-  id: number; type: string; label: string; closes_at: string; day: number | null
+  id: number; type: string; label: string; closes_at: string; day: number | null; resolved_at?: string | null
 }
 interface Castaway { id: number; name: string; stats: Record<string, number>; status: string }
 interface UserPick { market_id: number; castaway_id: number | null; choice_bool: boolean | null; odds: number; amount: number }
@@ -30,10 +31,10 @@ export default function PredictionMarket({ market, castaways, userPoints, userPi
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
   const [msg, setMsg] = useState('')
 
-  const isYesNo = market.type === 'idol_played' || market.type === 'anomaly_fires'
+  const isYesNo = isBinaryMarket(market.type)
   const alive = castaways.filter(c => c.status === 'alive')
   const closes = new Date(market.closes_at)
-  const isClosed = closes < new Date()
+  const isOpen = isMarketOpen(market)
   const selectedLabel = selected === null
     ? null
     : isYesNo
@@ -44,7 +45,7 @@ export default function PredictionMarket({ market, castaways, userPoints, userPi
     ? 'Predictions are disabled in offline preview.'
     : !isLoggedIn
       ? 'Sign in to place predictions.'
-      : isClosed
+      : !isOpen
         ? 'This market is closed.'
         : !canAfford
           ? 'Not enough points for this stake.'
@@ -52,19 +53,19 @@ export default function PredictionMarket({ market, castaways, userPoints, userPi
   const marketMeta = useMemo(() => {
     switch (market.type) {
       case 'daily_boot':
-        return { badge: 'DAILY BOOT', hint: 'Wins if this castaway is eliminated on the next simulation day.' }
+        return { badge: marketTypeLabel(market.type), hint: 'Wins if this castaway is eliminated on the next simulation day.' }
       case 'season_winner':
-        return { badge: 'SEASON WINNER', hint: 'Wins if this castaway is the final survivor when the season ends.' }
+        return { badge: marketTypeLabel(market.type), hint: 'Wins if this castaway is the final survivor when the season ends.' }
       case 'first_boot':
-        return { badge: 'FIRST BOOT', hint: 'Wins if this castaway is the first voted out.' }
+        return { badge: marketTypeLabel(market.type), hint: 'Wins if this castaway is the first voted out.' }
       case 'first_consumed':
-        return { badge: 'FIRST CONSUMED', hint: 'Wins if this castaway is the first consumed instead of becoming a ghost.' }
+        return { badge: marketTypeLabel(market.type), hint: 'Wins if this castaway is the first consumed instead of becoming a ghost.' }
       case 'idol_played':
         return { badge: 'YES / NO', hint: 'Wins if your yes/no pick matches whether an idol is played this day.' }
       case 'anomaly_fires':
         return { badge: 'YES / NO', hint: 'Wins if your yes/no pick matches whether an anomaly fires this day.' }
       default:
-        return { badge: market.type.toUpperCase(), hint: 'Market type from the current season.' }
+        return { badge: marketTypeLabel(market.type), hint: 'Market type from the current season.' }
     }
   }, [market.type])
 
@@ -105,7 +106,7 @@ export default function PredictionMarket({ market, castaways, userPoints, userPi
   }
 
   const daysLeft = Math.ceil((closes.getTime() - Date.now()) / 86400000)
-  const closeLabel = isClosed
+  const closeLabel = !isOpen
     ? 'Closed'
     : market.day === null
       ? `Closes before season start (${daysLeft}d)`

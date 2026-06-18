@@ -410,6 +410,8 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
           ref={canvasRef}
           width={TW * TS}
           height={TH * TS}
+          role="img"
+          aria-label="Compact island map showing terrain, castaways, events, and challenges"
           style={{ display: 'block', width: '100%', height: 'clamp(180px, 60vw, 280px)', imageRendering: 'pixelated' }}
         />
         <button
@@ -418,7 +420,7 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
             position: 'absolute', bottom: 4, right: 4,
             background: 'rgba(0,0,0,0.78)', border: '1px solid #1a4a1a',
             color: legendOpen ? '#00ff44' : '#3a8a3a',
-            fontSize: 9, padding: '2px 6px', cursor: 'pointer',
+            fontSize: 11, padding: '2px 6px', cursor: 'pointer',
             fontFamily: 'monospace', letterSpacing: '.06em', lineHeight: 1.4,
           }}
           aria-label="Toggle map legend"
@@ -429,7 +431,7 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
           <div style={{
             position: 'absolute', bottom: 24, right: 4,
             background: 'rgba(4,10,4,0.92)', border: '1px solid #1a3a1a',
-            padding: '6px 8px', fontSize: 9, fontFamily: 'monospace',
+            padding: '6px 8px', fontSize: 11, fontFamily: 'monospace',
             display: 'flex', flexDirection: 'column', gap: 4,
             zIndex: 10, pointerEvents: 'none',
           }}>
@@ -455,6 +457,8 @@ export default function IslandMap({ castaways, seasonSeed = SEED, challenges = [
         ref={canvasRef}
         width={TW * TS}
         height={TH * TS}
+        role="img"
+        aria-label="Island map showing terrain, castaway positions, resources, events, and challenge locations"
         style={{ display: 'block', width: '100%', imageRendering: 'pixelated', borderRadius: 2 }}
       />
       <div className="flex flex-wrap gap-2 mt-1" style={{ fontSize: 10 }}>

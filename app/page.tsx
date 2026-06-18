@@ -10,6 +10,7 @@ import MobileHUD from '@/components/MobileHUD'
 import IslandMap from '@/components/IslandMap'
 import { SUPABASE_CONFIGURED } from '@/lib/runtime'
 import { getDemoDashboardData } from '@/lib/demo'
+import { isMarketOpen } from '@/lib/markets'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,6 +19,7 @@ type OpenMarket = {
   type: string
   label: string
   closes_at: string
+  resolved_at?: string | null
   day: number | null
 }
 
@@ -94,11 +96,12 @@ export default async function HomePage() {
   const logs = (recentLogs ?? []).slice().reverse()
   const latestSummary = (summaries?.[0] as any) ?? null
   const seasonActive = season?.status === 'active'
-  const openMarketCount = markets?.length ?? 0
   const isDemo = !SUPABASE_CONFIGURED
   const aliveCount = castaways?.filter(c => c.status === 'alive').length ?? 0
   const nameLookup = Object.fromEntries((castaways ?? []).map(c => [String(c.id), c.name]))
-  const openMarketRows = (markets ?? []) as OpenMarket[]
+  const marketRows = (markets ?? []) as OpenMarket[]
+  const openMarketRows = marketRows.filter(market => isMarketOpen(market))
+  const openMarketCount = openMarketRows.length
   const memoryLookup = Object.fromEntries((memoryRows ?? []).map(row => [String(row.castaway_id), row.memory as any]))
   const groupedMarkets = openMarketRows.reduce<Record<string, OpenMarket[]>>((acc, market) => {
     const key = market.day === null ? 'Preseason' : `Day ${market.day}`

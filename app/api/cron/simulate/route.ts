@@ -396,6 +396,10 @@ export async function GET(request: Request) {
   return NextResponse.json({ ok: true, day: nextDay, eliminated: result.eliminatedId, seasonOver: result.isSeasonOver })
 }
 
+export async function POST(request: Request) {
+  return GET(request)
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 async function resolveMarketPayouts(supabase: ReturnType<typeof createServiceClient>, marketId: number, outcomeId: number | null) {

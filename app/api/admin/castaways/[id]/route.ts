@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server'
+import { SUPABASE_SERVICE_CONFIGURED } from '@/lib/runtime'
 import { createServiceClient } from '@/lib/supabase/server'
+
+export const dynamic = 'force-dynamic'
 
 // Whitelist only — prevents request bodies from writing arbitrary columns
 // (e.g. season_id, seed, relationships) via this editor endpoint.
 const ALLOWED_FIELDS = ['name', 'archetype', 'trait', 'status', 'condition', 'idol_count', 'tribe', 'stats'] as const
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+  if (!SUPABASE_SERVICE_CONFIGURED) {
+    return NextResponse.json({ error: 'Supabase service role is not configured.' }, { status: 503 })
+  }
+
   const id = Number(params.id)
   if (!Number.isInteger(id)) {
     return NextResponse.json({ error: 'Invalid castaway id.' }, { status: 400 })

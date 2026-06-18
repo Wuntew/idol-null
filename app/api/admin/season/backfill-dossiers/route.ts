@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { SUPABASE_SERVICE_CONFIGURED } from '@/lib/runtime'
 import { createServiceClient } from '@/lib/supabase/server'
 import { generateCastawayDossier } from '@/lib/ai/dossier'
 
@@ -6,6 +7,10 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
 export async function POST(request: Request) {
+  if (!SUPABASE_SERVICE_CONFIGURED) {
+    return NextResponse.json({ error: 'Supabase service role is not configured.' }, { status: 503 })
+  }
+
   const url = new URL(request.url)
   const seasonIdRaw = url.searchParams.get('season_id')
   if (!seasonIdRaw) {

@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server'
+import { SUPABASE_SERVICE_CONFIGURED } from '@/lib/runtime'
 import { createServiceClient } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
+  if (!SUPABASE_SERVICE_CONFIGURED) {
+    return NextResponse.json({ seasonId: null, castaways: [] })
+  }
+
   const supabase = createServiceClient()
   const { searchParams } = new URL(request.url)
   const seasonIdParam = searchParams.get('seasonId')

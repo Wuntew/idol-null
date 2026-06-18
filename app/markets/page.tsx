@@ -3,6 +3,7 @@ import PredictionMarket from '@/components/PredictionMarket'
 import DemoModeBanner from '@/components/DemoModeBanner'
 import { SUPABASE_CONFIGURED } from '@/lib/runtime'
 import { getDemoDashboardData } from '@/lib/demo'
+import { isMarketOpen } from '@/lib/markets'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,6 +12,7 @@ type OpenMarket = {
   type: string
   label: string
   closes_at: string
+  resolved_at?: string | null
   day: number | null
 }
 
@@ -49,7 +51,9 @@ export default async function MarketsPage() {
     ? (await supabase.from('predictions').select('market_id, castaway_id, choice_bool, odds, amount').eq('user_id', user.id).in('market_id', markets.map(m => m.id))).data
     : [])
 
-  const groupedMarkets = ((markets ?? []) as OpenMarket[]).reduce<Record<string, OpenMarket[]>>((acc, market) => {
+  const openMarkets = ((markets ?? []) as OpenMarket[]).filter(market => isMarketOpen(market))
+
+  const groupedMarkets = openMarkets.reduce<Record<string, OpenMarket[]>>((acc, market) => {
     const key = market.day === null ? 'Preseason' : `Day ${market.day}`
     if (!acc[key]) acc[key] = []
     acc[key].push(market)
@@ -62,7 +66,7 @@ export default async function MarketsPage() {
       <section className="panel p-amber mb-2" style={{ padding: 12 }}>
         <div className="hdr amber" style={{ margin: '-12px -12px 12px' }}>◈ PREDICTION MARKETS</div>
         <div className="flex flex-wrap gap-2 items-center">
-          <span className="tag c-amber">{markets?.length ?? 0} open</span>
+          <span className="tag c-amber">{openMarkets.length} open</span>
           <span className="tag c-yellow">{profile?.points ?? 0} pts</span>
           <span className="tag c-dim">{user ? 'signed in' : isDemo ? 'offline preview' : 'guest view'}</span>
         </div>
@@ -78,7 +82,7 @@ export default async function MarketsPage() {
         </div>
       )}
 
-      {!(markets?.length) && (
+      {!openMarkets.length && (
         <div className="panel p-amber" style={{ padding: 12 }}>
           <div className="c-dim">No open markets. New markets appear when the next simulation day is created.</div>
         </div>

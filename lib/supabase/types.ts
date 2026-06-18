@@ -7,7 +7,7 @@ export interface Database {
       profiles: {
         Row: { id: string; username: string; points: number; email_summaries: boolean; created_at: string }
         Insert: { id: string; username: string; points?: number; email_summaries?: boolean }
-        Update: { username?: string; points?: number; email_summaries?: boolean }
+        Update: { username?: string; email_summaries?: boolean }
       }
       seasons: {
         Row: { id: number; season_number: number; status: 'preseason'|'active'|'complete'; start_date: string|null; current_day: number; winner_id: number|null; created_at: string }
@@ -53,6 +53,16 @@ export interface Database {
     Views: {
       leaderboard: {
         Row: { id: string; username: string; points: number; predictions_won: number; predictions_total: number; total_earned: number }
+      }
+    }
+    Functions: {
+      place_prediction_as_user: {
+        Args: { p_user_id: string; p_market_id: number; p_castaway_id: number | null; p_choice_bool: boolean | null; p_amount: number; p_odds: number }
+        Returns: { remaining_points: number }[]
+      }
+      queue_influence_as_user: {
+        Args: { p_user_id: string; p_season_id: number; p_type: string; p_target_id: number | null; p_target_b_id: number | null; p_cost: number }
+        Returns: { remaining_points: number }[]
       }
     }
   }

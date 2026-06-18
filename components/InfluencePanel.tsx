@@ -55,6 +55,10 @@ export default function InfluencePanel({
 
   const chosen = ACTIONS.find(a => a.type === action) ?? ACTIONS[0]
   const needsSecondTarget = chosen.needsSecondTarget
+  const alive = castaways.filter(c => c.status === 'alive')
+  const ghosts = castaways.filter(c => c.status === 'ghost')
+  const targetAOptions = chosen.type === 'ghost_boost' ? ghosts : alive
+  const targetBOptions = alive.filter(c => String(c.id) !== targetA)
   const selectedAName = castaways.find(c => String(c.id) === targetA)?.name
   const selectedBName = castaways.find(c => String(c.id) === targetB)?.name
   const disabledReason = isDemo
@@ -150,10 +154,10 @@ export default function InfluencePanel({
             <div className="grid gap-2">
               {chosen.type !== 'inject_anomaly' && (
                 <label className="grid gap-1">
-                  <span className="c-dim text-[10px]">TARGET A</span>
+                  <span className="c-dim text-[10px]">{chosen.type === 'ghost_boost' ? 'GHOST SOURCE' : 'TARGET A'}</span>
                   <select value={targetA} onChange={e => setTargetA(e.target.value)}>
-                    <option value="">Select a castaway</option>
-                    {castaways.map(c => (
+                    <option value="">{chosen.type === 'ghost_boost' ? 'Select a ghost' : 'Select a castaway'}</option>
+                    {targetAOptions.map(c => (
                       <option key={c.id} value={c.id}>
                         {c.name} [{c.status}]
                       </option>
@@ -167,9 +171,7 @@ export default function InfluencePanel({
                   <span className="c-dim text-[10px]">TARGET B</span>
                   <select value={targetB} onChange={e => setTargetB(e.target.value)}>
                     <option value="">Select second target</option>
-                    {castaways
-                      .filter(c => String(c.id) !== targetA)
-                      .map(c => (
+                    {targetBOptions.map(c => (
                         <option key={c.id} value={c.id}>
                           {c.name} [{c.status}]
                         </option>

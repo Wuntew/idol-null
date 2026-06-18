@@ -17,12 +17,37 @@ interface LogRow { id: number; text: string; type: string }
 export default function GameFeed({ initialLogs, seasonId }: { initialLogs: LogRow[]; seasonId: number | null }) {
   const [logs, setLogs] = useState<LogRow[]>(initialLogs)
   const [filters, setFilters] = useState<Set<string>>(() => new Set(LOG_TYPES))
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const shouldStickRef = useRef(true)
+  const [isVisible, setIsVisible] = useState(false)
   const instanceId = useId()
   const supabase = useMemo(() => SUPABASE_CONFIGURED ? createClient() : null, [])
 
   useEffect(() => {
-    if (!seasonId || !supabase) return
+    const el = scrollRef.current
+    if (!el) return
+
+    const updateVisible = () => {
+      const rect = el.getBoundingClientRect()
+      const style = window.getComputedStyle(el)
+      setIsVisible(rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden')
+    }
+
+    updateVisible()
+    const resizeObserver = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(updateVisible)
+      : null
+    resizeObserver?.observe(el)
+    window.addEventListener('resize', updateVisible)
+
+    return () => {
+      resizeObserver?.disconnect()
+      window.removeEventListener('resize', updateVisible)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!seasonId || !supabase || !isVisible) return
     const channel = supabase
       .channel(`feed-${seasonId}-${instanceId}`)
       .on('postgres_changes', {
@@ -33,11 +58,13 @@ export default function GameFeed({ initialLogs, seasonId }: { initialLogs: LogRo
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [seasonId, supabase])
+  }, [seasonId, supabase, isVisible, instanceId])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [logs])
+    const el = scrollRef.current
+    if (!el || !isVisible || !shouldStickRef.current) return
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+  }, [logs, isVisible])
 
   const visibleLogs = useMemo(() => logs.filter(l => filters.has(l.type)), [logs, filters])
 
@@ -51,7 +78,17 @@ export default function GameFeed({ initialLogs, seasonId }: { initialLogs: LogRo
   }
 
   return (
-    <div className="scroll feed-scroll p-2 text-[12px]">
+    <div
+      ref={scrollRef}
+      className="scroll feed-scroll p-2"
+      role="log"
+      aria-live="polite"
+      aria-relevant="additions text"
+      onScroll={event => {
+        const el = event.currentTarget
+        shouldStickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48
+      }}
+    >
       <details className="mb-2 pb-2" style={{ borderBottom: '1px solid #052005' }}>
         <summary className="c-dim text-[10px] cursor-pointer" style={{ listStyle: 'none', userSelect: 'none' }}>
           ▾ FILTER [{filters.size}/{LOG_TYPES.length} active]
@@ -84,7 +121,6 @@ export default function GameFeed({ initialLogs, seasonId }: { initialLogs: LogRo
           {l.text}
         </div>
       ))}
-      <div ref={bottomRef} />
     </div>
   )
 }

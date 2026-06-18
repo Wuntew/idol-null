@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { SUPABASE_SERVICE_CONFIGURED } from '@/lib/runtime'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
+
+export const dynamic = 'force-dynamic'
 
 const COSTS: Record<string, number> = {
   gift_idol: 150,
@@ -15,15 +18,25 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'unauthenticated' }, { status: 401 })
 
-  const body = await request.json()
+  const body = await request.json().catch(() => null)
+  if (!body || typeof body !== 'object') {
+    return NextResponse.json({ error: 'invalid payload' }, { status: 400 })
+  }
+
   const { type, target_id, target_b_id } = body
+  if (typeof type !== 'string') {
+    return NextResponse.json({ error: 'unknown action type' }, { status: 400 })
+  }
+
+  const targetId = target_id === null || target_id === undefined ? null : Number(target_id)
+  const targetBId = target_b_id === null || target_b_id === undefined ? null : Number(target_b_id)
 
   const cost = COSTS[type]
   if (!cost) return NextResponse.json({ error: 'unknown action type' }, { status: 400 })
-  if (type !== 'inject_anomaly' && typeof target_id !== 'number') {
+  if (type !== 'inject_anomaly' && (targetId === null || !Number.isInteger(targetId) || targetId < 1)) {
     return NextResponse.json({ error: 'target required' }, { status: 400 })
   }
-  if ((type === 'poison_relationship' || type === 'ghost_boost') && typeof target_b_id !== 'number') {
+  if ((type === 'poison_relationship' || type === 'ghost_boost') && (targetBId === null || !Number.isInteger(targetBId) || targetBId < 1)) {
     return NextResponse.json({ error: 'second target required' }, { status: 400 })
   }
 
@@ -35,28 +48,26 @@ export async function POST(request: Request) {
     .single()
   if (!season) return NextResponse.json({ error: 'no active season' }, { status: 400 })
 
-  // Check & deduct points
-  const { data: profile } = await supabase.from('profiles').select('points').eq('id', user.id).single()
-  if (!profile || profile.points < cost) return NextResponse.json({ error: 'insufficient points' }, { status: 400 })
+  if (!SUPABASE_SERVICE_CONFIGURED) {
+    return NextResponse.json({ error: 'influence service is not configured' }, { status: 503 })
+  }
 
-  await supabase.from('profiles').update({ points: profile.points - cost }).eq('id', user.id)
-
-  const { error } = await supabase.from('influence_actions').insert({
-    user_id: user.id,
-    season_id: season.id,
-    type,
-    target_id: target_id ?? null,
-    target_b_id: target_b_id ?? null,
-    cost,
-    status: 'pending',
+  const admin = createServiceClient()
+  const { data, error } = await admin.rpc('queue_influence_as_user', {
+    p_user_id: user.id,
+    p_season_id: season.id,
+    p_type: type,
+    p_target_id: type === 'inject_anomaly' ? null : targetId,
+    p_target_b_id: targetBId,
+    p_cost: cost,
   })
 
   if (error) {
-    await supabase.from('profiles').update({ points: profile.points }).eq('id', user.id)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: error.message }, { status: 400 })
   }
 
-  return NextResponse.json({ ok: true, cost, remaining: profile.points - cost })
+  const result = Array.isArray(data) ? data[0] : data
+  return NextResponse.json({ ok: true, cost, remaining: result?.remaining_points ?? 0 })
 }
 
 export async function GET() {

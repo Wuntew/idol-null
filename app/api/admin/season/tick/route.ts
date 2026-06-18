@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+export const dynamic = 'force-dynamic'
+
 // Proxies to the existing cron endpoint rather than duplicating its simulation
 // orchestration — same source of truth the daily Vercel cron job uses.
 export async function POST(request: Request) {

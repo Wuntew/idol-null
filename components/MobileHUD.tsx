@@ -5,6 +5,7 @@ import GameFeed from './GameFeed'
 import IslandMap from './IslandMap'
 import type { Tribe, TribeResources } from './IslandMap'
 import MapOverlay from './MapOverlay'
+import { isBinaryMarket, isCastawayMarket, isMarketOpen, marketTypeLabel } from '@/lib/markets'
 
 type Tab = 'feed' | 'cast' | 'bet' | 'noise' | 'more'
 
@@ -63,7 +64,7 @@ export default function MobileHUD({
   }
 
   return (
-    <div className="mobile-hud">
+    <main className="mobile-hud" aria-label="Idol.Null mobile game HUD">
 
       {/* ── Full-screen map overlay ── */}
       {mapOpen && (
@@ -102,6 +103,15 @@ export default function MobileHUD({
           }}>
             <div
               onClick={() => setMapOpen(true)}
+              onKeyDown={event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  setMapOpen(true)
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label="Open full island map"
               style={{ cursor: 'pointer', flexShrink: 0, position: 'relative' }}
               title="Tap to open full map"
             >
@@ -117,7 +127,7 @@ export default function MobileHUD({
               <div style={{
                 position: 'absolute', top: 4, left: 4,
                 background: 'rgba(0,0,0,0.82)', border: '1px solid var(--green)',
-                color: 'var(--green)', fontSize: 8, padding: '2px 6px',
+                color: 'var(--green)', fontSize: 11, padding: '2px 6px',
                 fontFamily: 'monospace', pointerEvents: 'none',
                 letterSpacing: '.06em',
               }}>TAP ⤢ MAP</div>
@@ -131,7 +141,7 @@ export default function MobileHUD({
           <div className="hud-zone hud-panel panel">
             {tab === 'feed'  && <FeedPanel  season={season} aliveCount={aliveCount} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} latestSummary={latestSummary} />}
             {tab === 'cast'  && <CastPanel  castaways={castaways} tribes={tribes} onOpenDossier={openDossier} season={season} />}
-            {tab === 'bet'   && <BetPanel   groupedMarkets={groupedMarkets} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} castaways={castaways} />}
+            {tab === 'bet'   && <BetPanel   groupedMarkets={groupedMarkets} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} castaways={castaways} userPredictions={userPredictions} />}
             {tab === 'noise' && <NoisePanel castaways={castaways} profile={profile} user={user} seasonActive={seasonActive} isDemo={isDemo} />}
             {tab === 'more'  && <MorePanel  season={season} aliveCount={aliveCount} profile={profile} user={user} isDemo={isDemo} onOpenArchive={openArchive} onSwitchTab={setTab} />}
           </div>
@@ -153,7 +163,7 @@ export default function MobileHUD({
         ))}
       </nav>
 
-    </div>
+    </main>
   )
 }
 
@@ -170,10 +180,10 @@ function FeedPanel({ season, aliveCount, openMarketCount, profile, user, isDemo,
         {/* AI Narrative — top position */}
         {latestSummary?.summary_data?.aiNarrative && (
           <div className="panel" style={{ margin: '8px 8px 0', padding: '10px 10px', borderColor: 'var(--cyan)', borderWidth: 1, borderStyle: 'solid' }}>
-            <div style={{ color: 'var(--cyan)', fontSize: 10, letterSpacing: '.1em', fontWeight: 'bold', marginBottom: 6 }}>
+            <div style={{ color: 'var(--cyan)', fontSize: 13, letterSpacing: '.1em', fontWeight: 'bold', marginBottom: 6 }}>
               {latestSummary.summary_data.aiNarrative.title ?? '◉ SIGNAL NARRATIVE'}
             </div>
-            <div className="c-white" style={{ fontSize: 10, lineHeight: 1.65 }}>
+            <div className="c-white" style={{ fontSize: 13, lineHeight: 1.65 }}>
               {latestSummary.summary_data.aiNarrative.recap}
             </div>
           </div>
@@ -255,6 +265,7 @@ function CastCard({ c, tribeColor, onSelect, season }: { c: any; tribeColor: Rec
   return (
     <button
       onClick={() => onSelect(c)}
+      aria-label={`Open ${c.name} profile`}
       style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', width: '100%', minWidth: 0 }}
     >
       <div
@@ -272,9 +283,9 @@ function CastCard({ c, tribeColor, onSelect, season }: { c: any; tribeColor: Rec
         <div className="hud-cast-name" style={{ color: nameColor }}>
           {c.name}
         </div>
-        {isAwakened && <div style={{ fontSize: 7, color: 'var(--yellow)', textAlign: 'center', letterSpacing: '.06em' }}>⚡ AWAKE</div>}
-        {isConsumed && <div style={{ fontSize: 7, color: 'var(--red)', textAlign: 'center', letterSpacing: '.05em' }}>CONSUMED</div>}
-        {isRunnerUp && <div style={{ fontSize: 7, color: 'var(--amber)', textAlign: 'center', letterSpacing: '.05em' }}>RUNNER-UP</div>}
+        {isAwakened && <div style={{ fontSize: 11, color: 'var(--yellow)', textAlign: 'center', letterSpacing: '.06em' }}>⚡ AWAKE</div>}
+        {isConsumed && <div style={{ fontSize: 11, color: 'var(--red)', textAlign: 'center', letterSpacing: '.05em' }}>CONSUMED</div>}
+        {isRunnerUp && <div style={{ fontSize: 11, color: 'var(--amber)', textAlign: 'center', letterSpacing: '.05em' }}>RUNNER-UP</div>}
       </div>
     </button>
   )
@@ -299,7 +310,7 @@ function CastPanel({ castaways, tribes, onOpenDossier, season }: any) {
     <div className="hud-panel-inner">
       <div className="hdr hud-hdr">
         <span>▣ CAST</span>
-        <span className="c-dim" style={{ fontSize: 10, fontWeight: 'normal' }}>{alive} alive</span>
+        <span className="c-dim" style={{ fontSize: 13, fontWeight: 'normal' }}>{alive} alive</span>
       </div>
       <div className="hud-panel-body" style={{ padding: 0 }}>
         <div className="hud-cast-tribes">
@@ -357,13 +368,13 @@ function CastProfile({ castaway: c, tribeColor, onBack, onOpenDossier }: any) {
             {c.name[0]}
           </div>
         )}
-        <button onClick={onBack} style={{ position: 'absolute', top: 4, left: 4,
+        <button aria-label="Back to cast list" onClick={onBack} style={{ position: 'absolute', top: 4, left: 4,
           background: 'rgba(0,0,0,0.65)', border: `1px solid ${tribeBorder}`, color: tribeBorder,
           cursor: 'pointer', fontSize: 11, lineHeight: 1, padding: '2px 5px', fontFamily: 'monospace' }}>{'←'}</button>
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.7)',
           padding: '2px 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span className="c-dim" style={{ fontSize: 8, textTransform: 'uppercase', letterSpacing: '.06em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.archetype}</span>
-          <span className={`tag text-[8px] ${c.status === 'alive' ? 'c-green' : c.status === 'ghost' ? 'c-purple' : 'c-red'}`} style={{ flexShrink: 0, marginLeft: 3 }}>{c.status}</span>
+          <span className="c-dim" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.archetype}</span>
+          <span className={`tag text-[11px] ${c.status === 'alive' ? 'c-green' : c.status === 'ghost' ? 'c-purple' : 'c-red'}`} style={{ flexShrink: 0, marginLeft: 3 }}>{c.status}</span>
         </div>
       </div>
 
@@ -371,42 +382,42 @@ function CastProfile({ castaway: c, tribeColor, onBack, onOpenDossier }: any) {
       <div style={{ flex: 1, minWidth: 0, padding: '8px 8px', display: 'flex', flexDirection: 'column', gap: 5, overflow: 'hidden' }}>
         <div>
           <div className="c-white" style={{ fontSize: 12, fontWeight: 'bold', lineHeight: 1.2 }}>{c.name}</div>
-          <div style={{ fontSize: 9, color: tribeBorder, marginTop: 2 }}>◈ {c.trait}</div>
+          <div style={{ fontSize: 12, color: tribeBorder, marginTop: 2 }}>◈ {c.trait}</div>
         </div>
-        <div className="c-dim" style={{ fontSize: 9 }}>
+        <div className="c-dim" style={{ fontSize: 12 }}>
           {c.condition !== 'healthy' && <span className={c.condition === 'awakened' ? 'c-yellow' : c.condition === 'hallucinating' ? 'c-purple' : 'c-amber'}>{c.condition === 'awakened' ? '⚡ AWAKENED' : c.condition} · </span>}
           {c.idol_count > 0 && <span className="c-yellow">✦×{c.idol_count} · </span>}
           {[c.age ? `age ${c.age}` : null, c.hometown].filter(Boolean).join(' · ')}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-          <span className={`tag ${threat.cls}`} style={{ fontSize: 8 }}>{threat.label}</span>
-          <span className={`tag ${boot.cls}`} style={{ fontSize: 8 }}>{boot.label}</span>
+          <span className={`tag ${threat.cls}`} style={{ fontSize: 11 }}>{threat.label}</span>
+          <span className={`tag ${boot.cls}`} style={{ fontSize: 11 }}>{boot.label}</span>
         </div>
         {/* Stats — compact */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {Object.entries(c.stats ?? {}).map(([k, v]) => (
             <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 8, color: STAT_COLOR[k] ?? 'var(--dim)', width: 22, flexShrink: 0 }}>{STAT_ABBR[k] ?? k.slice(0,3).toUpperCase()}</span>
+              <span style={{ fontSize: 11, color: STAT_COLOR[k] ?? 'var(--dim)', width: 22, flexShrink: 0 }}>{STAT_ABBR[k] ?? k.slice(0,3).toUpperCase()}</span>
               <div style={{ flex: 1, height: 3, background: '#0a1a0a', borderRadius: 1 }}>
                 <div style={{ width: `${Math.round(Number(v))}%`, height: '100%', background: STAT_COLOR[k] ?? '#2a4a2a', borderRadius: 1 }} />
               </div>
-              <span className="c-dim" style={{ fontSize: 8, width: 16, textAlign: 'right', flexShrink: 0 }}>{Math.round(Number(v))}</span>
+              <span className="c-dim" style={{ fontSize: 11, width: 16, textAlign: 'right', flexShrink: 0 }}>{Math.round(Number(v))}</span>
             </div>
           ))}
           {c.hunger !== undefined && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 8, color: 'var(--amber)', width: 22, flexShrink: 0 }}>HNG</span>
+              <span style={{ fontSize: 11, color: 'var(--amber)', width: 22, flexShrink: 0 }}>HNG</span>
               <div style={{ flex: 1, height: 3, background: '#0a1a0a', borderRadius: 1 }}>
                 <div style={{ width: `${Math.round(c.hunger)}%`, height: '100%', background: c.hunger < 30 ? 'var(--red)' : 'var(--amber)', borderRadius: 1 }} />
               </div>
-              <span className="c-dim" style={{ fontSize: 8, width: 16, textAlign: 'right', flexShrink: 0 }}>{Math.round(c.hunger)}</span>
+              <span className="c-dim" style={{ fontSize: 11, width: 16, textAlign: 'right', flexShrink: 0 }}>{Math.round(c.hunger)}</span>
             </div>
           )}
         </div>
         <button
           onClick={() => onOpenDossier(c)}
           style={{ marginTop: 'auto', background: 'none', border: `1px solid ${tribeBorder}`, color: tribeBorder,
-            cursor: 'pointer', fontSize: 9, padding: '3px 8px', letterSpacing: '.06em', fontFamily: 'monospace', width: '100%' }}
+            cursor: 'pointer', fontSize: 12, padding: '3px 8px', letterSpacing: '.06em', fontFamily: 'monospace', width: '100%' }}
         >▶ FULL DOSSIER</button>
       </div>
     </div>
@@ -428,20 +439,20 @@ function FullDossier({ castaway: c, tribeColor, onBack, castaways, onNavigate }:
 
       {/* Sticky header */}
       <div className="hdr hud-hdr" style={{ flexShrink: 0, gap: 6, borderBottomWidth: 2, borderBottomColor: tribeBorder }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--cyan)', cursor: 'pointer',
+        <button aria-label="Back to cast panel" onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--cyan)', cursor: 'pointer',
           padding: '0 6px 0 0', fontSize: 14, lineHeight: 1, fontFamily: 'monospace' }}>{'←'}</button>
         <span className="c-white" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 'bold' }}>{c.name}</span>
-        <span className={`tag ${c.status === 'alive' ? 'c-green' : c.status === 'ghost' ? 'c-purple' : 'c-red'}`} style={{ fontSize: 9 }}>{c.status}</span>
+        <span className={`tag ${c.status === 'alive' ? 'c-green' : c.status === 'ghost' ? 'c-purple' : 'c-red'}`} style={{ fontSize: 12 }}>{c.status}</span>
         {castaways && castaways.length > 1 && (() => {
           const idx = castaways.findIndex((x: any) => x.id === c.id)
           const prev = idx > 0 ? castaways[idx - 1] : null
           const next = idx < castaways.length - 1 ? castaways[idx + 1] : null
           return (
             <div style={{ display: 'flex', gap: 0, marginLeft: 4 }}>
-              <button onClick={() => prev && onNavigate(prev)} disabled={!prev}
+              <button aria-label="Previous castaway" onClick={() => prev && onNavigate(prev)} disabled={!prev}
                 style={{ background: 'none', border: 'none', color: prev ? 'var(--cyan)' : '#1a2a1a',
                   cursor: prev ? 'pointer' : 'default', fontSize: 13, padding: '0 3px', fontFamily: 'monospace', lineHeight: 1 }}>◀</button>
-              <button onClick={() => next && onNavigate(next)} disabled={!next}
+              <button aria-label="Next castaway" onClick={() => next && onNavigate(next)} disabled={!next}
                 style={{ background: 'none', border: 'none', color: next ? 'var(--cyan)' : '#1a2a1a',
                   cursor: next ? 'pointer' : 'default', fontSize: 13, padding: '0 3px', fontFamily: 'monospace', lineHeight: 1 }}>▶</button>
             </div>
@@ -466,9 +477,9 @@ function FullDossier({ castaway: c, tribeColor, onBack, castaways, onNavigate }:
             </div>
           )}
           <div style={{ flex: 1, minWidth: 0, padding: '10px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <div className="c-dim" style={{ fontSize: 9, textTransform: 'uppercase', letterSpacing: '.08em' }}>{c.archetype}</div>
+            <div className="c-dim" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '.08em' }}>{c.archetype}</div>
             <div style={{ fontSize: 11, color: tribeBorder }}>◈ {c.trait}</div>
-            <div className="c-dim" style={{ fontSize: 9 }}>
+            <div className="c-dim" style={{ fontSize: 12 }}>
               {c.condition !== 'healthy' && <span className={c.condition === 'awakened' ? 'c-yellow' : c.condition === 'hallucinating' ? 'c-purple' : 'c-amber'}>{c.condition === 'awakened' ? '⚡ AWAKENED' : c.condition}<br/></span>}
               {c.idol_count > 0 && <span className="c-yellow">✦ idol ×{c.idol_count}<br/></span>}
               {c.age && <span>Age {c.age}<br/></span>}
@@ -480,30 +491,30 @@ function FullDossier({ castaway: c, tribeColor, onBack, castaways, onNavigate }:
 
         {/* Read tags */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
-          <span className={`tag ${threat.cls}`} style={{ fontSize: 9 }}>{threat.label}</span>
-          <span className={`tag ${boot.cls}`} style={{ fontSize: 9 }}>{boot.label}</span>
-          <span className={`tag ${winner.cls}`} style={{ fontSize: 9 }}>{winner.label}</span>
+          <span className={`tag ${threat.cls}`} style={{ fontSize: 12 }}>{threat.label}</span>
+          <span className={`tag ${boot.cls}`} style={{ fontSize: 12 }}>{boot.label}</span>
+          <span className={`tag ${winner.cls}`} style={{ fontSize: 12 }}>{winner.label}</span>
         </div>
 
         {/* Stats */}
         <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a', display: 'flex', flexDirection: 'column', gap: 5 }}>
-          <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 2 }}>STATS</div>
+          <div className="c-dim" style={{ fontSize: 12, letterSpacing: '.08em', marginBottom: 2 }}>STATS</div>
           {Object.entries(c.stats ?? {}).map(([k, v]) => (
             <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 9, color: STAT_COLOR[k] ?? 'var(--dim)', width: 26, flexShrink: 0 }}>{STAT_ABBR[k] ?? k.slice(0,3).toUpperCase()}</span>
+              <span style={{ fontSize: 12, color: STAT_COLOR[k] ?? 'var(--dim)', width: 26, flexShrink: 0 }}>{STAT_ABBR[k] ?? k.slice(0,3).toUpperCase()}</span>
               <div style={{ flex: 1, height: 5, background: '#0a1a0a', borderRadius: 1 }}>
                 <div style={{ width: `${Math.round(Number(v))}%`, height: '100%', background: STAT_COLOR[k] ?? '#2a4a2a', borderRadius: 1 }} />
               </div>
-              <span className="c-dim" style={{ fontSize: 9, width: 22, textAlign: 'right', flexShrink: 0 }}>{Math.round(Number(v))}</span>
+              <span className="c-dim" style={{ fontSize: 12, width: 22, textAlign: 'right', flexShrink: 0 }}>{Math.round(Number(v))}</span>
             </div>
           ))}
           {c.hunger !== undefined && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 9, color: 'var(--amber)', width: 26, flexShrink: 0 }}>HNG</span>
+              <span style={{ fontSize: 12, color: 'var(--amber)', width: 26, flexShrink: 0 }}>HNG</span>
               <div style={{ flex: 1, height: 5, background: '#0a1a0a', borderRadius: 1 }}>
                 <div style={{ width: `${Math.round(c.hunger)}%`, height: '100%', background: c.hunger < 30 ? 'var(--red)' : 'var(--amber)', borderRadius: 1 }} />
               </div>
-              <span className="c-dim" style={{ fontSize: 9, width: 22, textAlign: 'right', flexShrink: 0 }}>{Math.round(c.hunger)}</span>
+              <span className="c-dim" style={{ fontSize: 12, width: 22, textAlign: 'right', flexShrink: 0 }}>{Math.round(c.hunger)}</span>
             </div>
           )}
         </div>
@@ -511,16 +522,16 @@ function FullDossier({ castaway: c, tribeColor, onBack, castaways, onNavigate }:
         {/* Audition tape */}
         {c.audition_tape && (
           <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
-            <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>AUDITION TAPE</div>
-            <div className="c-dim" style={{ fontSize: 10, fontStyle: 'italic', lineHeight: 1.55 }}>{c.audition_tape}</div>
+            <div className="c-dim" style={{ fontSize: 12, letterSpacing: '.08em', marginBottom: 4 }}>AUDITION TAPE</div>
+            <div className="c-dim" style={{ fontSize: 13, fontStyle: 'italic', lineHeight: 1.55 }}>{c.audition_tape}</div>
           </div>
         )}
 
         {/* Education / family */}
         {(c.education || c.family) && (
           <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a', display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {c.education && <div className="c-dim" style={{ fontSize: 9 }}><span style={{ color: 'var(--cyan)', marginRight: 4 }}>EDU</span>{c.education}</div>}
-            {c.family && <div className="c-dim" style={{ fontSize: 9 }}><span style={{ color: 'var(--cyan)', marginRight: 4 }}>FAMILY</span>{c.family}</div>}
+            {c.education && <div className="c-dim" style={{ fontSize: 12 }}><span style={{ color: 'var(--cyan)', marginRight: 4 }}>EDU</span>{c.education}</div>}
+            {c.family && <div className="c-dim" style={{ fontSize: 12 }}><span style={{ color: 'var(--cyan)', marginRight: 4 }}>FAMILY</span>{c.family}</div>}
           </div>
         )}
 
@@ -529,73 +540,73 @@ function FullDossier({ castaway: c, tribeColor, onBack, castaways, onNavigate }:
           <>
             {c.dossier.first_contact && (
               <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
-                <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>FIRST CONTACT</div>
-                <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.first_contact}</div>
+                <div className="c-dim" style={{ fontSize: 12, letterSpacing: '.08em', marginBottom: 4 }}>FIRST CONTACT</div>
+                <div className="c-dim" style={{ fontSize: 13, lineHeight: 1.55 }}>{c.dossier.first_contact}</div>
               </div>
             )}
             {c.dossier.background_signal && (
               <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
-                <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>BACKGROUND</div>
-                <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.background_signal}</div>
+                <div className="c-dim" style={{ fontSize: 12, letterSpacing: '.08em', marginBottom: 4 }}>BACKGROUND</div>
+                <div className="c-dim" style={{ fontSize: 13, lineHeight: 1.55 }}>{c.dossier.background_signal}</div>
               </div>
             )}
             {c.dossier.intake_interview && (
               <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
-                <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>INTAKE INTERVIEW</div>
+                <div className="c-dim" style={{ fontSize: 12, letterSpacing: '.08em', marginBottom: 4 }}>INTAKE INTERVIEW</div>
                 {c.dossier.intake_interview.on_strategy && (
                   <div style={{ marginBottom: 6 }}>
-                    <div className="c-cyan" style={{ fontSize: 8, marginBottom: 2 }}>ON STRATEGY</div>
-                    <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.intake_interview.on_strategy}</div>
+                    <div className="c-cyan" style={{ fontSize: 11, marginBottom: 2 }}>ON STRATEGY</div>
+                    <div className="c-dim" style={{ fontSize: 13, lineHeight: 1.55 }}>{c.dossier.intake_interview.on_strategy}</div>
                   </div>
                 )}
                 {c.dossier.intake_interview.on_others && (
                   <div style={{ marginBottom: 6 }}>
-                    <div className="c-cyan" style={{ fontSize: 8, marginBottom: 2 }}>ON OTHERS</div>
-                    <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.intake_interview.on_others}</div>
+                    <div className="c-cyan" style={{ fontSize: 11, marginBottom: 2 }}>ON OTHERS</div>
+                    <div className="c-dim" style={{ fontSize: 13, lineHeight: 1.55 }}>{c.dossier.intake_interview.on_others}</div>
                   </div>
                 )}
                 {c.dossier.intake_interview.on_the_island && (
                   <div>
-                    <div className="c-cyan" style={{ fontSize: 8, marginBottom: 2 }}>ON THE ISLAND</div>
-                    <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.intake_interview.on_the_island}</div>
+                    <div className="c-cyan" style={{ fontSize: 11, marginBottom: 2 }}>ON THE ISLAND</div>
+                    <div className="c-dim" style={{ fontSize: 13, lineHeight: 1.55 }}>{c.dossier.intake_interview.on_the_island}</div>
                   </div>
                 )}
               </div>
             )}
             {c.dossier.field_observation && (
               <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
-                <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>FIELD OBSERVATIONS</div>
-                <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55, whiteSpace: 'pre-line' }}>{c.dossier.field_observation}</div>
+                <div className="c-dim" style={{ fontSize: 12, letterSpacing: '.08em', marginBottom: 4 }}>FIELD OBSERVATIONS</div>
+                <div className="c-dim" style={{ fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-line' }}>{c.dossier.field_observation}</div>
               </div>
             )}
             {c.dossier.social_architecture && (
               <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
-                <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>SOCIAL ARCHITECTURE</div>
-                <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.social_architecture}</div>
+                <div className="c-dim" style={{ fontSize: 12, letterSpacing: '.08em', marginBottom: 4 }}>SOCIAL ARCHITECTURE</div>
+                <div className="c-dim" style={{ fontSize: 13, lineHeight: 1.55 }}>{c.dossier.social_architecture}</div>
               </div>
             )}
             {c.dossier.pressure_signature && (
               <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
-                <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>PRESSURE SIGNATURE</div>
-                <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.pressure_signature}</div>
+                <div className="c-dim" style={{ fontSize: 12, letterSpacing: '.08em', marginBottom: 4 }}>PRESSURE SIGNATURE</div>
+                <div className="c-dim" style={{ fontSize: 13, lineHeight: 1.55 }}>{c.dossier.pressure_signature}</div>
               </div>
             )}
             {c.dossier.threat_read && (
               <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
-                <div className="c-red" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>THREAT READ</div>
-                <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.threat_read}</div>
+                <div className="c-red" style={{ fontSize: 12, letterSpacing: '.08em', marginBottom: 4 }}>THREAT READ</div>
+                <div className="c-dim" style={{ fontSize: 13, lineHeight: 1.55 }}>{c.dossier.threat_read}</div>
               </div>
             )}
             {c.dossier.rival_dynamic && (
               <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
-                <div className="c-red" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>RIVAL DYNAMIC</div>
-                <div className="c-dim" style={{ fontSize: 10, lineHeight: 1.55 }}>{c.dossier.rival_dynamic}</div>
+                <div className="c-red" style={{ fontSize: 12, letterSpacing: '.08em', marginBottom: 4 }}>RIVAL DYNAMIC</div>
+                <div className="c-dim" style={{ fontSize: 13, lineHeight: 1.55 }}>{c.dossier.rival_dynamic}</div>
               </div>
             )}
             {c.dossier.analyst_note && (
               <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a' }}>
-                <div className="c-amber" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>ANALYST NOTE</div>
-                <div className="c-amber" style={{ fontSize: 10, lineHeight: 1.55, fontStyle: 'italic' }}>{c.dossier.analyst_note}</div>
+                <div className="c-amber" style={{ fontSize: 12, letterSpacing: '.08em', marginBottom: 4 }}>ANALYST NOTE</div>
+                <div className="c-amber" style={{ fontSize: 13, lineHeight: 1.55, fontStyle: 'italic' }}>{c.dossier.analyst_note}</div>
               </div>
             )}
           </>
@@ -610,7 +621,7 @@ function FullDossier({ castaway: c, tribeColor, onBack, castaways, onNavigate }:
 /* ─────────────────────────────────────────────
    BET TAB — markets summary + link
 ───────────────────────────────────────────── */
-function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, castaways }: any) {
+function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, castaways, userPredictions }: any) {
   const groups = Object.entries(groupedMarkets ?? {}) as [string, any[]][]
   const alive = (castaways ?? []).filter((c: any) => c.status === 'alive')
   const [expandedId, setExpandedId] = useState<number | null>(null)
@@ -626,7 +637,7 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, cast
     if (!amt || amt < 1) return
     setSubmitting(true)
     const body: any = { market_id: m.id, amount: amt }
-    if (m.type === 'boolean') body.choice_bool = betBool
+    if (isBinaryMarket(m.type)) body.choice_bool = betBool
     else { body.castaway_id = parseInt(betTarget, 10); if (!body.castaway_id) { setSubmitting(false); return } }
     const res = await fetch('/api/predictions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     setBetResults(prev => ({ ...prev, [m.id]: res.ok ? 'ok' : 'err' }))
@@ -638,42 +649,49 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, cast
     <div className="hud-panel-inner">
       <div className="hdr hud-hdr">
         <span>◈ MARKETS</span>
-        <span className="c-dim" style={{ fontSize: 10, fontWeight: 'normal' }}>
+        <span className="c-dim" style={{ fontSize: 13, fontWeight: 'normal' }}>
           {openMarketCount} open&nbsp;·&nbsp;<span className="c-yellow">{profile?.points ?? 0}pts</span>
         </span>
       </div>
       <div className="hud-panel-body" style={{ padding: 0 }}>
         {openMarketCount === 0 && (
-          <div className="c-dim" style={{ padding: '8px 10px', fontSize: 10 }}>No open markets.</div>
+          <div className="c-dim" style={{ padding: '8px 10px', fontSize: 13 }}>No open markets.</div>
         )}
         {(isDemo || !user) && openMarketCount > 0 && (
           <div style={{ padding: '5px 10px', background: '#0a1a0a', borderBottom: '1px solid #1a2a1a' }}>
-            <span className="c-amber" style={{ fontSize: 9 }}>Sign in to place bets.</span>
+            <span className="c-amber" style={{ fontSize: 12 }}>Sign in to place bets.</span>
           </div>
         )}
         {groups.map(([group, ms]) => (
           <div key={group}>
             <div className="hud-mkt-group-hdr">{group.toUpperCase()} · {ms.length}</div>
             {ms.map((m: any) => {
-              const isOpen = m.status === 'open'
+              const isOpen = isMarketOpen(m)
               const expanded = expandedId === m.id
               const result = betResults[m.id]
-              const canBet = isOpen && !!user && !isDemo
+              const userPick = (userPredictions ?? []).find((p: any) => p.market_id === m.id)
+              const canBet = isOpen && !!user && !isDemo && !userPick
+              const usesBinaryChoice = isBinaryMarket(m.type)
+              const usesCastawayChoice = isCastawayMarket(m.type)
               return (
                 <div key={m.id} style={{ borderBottom: '1px solid #0a1a0a' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', cursor: canBet ? 'pointer' : 'default' }}
+                  <button type="button" className="hud-mkt-row" disabled={!canBet}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: canBet ? 'pointer' : 'default',
+                      width: '100%', background: 'none', border: 'none', color: 'inherit', textAlign: 'left', fontFamily: 'monospace' }}
                     onClick={() => { if (!canBet) return; setExpandedId(expanded ? null : m.id); setBetTarget(''); setBetBool(true) }}>
                     <span className="hud-mkt-label" style={{ flex: 1 }}>{m.label}</span>
-                    <span className={`tag hud-mkt-type ${m.type === 'boolean' ? 'c-cyan' : 'c-amber'}`} style={{ fontSize: 8 }}>
-                      {m.type?.toUpperCase()}
+                    <span className={`tag hud-mkt-type ${usesBinaryChoice ? 'c-cyan' : 'c-amber'}`} style={{ fontSize: 11 }}>
+                      {marketTypeLabel(m.type)}
                     </span>
-                    {result === 'ok' && <span className="c-green" style={{ fontSize: 9 }}>✓</span>}
-                    {result === 'err' && <span className="c-red" style={{ fontSize: 9 }}>✗</span>}
-                    {canBet && !result && <span style={{ color: 'var(--cyan)', fontSize: 10 }}>{expanded ? '▲' : '▼'}</span>}
-                  </div>
+                    {userPick && <span className="c-green" style={{ fontSize: 12 }}>LOCKED</span>}
+                    {!isOpen && !userPick && <span className="c-dim" style={{ fontSize: 12 }}>CLOSED</span>}
+                    {result === 'ok' && <span className="c-green" style={{ fontSize: 12 }}>✓</span>}
+                    {result === 'err' && <span className="c-red" style={{ fontSize: 12 }}>✗</span>}
+                    {canBet && !result && <span style={{ color: 'var(--cyan)', fontSize: 13 }}>{expanded ? '▲' : '▼'}</span>}
+                  </button>
                   {expanded && (
                     <div style={{ padding: '8px 10px 10px', background: '#050d05', borderTop: '1px solid #0a1a0a' }}>
-                      {m.type === 'boolean' ? (
+                      {usesBinaryChoice ? (
                         <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                           {['YES', 'NO'].map(opt => {
                             const active = opt === 'YES' ? betBool : !betBool
@@ -682,27 +700,29 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, cast
                                 style={{ flex: 1, padding: '4px', background: active ? (opt === 'YES' ? 'var(--green)' : 'var(--red)') : 'none',
                                   border: `1px solid ${active ? (opt === 'YES' ? 'var(--green)' : 'var(--red)') : '#1a2a1a'}`,
                                   color: active ? '#000' : (opt === 'YES' ? 'var(--green)' : 'var(--red)'),
-                                  cursor: 'pointer', fontFamily: 'monospace', fontSize: 9, letterSpacing: '.05em' }}>{opt}</button>
+                                  cursor: 'pointer', fontFamily: 'monospace', fontSize: 12, letterSpacing: '.05em' }}>{opt}</button>
                             )
                           })}
                         </div>
-                      ) : (
+                      ) : usesCastawayChoice ? (
                         <select value={betTarget} onChange={e => setBetTarget(e.target.value)}
                           style={{ width: '100%', background: '#050d05', border: '1px solid #1a3a1a', color: 'var(--white)',
-                            fontFamily: 'monospace', fontSize: 9, padding: '4px', marginBottom: 8 }}>
+                            fontFamily: 'monospace', fontSize: 12, padding: '4px', marginBottom: 8 }}>
                           <option value="">— pick castaway —</option>
                           {alive.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
+                      ) : (
+                        <div className="c-red" style={{ fontSize: 13, marginBottom: 8 }}>Unsupported market type.</div>
                       )}
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         <input type="number" value={betAmt} onChange={e => setBetAmt(e.target.value)} min={1} max={profile?.points ?? 0}
                           style={{ flex: 1, background: '#050d05', border: '1px solid #1a3a1a', color: 'var(--amber)',
-                            fontFamily: 'monospace', fontSize: 10, padding: '4px 6px', minWidth: 0 }} />
-                        <span className="c-dim" style={{ fontSize: 9 }}>pts</span>
-                        <button onClick={() => submitBet(m)} disabled={submitting || (m.type !== 'boolean' && !betTarget)}
+                            fontFamily: 'monospace', fontSize: 13, padding: '4px 6px', minWidth: 0 }} />
+                        <span className="c-dim" style={{ fontSize: 12 }}>pts</span>
+                        <button onClick={() => submitBet(m)} disabled={submitting || (usesCastawayChoice && !betTarget) || (!usesBinaryChoice && !usesCastawayChoice)}
                           style={{ padding: '4px 10px', background: 'none', border: '1px solid var(--cyan)',
                             color: submitting ? 'var(--dim)' : 'var(--cyan)', cursor: submitting ? 'default' : 'pointer',
-                            fontFamily: 'monospace', fontSize: 9, letterSpacing: '.05em', flexShrink: 0 }}>
+                            fontFamily: 'monospace', fontSize: 12, letterSpacing: '.05em', flexShrink: 0 }}>
                           {submitting ? '...' : 'BET ▶'}
                         </button>
                       </div>
@@ -732,6 +752,7 @@ const INFLUENCE_ACTIONS = [
 
 function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
   const alive = (castaways ?? []).filter((c: any) => c.status === 'alive')
+  const ghosts = (castaways ?? []).filter((c: any) => c.status === 'ghost')
   const [expandedAction, setExpandedAction] = useState<string | null>(null)
   const [targetA, setTargetA] = useState('')
   const [targetB, setTargetB] = useState('')
@@ -758,13 +779,13 @@ function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
     <div className="hud-panel-inner">
       <div className="hdr hud-hdr">
         <span>⛧ NOISE</span>
-        <span className="c-dim" style={{ fontSize: 10, fontWeight: 'normal' }}>
+        <span className="c-dim" style={{ fontSize: 13, fontWeight: 'normal' }}>
           <span className="c-yellow">{pts}</span> pts
         </span>
       </div>
       <div className="hud-panel-body" style={{ padding: 0 }}>
         {!seasonActive ? (
-          <div className="c-dim" style={{ padding: '10px 10px', fontSize: 10 }}>
+          <div className="c-dim" style={{ padding: '10px 10px', fontSize: 13 }}>
             Influence opens during an active season.
           </div>
         ) : (
@@ -784,7 +805,7 @@ function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
                         <div className="hud-noise-fill" style={{ width: `${pct}%` }} />
                       </div>
                       <span className="c-purple hud-noise-pts">{ip}</span>
-                      {cw > 0 && <span className="c-amber" style={{ fontSize: 8, marginLeft: 3 }}>W{cw}</span>}
+                      {cw > 0 && <span className="c-amber" style={{ fontSize: 11, marginLeft: 3 }}>W{cw}</span>}
                     </div>
                   )
                 })
@@ -795,7 +816,7 @@ function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
 
             {(!user || isDemo) && (
               <div style={{ padding: '6px 10px' }}>
-                <span className="c-amber" style={{ fontSize: 9 }}>Sign in to influence the game.</span>
+                <span className="c-amber" style={{ fontSize: 12 }}>Sign in to influence the game.</span>
               </div>
             )}
 
@@ -803,9 +824,13 @@ function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
               const canAfford = pts >= act.cost
               const expanded = expandedAction === act.type
               const result = actionResult[act.type]
+              const targetAOptions = act.type === 'ghost_boost' ? ghosts : alive
+              const targetBOptions = alive.filter((c: any) => String(c.id) !== targetA)
               return (
                 <div key={act.type} style={{ borderBottom: '1px solid #0a1a0a' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
+                  <button type="button" className="hud-action-row" disabled={!canAfford}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', background: 'none', border: 'none',
+                      color: 'inherit', textAlign: 'left', fontFamily: 'monospace',
                     cursor: canAfford ? 'pointer' : 'default', opacity: canAfford ? 1 : 0.45 }}
                     onClick={() => {
                       if (!canAfford) return
@@ -813,36 +838,36 @@ function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
                       setTargetA(''); setTargetB('')
                     }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 10, color: canAfford ? 'var(--cyan)' : 'var(--dim)' }}>{act.label}</div>
-                      <div className="c-dim" style={{ fontSize: 8, marginTop: 1 }}>{act.desc}</div>
+                      <div style={{ fontSize: 13, color: canAfford ? 'var(--cyan)' : 'var(--dim)' }}>{act.label}</div>
+                      <div className="c-dim" style={{ fontSize: 11, marginTop: 1 }}>{act.desc}</div>
                     </div>
-                    {result === 'ok' && <span className="c-green" style={{ fontSize: 9 }}>✓</span>}
-                    {result === 'err' && <span className="c-red" style={{ fontSize: 9 }}>✗</span>}
-                    <span style={{ color: canAfford ? 'var(--amber)' : 'var(--dim)', fontSize: 9, flexShrink: 0 }}>{act.cost}pt</span>
-                    {canAfford && !result && <span style={{ color: 'var(--cyan)', fontSize: 10 }}>{expanded ? '▲' : '▼'}</span>}
-                  </div>
+                    {result === 'ok' && <span className="c-green" style={{ fontSize: 12 }}>✓</span>}
+                    {result === 'err' && <span className="c-red" style={{ fontSize: 12 }}>✗</span>}
+                    <span style={{ color: canAfford ? 'var(--amber)' : 'var(--dim)', fontSize: 12, flexShrink: 0 }}>{act.cost}pt</span>
+                    {canAfford && !result && <span style={{ color: 'var(--cyan)', fontSize: 13 }}>{expanded ? '▲' : '▼'}</span>}
+                  </button>
                   {expanded && (
                     <div style={{ padding: '6px 10px 10px', background: '#050d05', borderTop: '1px solid #0a1a0a' }}>
                       {!act.noTarget && (
                         <select value={targetA} onChange={e => setTargetA(e.target.value)}
                           style={{ width: '100%', background: '#050d05', border: '1px solid #1a3a1a', color: 'var(--white)',
-                            fontFamily: 'monospace', fontSize: 9, padding: '4px', marginBottom: act.twoTarget ? 6 : 10 }}>
-                          <option value="">— pick target —</option>
-                          {alive.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            fontFamily: 'monospace', fontSize: 12, padding: '4px', marginBottom: act.twoTarget ? 6 : 10 }}>
+                          <option value="">{act.type === 'ghost_boost' ? '— pick ghost —' : '— pick target —'}</option>
+                          {targetAOptions.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                       )}
                       {act.twoTarget && (
                         <select value={targetB} onChange={e => setTargetB(e.target.value)}
                           style={{ width: '100%', background: '#050d05', border: '1px solid #1a3a1a', color: 'var(--white)',
-                            fontFamily: 'monospace', fontSize: 9, padding: '4px', marginBottom: 10 }}>
+                            fontFamily: 'monospace', fontSize: 12, padding: '4px', marginBottom: 10 }}>
                           <option value="">— pick second target —</option>
-                          {alive.filter((c: any) => String(c.id) !== targetA).map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          {targetBOptions.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                       )}
                       <button onClick={() => submitAction(act)} disabled={submitting}
                         style={{ width: '100%', padding: '5px', background: 'none', border: '1px solid var(--purple)',
                           color: submitting ? 'var(--dim)' : 'var(--purple)', cursor: submitting ? 'default' : 'pointer',
-                          fontFamily: 'monospace', fontSize: 9, letterSpacing: '.08em' }}>
+                          fontFamily: 'monospace', fontSize: 12, letterSpacing: '.08em' }}>
                         {submitting ? '...' : `DEPLOY · ${act.cost}pts`}
                       </button>
                     </div>
@@ -898,15 +923,15 @@ function MorePanel({ season, aliveCount, profile, user, isDemo, onOpenArchive, o
         {/* Past seasons */}
         {pastSeasons.length > 0 && (
           <div style={{ padding: '6px 8px 0' }}>
-            <div className="c-dim" style={{ fontSize: 9, letterSpacing: '.08em', marginBottom: 4 }}>PAST SEASONS</div>
+            <div className="c-dim" style={{ fontSize: 12, letterSpacing: '.08em', marginBottom: 4 }}>PAST SEASONS</div>
             {pastSeasons.map((s: any) => (
               <button key={s.id} onClick={() => onOpenArchive(s.id)}
                 style={{ display: 'flex', width: '100%', alignItems: 'center', justifyContent: 'space-between',
                   background: 'none', border: '1px solid #1a2a1a', padding: '5px 8px', marginBottom: 4,
                   cursor: 'pointer', fontFamily: 'monospace' }}>
-                <span className="c-cyan" style={{ fontSize: 10 }}>SEASON {s.season_number}</span>
-                <span className="c-dim" style={{ fontSize: 9 }}>DAY {s.current_day} · COMPLETE</span>
-                <span className="c-dim" style={{ fontSize: 10 }}>→</span>
+                <span className="c-cyan" style={{ fontSize: 13 }}>SEASON {s.season_number}</span>
+                <span className="c-dim" style={{ fontSize: 12 }}>DAY {s.current_day} · COMPLETE</span>
+                <span className="c-dim" style={{ fontSize: 13 }}>→</span>
               </button>
             ))}
           </div>
@@ -927,18 +952,18 @@ function MorePanel({ season, aliveCount, profile, user, isDemo, onOpenArchive, o
         {leaderboard.length > 0 && (
           <div style={{ padding: '4px 8px 0' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span className="c-cyan" style={{ fontSize: 9, letterSpacing: '.08em' }}>◈ LEADERBOARD</span>
-              <a href="/leaderboard" className="c-dim" style={{ fontSize: 8, textDecoration: 'none' }}>full view →</a>
+              <span className="c-cyan" style={{ fontSize: 12, letterSpacing: '.08em' }}>◈ LEADERBOARD</span>
+              <a href="/leaderboard" className="c-dim" style={{ fontSize: 11, textDecoration: 'none' }}>full view →</a>
             </div>
             {leaderboard.slice(0, 5).map((entry: any, i: number) => (
               <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', borderBottom: '1px solid #0a1a0a' }}>
-                <span className="c-dim" style={{ fontSize: 8, width: 14, textAlign: 'center', flexShrink: 0 }}>#{i + 1}</span>
-                <span className="c-white" style={{ flex: 1, fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span className="c-dim" style={{ fontSize: 11, width: 14, textAlign: 'center', flexShrink: 0 }}>#{i + 1}</span>
+                <span className="c-white" style={{ flex: 1, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {entry.username ?? 'player'}
                 </span>
-                <span className="c-yellow" style={{ fontSize: 9, flexShrink: 0 }}>{entry.points}pts</span>
+                <span className="c-yellow" style={{ fontSize: 12, flexShrink: 0 }}>{entry.points}pts</span>
                 {entry.predictions_won != null && (
-                  <span className="c-dim" style={{ fontSize: 8, flexShrink: 0 }}>{entry.predictions_won}/{entry.predictions_total ?? 0}</span>
+                  <span className="c-dim" style={{ fontSize: 11, flexShrink: 0 }}>{entry.predictions_won}/{entry.predictions_total ?? 0}</span>
                 )}
               </div>
             ))}
@@ -1038,12 +1063,12 @@ function SeasonArchive({ archive, onBack, onOpenDossier }: {
     return (
       <div className="hud-zone hud-feed panel" style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div className="hdr hud-hdr" style={{ flexShrink: 0, gap: 6 }}>
-          <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--cyan)', cursor: 'pointer',
+          <button aria-label="Back to more panel" onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--cyan)', cursor: 'pointer',
             padding: '0 6px 0 0', fontSize: 14, lineHeight: 1, fontFamily: 'monospace' }}>{'←'}</button>
           <span className="c-white" style={{ fontWeight: 'bold' }}>SEASON {season?.season_number}</span>
           <button onClick={() => setMode('replay')} style={{ marginLeft: 'auto', background: 'none',
             border: '1px solid var(--dim)', color: 'var(--dim)', cursor: 'pointer',
-            fontSize: 9, padding: '2px 6px', fontFamily: 'monospace', letterSpacing: '.06em' }}>◀ REPLAY</button>
+            fontSize: 12, padding: '2px 6px', fontFamily: 'monospace', letterSpacing: '.06em' }}>◀ REPLAY</button>
         </div>
         {winner && (
           <div style={{ padding: '8px 10px', borderBottom: '1px solid #0a1a0a', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1053,7 +1078,7 @@ function SeasonArchive({ archive, onBack, onOpenDossier }: {
             )}
             <div>
               <div style={{ color: 'var(--yellow)', fontSize: 11, fontWeight: 'bold' }}>✦ {winner.name}</div>
-              <div className="c-dim" style={{ fontSize: 9 }}>SEASON {season?.season_number} WINNER</div>
+              <div className="c-dim" style={{ fontSize: 12 }}>SEASON {season?.season_number} WINNER</div>
             </div>
           </div>
         )}
@@ -1069,7 +1094,7 @@ function SeasonArchive({ archive, onBack, onOpenDossier }: {
                   borderBottom: '1px solid #0a1a0a', cursor: 'pointer', textAlign: 'left' }}>
                 <div style={{ width: 24, flexShrink: 0, textAlign: 'center' }}>
                   {isWinner ? <span style={{ color: 'var(--yellow)', fontSize: 12 }}>✦</span>
-                    : <span className="c-dim" style={{ fontSize: 9 }}>#{i}</span>}
+                    : <span className="c-dim" style={{ fontSize: 12 }}>#{i}</span>}
                 </div>
                 {c.portrait_file ? (
                   <img src={`/portraits/${c.portrait_file}`} alt={c.name}
@@ -1083,18 +1108,18 @@ function SeasonArchive({ archive, onBack, onOpenDossier }: {
                   </div>
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 10, fontWeight: isWinner ? 'bold' : 'normal',
+                  <div style={{ fontSize: 13, fontWeight: isWinner ? 'bold' : 'normal',
                     color: isWinner ? 'var(--yellow)' : 'var(--white)',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</div>
-                  <div style={{ fontSize: 8, color: tribeColor[c.tribe_id] ?? 'var(--dim)', marginTop: 1 }}>{tribeName[c.tribe_id] ?? ''}</div>
+                  <div style={{ fontSize: 11, color: tribeColor[c.tribe_id] ?? 'var(--dim)', marginTop: 1 }}>{tribeName[c.tribe_id] ?? ''}</div>
                 </div>
                 <div style={{ flexShrink: 0, textAlign: 'right' }}>
-                  {isWinner ? <span style={{ color: 'var(--yellow)', fontSize: 9 }}>WINNER</span> : isRunnerUp ? (
-                    <span style={{ color: 'var(--amber)', fontSize: 9 }}>RUNNER-UP</span>
+                  {isWinner ? <span style={{ color: 'var(--yellow)', fontSize: 12 }}>WINNER</span> : isRunnerUp ? (
+                    <span style={{ color: 'var(--amber)', fontSize: 12 }}>RUNNER-UP</span>
                   ) : (
                     <>
-                      <div className="c-dim" style={{ fontSize: 9 }}>day {c.elimination_day ?? '?'}</div>
-                      <div style={{ fontSize: 8, color: c.status === 'consumed' ? 'var(--red)' : 'var(--dim)' }}>
+                      <div className="c-dim" style={{ fontSize: 12 }}>day {c.elimination_day ?? '?'}</div>
+                      <div style={{ fontSize: 11, color: c.status === 'consumed' ? 'var(--red)' : 'var(--dim)' }}>
                         {c.status === 'consumed' ? 'consumed' : 'voted out'}
                       </div>
                     </>
@@ -1115,22 +1140,22 @@ function SeasonArchive({ archive, onBack, onOpenDossier }: {
 
       {/* Header: back | season | day nav | results toggle */}
       <div className="hdr hud-hdr" style={{ flexShrink: 0, gap: 0 }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--cyan)', cursor: 'pointer',
+        <button aria-label="Back to more panel" onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--cyan)', cursor: 'pointer',
           padding: '0 8px 0 0', fontSize: 14, lineHeight: 1, fontFamily: 'monospace' }}>{'←'}</button>
-        <span className="c-dim" style={{ fontSize: 9, marginRight: 6 }}>S{season?.season_number}</span>
+        <span className="c-dim" style={{ fontSize: 12, marginRight: 6 }}>S{season?.season_number}</span>
         {/* Day nav */}
-        <button onClick={() => setDay(d => Math.max(1, d - 1))} disabled={day <= 1}
+        <button aria-label="Previous replay day" onClick={() => setDay(d => Math.max(1, d - 1))} disabled={day <= 1}
           style={{ background: 'none', border: 'none', color: day <= 1 ? 'var(--dim)' : 'var(--cyan)',
             cursor: day <= 1 ? 'default' : 'pointer', fontSize: 11, padding: '0 4px', fontFamily: 'monospace' }}>◀</button>
-        <span className="c-white" style={{ fontSize: 10, fontWeight: 'bold', minWidth: 52, textAlign: 'center' }}>
+        <span className="c-white" style={{ fontSize: 13, fontWeight: 'bold', minWidth: 52, textAlign: 'center' }}>
           DAY {day}/{maxDay}
         </span>
-        <button onClick={() => setDay(d => Math.min(maxDay, d + 1))} disabled={day >= maxDay}
+        <button aria-label="Next replay day" onClick={() => setDay(d => Math.min(maxDay, d + 1))} disabled={day >= maxDay}
           style={{ background: 'none', border: 'none', color: day >= maxDay ? 'var(--dim)' : 'var(--cyan)',
             cursor: day >= maxDay ? 'default' : 'pointer', fontSize: 11, padding: '0 4px', fontFamily: 'monospace' }}>▶</button>
         <button onClick={() => setMode('results')} style={{ marginLeft: 'auto', background: 'none',
           border: '1px solid #1a3a1a', color: 'var(--dim)', cursor: 'pointer',
-          fontSize: 9, padding: '2px 6px', fontFamily: 'monospace', letterSpacing: '.06em' }}>CAST ▸</button>
+          fontSize: 12, padding: '2px 6px', fontFamily: 'monospace', letterSpacing: '.06em' }}>CAST ▸</button>
       </div>
 
       {/* Scrollable body: map + event feed */}
@@ -1153,17 +1178,17 @@ function SeasonArchive({ archive, onBack, onOpenDossier }: {
         {/* Alive count bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '4px 8px', borderBottom: '1px solid #0a1a0a', flexShrink: 0 }}>
-          <span className="c-dim" style={{ fontSize: 9 }}>
+          <span className="c-dim" style={{ fontSize: 12 }}>
             {castawaysOnDay.filter((c: any) => c.status === 'alive').length} alive
           </span>
-          <span className="c-dim" style={{ fontSize: 9 }}>
+          <span className="c-dim" style={{ fontSize: 12 }}>
             {dayLogs.length} events
           </span>
         </div>
 
         {/* Event log */}
         {dayLogs.length === 0 ? (
-          <div className="c-dim" style={{ padding: '12px 10px', fontSize: 9, textAlign: 'center' }}>
+          <div className="c-dim" style={{ padding: '12px 10px', fontSize: 12, textAlign: 'center' }}>
             no events logged for day {day}
           </div>
         ) : (
@@ -1172,8 +1197,8 @@ function SeasonArchive({ archive, onBack, onOpenDossier }: {
             return (
               <div key={log.id} style={{ display: 'flex', gap: 7, padding: '5px 8px',
                 borderBottom: '1px solid #060e06', alignItems: 'flex-start' }}>
-                <span style={{ color: meta.color, fontSize: 10, flexShrink: 0, marginTop: 1 }}>{meta.icon}</span>
-                <span style={{ fontSize: 9, lineHeight: 1.5, color: log.type === 'system' ? 'var(--dim)'
+                <span style={{ color: meta.color, fontSize: 13, flexShrink: 0, marginTop: 1 }}>{meta.icon}</span>
+                <span style={{ fontSize: 12, lineHeight: 1.5, color: log.type === 'system' ? 'var(--dim)'
                   : log.type === 'elim' ? 'var(--red)'
                   : log.type === 'anomaly' ? 'var(--red)'
                   : log.type === 'host' ? 'var(--cyan)'

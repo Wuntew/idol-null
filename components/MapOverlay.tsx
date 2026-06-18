@@ -346,6 +346,9 @@ export default function MapOverlay({ castaways, tribes, tribeResources, challeng
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Island map"
       style={{
         position: 'fixed', inset: 0, zIndex: 1000,
         background: '#000', overflow: 'hidden',
@@ -366,6 +369,8 @@ export default function MapOverlay({ castaways, tribes, tribeResources, challeng
           ref={canvasRef}
           width={TW * TS}
           height={TH * TS}
+          role="img"
+          aria-label="Zoomable island map with castaways, camps, resources, and challenges"
           style={{ display: 'block', width: '100vw', imageRendering: 'pixelated' }}
         />
       </div>
@@ -375,16 +380,16 @@ export default function MapOverlay({ castaways, tribes, tribeResources, challeng
         position: 'absolute', top: 8, right: 8,
         display: 'flex', flexDirection: 'column', gap: 6, zIndex: 10,
       }}>
-        <button onClick={onClose} style={btnStyle('#cc3300')}>✕</button>
-        <button onClick={() => { zoom.current = Math.min(4, zoom.current * 1.4); clampPan(); applyTransform() }} style={btnStyle('#1a3a1a')}>+</button>
-        <button onClick={() => { zoom.current = Math.max(0.6, zoom.current / 1.4); clampPan(); applyTransform() }} style={btnStyle('#1a3a1a')}>−</button>
+        <button aria-label="Close island map" onClick={onClose} style={btnStyle('#cc3300')}>✕</button>
+        <button aria-label="Zoom in island map" onClick={() => { zoom.current = Math.min(4, zoom.current * 1.4); clampPan(); applyTransform() }} style={btnStyle('#1a3a1a')}>+</button>
+        <button aria-label="Zoom out island map" onClick={() => { zoom.current = Math.max(0.6, zoom.current / 1.4); clampPan(); applyTransform() }} style={btnStyle('#1a3a1a')}>−</button>
       </div>
 
       {/* Tribe legend */}
       <div style={{
         position: 'absolute', bottom: 12, left: 8,
         background: 'rgba(4,10,4,0.88)', border: '1px solid #1a3a1a',
-        padding: '6px 10px', fontFamily: 'monospace', fontSize: 10,
+        padding: '6px 10px', fontFamily: 'monospace', fontSize: 11,
         display: 'flex', flexDirection: 'column', gap: 4,
       }}>
         {tribes.filter(t => !t.is_merge_tribe).map(t => (
@@ -392,7 +397,7 @@ export default function MapOverlay({ castaways, tribes, tribeResources, challeng
         ))}
         <span style={{ color: '#FFD700' }}>● Challenge</span>
         <span style={{ color: '#ff4444' }}>● Eliminated</span>
-        <span style={{ color: '#888', fontSize: 9 }}>F=food W=water S=shelter ~=fire</span>
+        <span style={{ color: '#888', fontSize: 11 }}>F=food W=water S=shelter ~=fire</span>
       </div>
     </div>
   )
