@@ -120,11 +120,11 @@ export default function MobileHUD({
 
           {/* ── BOTTOM — Tab Panel ── */}
           <div className="hud-zone hud-panel panel">
-            {tab === 'feed'  && <FeedPanel  season={season} aliveCount={aliveCount} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} latestSummary={latestSummary} />}
+            {tab === 'feed'  && <FeedPanel  season={season} aliveCount={aliveCount} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} latestSummary={latestSummary} onSwitchTab={setTab} />}
             {tab === 'cast'  && <CastPanel  castaways={castaways} tribes={tribes} onOpenDossier={setDossier} />}
             {tab === 'bet'   && <BetPanel   groupedMarkets={groupedMarkets} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} />}
-            {tab === 'noise' && <NoisePanel castaways={castaways} profile={profile} user={user} seasonActive={seasonActive} isDemo={isDemo} />}
-            {tab === 'more'  && <MorePanel  season={season} aliveCount={aliveCount} profile={profile} user={user} isDemo={isDemo} onOpenArchive={openArchive} />}
+            {tab === 'noise' && <NoisePanel castaways={castaways} profile={profile} user={user} seasonActive={seasonActive} isDemo={isDemo} onSwitchTab={setTab} />}
+            {tab === 'more'  && <MorePanel  season={season} aliveCount={aliveCount} profile={profile} user={user} isDemo={isDemo} onOpenArchive={openArchive} onSwitchTab={setTab} />}
           </div>
         </>
       )}
@@ -151,7 +151,7 @@ export default function MobileHUD({
 /* ─────────────────────────────────────────────
    FEED TAB — season status + last narrative
 ───────────────────────────────────────────── */
-function FeedPanel({ season, aliveCount, openMarketCount, profile, user, isDemo, latestSummary }: any) {
+function FeedPanel({ season, aliveCount, openMarketCount, profile, user, isDemo, latestSummary, onSwitchTab }: any) {
   return (
     <div className="hud-panel-inner">
       <div className="hdr hud-hdr">
@@ -509,9 +509,9 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo }: an
           </div>
         ))}
         <div style={{ padding: '8px', textAlign: 'center', borderTop: '1px solid #0a1a0a' }}>
-          <a href="/markets" className="btn amber" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', fontSize: 11 }}>
+          <button onClick={() => onSwitchTab('bet')} className="btn amber" style={{ display: 'block', width: '100%', textAlign: 'center', fontSize: 11 }}>
             OPEN MARKETS →
-          </a>
+          </button>
         </div>
       </div>
     </div>
@@ -521,7 +521,7 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo }: an
 /* ─────────────────────────────────────────────
    NOISE TAB — influence bars + link
 ───────────────────────────────────────────── */
-function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
+function NoisePanel({ castaways, profile, user, seasonActive, isDemo, onSwitchTab }: any) {
   const alive = (castaways ?? []).filter((c: any) => c.status === 'alive')
 
   return (
@@ -551,11 +551,7 @@ function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
             )
           })
         )}
-        <div style={{ padding: '8px', textAlign: 'center', borderTop: '1px solid #0a1a0a' }}>
-          <a href="/influence" className="btn purple" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', fontSize: 11 }}>
-            OPEN INFLUENCE →
-          </a>
-        </div>
+
       </div>
     </div>
   )
@@ -564,7 +560,7 @@ function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
 /* ─────────────────────────────────────────────
    MORE TAB — nav hub + account + past seasons
 ───────────────────────────────────────────── */
-function MorePanel({ season, aliveCount, profile, user, isDemo, onOpenArchive }: any) {
+function MorePanel({ season, aliveCount, profile, user, isDemo, onOpenArchive, onSwitchTab }: any) {
   const [seasons, setSeasons] = useState<any[]>([])
 
   useEffect(() => {
@@ -614,19 +610,21 @@ function MorePanel({ season, aliveCount, profile, user, isDemo, onOpenArchive }:
           </div>
         )}
 
-        {/* Nav links */}
-        {[
-          { href: '/leaderboard', label: '◈ LEADERBOARD', cls: 'c-cyan' },
-          { href: '/markets',     label: '◈ MARKETS',     cls: 'c-amber' },
-          { href: '/influence',   label: '⛧ INFLUENCE',   cls: 'c-purple' },
-          { href: '/castaways',   label: '▣ CASTAWAYS',   cls: 'c-green' },
-          { href: '/preseason',   label: '◎ PRESEASON',   cls: 'c-purple' },
-        ].map(l => (
-          <a key={l.href} href={l.href} className={`hud-more-link ${l.cls}`}>
+        {/* Nav links — tab switches for content already in HUD, external links otherwise */}
+        {([
+          { action: () => onSwitchTab('cast'),  label: '▣ CASTAWAYS',   cls: 'c-green' },
+          { action: () => onSwitchTab('bet'),   label: '◈ MARKETS',     cls: 'c-amber' },
+          { action: () => onSwitchTab('noise'), label: '⛧ INFLUENCE',   cls: 'c-purple' },
+        ] as { action: () => void; label: string; cls: string }[]).map(l => (
+          <button key={l.label} onClick={l.action} className={`hud-more-link ${l.cls}`} style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'monospace' }}>
             {l.label}
             <span className="c-dim" style={{ float: 'right' }}>→</span>
-          </a>
+          </button>
         ))}
+        <a href="/leaderboard" className="hud-more-link c-cyan">
+          ◈ LEADERBOARD
+          <span className="c-dim" style={{ float: 'right' }}>↗</span>
+        </a>
 
         {/* Account */}
         <div className="hud-more-account">
