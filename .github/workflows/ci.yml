@@ -58,6 +58,12 @@ jobs:
         with:
           version: latest
 
+      - name: Setup Node
+        if: steps.supabase-secrets.outputs.configured == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Link project
         if: steps.supabase-secrets.outputs.configured == 'true'
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
@@ -72,3 +78,10 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      - name: Run Supabase economy smoke tests
+        if: steps.supabase-secrets.outputs.configured == 'true'
+        run: npm run smoke:supabase
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
