@@ -63,8 +63,10 @@ export default function MobileHUD({
     if (data) setArchive(data)
   }
 
+  const statusLabel = season?.status ? String(season.status).toUpperCase() : 'NO SIGNAL'
+
   return (
-    <main className="mobile-hud" aria-label="Idol.Null mobile game HUD">
+    <main className={`mobile-hud mobile-hud-${tab}`} aria-label="Idol.Null mobile game HUD">
 
       {/* ── Full-screen map overlay ── */}
       {mapOpen && (
@@ -95,6 +97,29 @@ export default function MobileHUD({
         <SeasonArchive archive={archive} onBack={() => setArchive(null)} onOpenDossier={(c: any) => openDossier(c, archive.castaways)} />
       ) : (
         <>
+          <section className="hud-status-strip" aria-label="Season status">
+            <div>
+              <span className="hud-status-k">SEASON</span>
+              <span className="hud-status-v c-cyan">{season?.season_number ?? '-'}</span>
+            </div>
+            <div>
+              <span className="hud-status-k">DAY</span>
+              <span className="hud-status-v c-green">{season?.current_day ?? '-'}</span>
+            </div>
+            <div>
+              <span className="hud-status-k">CAST</span>
+              <span className="hud-status-v c-green">{aliveCount}</span>
+            </div>
+            <div>
+              <span className="hud-status-k">PTS</span>
+              <span className="hud-status-v c-yellow">{profile?.points ?? 0}</span>
+            </div>
+            <div className="hud-status-wide">
+              <span className="hud-status-k">STATUS</span>
+              <span className={`hud-status-v ${season?.status === 'active' ? 'c-green' : season?.status === 'preseason' ? 'c-amber' : 'c-dim'}`}>{statusLabel}</span>
+            </div>
+          </section>
+
           {/* ── TOP zone — Island Map + Live Feed ── */}
           <div className="hud-zone hud-feed panel" style={{
             display: 'flex', flexDirection: 'column',
@@ -124,13 +149,7 @@ export default function MobileHUD({
                 tribeResources={tribeResources}
                 compact
               />
-              <div style={{
-                position: 'absolute', top: 4, left: 4,
-                background: 'rgba(0,0,0,0.82)', border: '1px solid var(--green)',
-                color: 'var(--green)', fontSize: 11, padding: '2px 6px',
-                fontFamily: 'monospace', pointerEvents: 'none',
-                letterSpacing: '.06em',
-              }}>TAP ⤢ MAP</div>
+              <div className="hud-map-chip">TAP MAP</div>
             </div>
             <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
               <GameFeed initialLogs={logs} seasonId={season?.id ?? null} />
@@ -692,15 +711,16 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, cast
                   {expanded && (
                     <div style={{ padding: '8px 10px 10px', background: '#050d05', borderTop: '1px solid #0a1a0a' }}>
                       {usesBinaryChoice ? (
-                        <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                        <div className="hud-choice-grid">
                           {['YES', 'NO'].map(opt => {
                             const active = opt === 'YES' ? betBool : !betBool
                             return (
                               <button key={opt} onClick={() => setBetBool(opt === 'YES')}
-                                style={{ flex: 1, padding: '4px', background: active ? (opt === 'YES' ? 'var(--green)' : 'var(--red)') : 'none',
+                                className="hud-choice-button"
+                                style={{ background: active ? (opt === 'YES' ? 'var(--green)' : 'var(--red)') : 'none',
                                   border: `1px solid ${active ? (opt === 'YES' ? 'var(--green)' : 'var(--red)') : '#1a2a1a'}`,
                                   color: active ? '#000' : (opt === 'YES' ? 'var(--green)' : 'var(--red)'),
-                                  cursor: 'pointer', fontFamily: 'monospace', fontSize: 12, letterSpacing: '.05em' }}>{opt}</button>
+                                  cursor: 'pointer' }}>{opt}</button>
                             )
                           })}
                         </div>
@@ -714,15 +734,16 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, cast
                       ) : (
                         <div className="c-red" style={{ fontSize: 13, marginBottom: 8 }}>Unsupported market type.</div>
                       )}
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <div className="hud-bet-submit-row">
                         <input type="number" value={betAmt} onChange={e => setBetAmt(e.target.value)} min={1} max={profile?.points ?? 0}
                           style={{ flex: 1, background: '#050d05', border: '1px solid #1a3a1a', color: 'var(--amber)',
                             fontFamily: 'monospace', fontSize: 13, padding: '4px 6px', minWidth: 0 }} />
                         <span className="c-dim" style={{ fontSize: 12 }}>pts</span>
                         <button onClick={() => submitBet(m)} disabled={submitting || (usesCastawayChoice && !betTarget) || (!usesBinaryChoice && !usesCastawayChoice)}
-                          style={{ padding: '4px 10px', background: 'none', border: '1px solid var(--cyan)',
+                          className="hud-submit-button"
+                          style={{ background: 'none', border: '1px solid var(--cyan)',
                             color: submitting ? 'var(--dim)' : 'var(--cyan)', cursor: submitting ? 'default' : 'pointer',
-                            fontFamily: 'monospace', fontSize: 12, letterSpacing: '.05em', flexShrink: 0 }}>
+                            flexShrink: 0 }}>
                           {submitting ? '...' : 'BET ▶'}
                         </button>
                       </div>
@@ -865,9 +886,10 @@ function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
                         </select>
                       )}
                       <button onClick={() => submitAction(act)} disabled={submitting}
-                        style={{ width: '100%', padding: '5px', background: 'none', border: '1px solid var(--purple)',
+                        className="hud-submit-button"
+                        style={{ width: '100%', background: 'none', border: '1px solid var(--purple)',
                           color: submitting ? 'var(--dim)' : 'var(--purple)', cursor: submitting ? 'default' : 'pointer',
-                          fontFamily: 'monospace', fontSize: 12, letterSpacing: '.08em' }}>
+                          letterSpacing: '.08em' }}>
                         {submitting ? '...' : `DEPLOY · ${act.cost}pts`}
                       </button>
                     </div>
