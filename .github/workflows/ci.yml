@@ -12,12 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -50,19 +50,20 @@ jobs:
 
       - name: Checkout
         if: steps.supabase-secrets.outputs.configured == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Supabase CLI
         if: steps.supabase-secrets.outputs.configured == 'true'
-        uses: supabase/setup-cli@v1
+        uses: supabase/setup-cli@v2.1.1
         with:
           version: latest
+          github-token: ${{ github.token }}
 
       - name: Setup Node
         if: steps.supabase-secrets.outputs.configured == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Link project
         if: steps.supabase-secrets.outputs.configured == 'true'
