@@ -27,6 +27,53 @@ export interface Castaway {
   hunger?: number      // 0–100 (100 = full)
   injury?: number      // 0–5 (0 = healthy, 5 = critical)
   challengeWins?: number  // immunity challenge wins this season
+  socialState?: SocialState
+}
+
+export interface RelationshipDimensions {
+  trust: number
+  fear: number
+  attraction: number
+  suspicion: number
+  obligation: number
+  respect: number
+}
+
+export type SocialIntent = 'survive' | 'protect' | 'recruit' | 'expose' | 'betray' | 'remove_threat'
+
+export interface SocialState {
+  relationships: Record<string, RelationshipDimensions>
+  intent: { type: SocialIntent; targetId: number | null; reason: string }
+  promises: Array<{ toId: number; kind: 'protect' | 'vote_with' | 'share_idol'; day: number; broken?: boolean }>
+  secrets: Array<{ key: string; subjectId: number | null; knownBy: number[]; exposed: boolean }>
+}
+
+export interface SimulationEvent {
+  key: string
+  phase: string
+  type: LogType
+  actorIds: number[]
+  targetIds: number[]
+  cause: string
+  visibility: 'public' | 'private' | 'confessional'
+  text: string
+  deltas?: Record<string, number>
+  metadata?: Record<string, unknown>
+}
+
+export interface VoteDecision {
+  voterId: number
+  targetId: number
+  reason: 'coalition' | 'enemy' | 'threat' | 'betrayal' | 'self_preservation'
+  confidence: number
+  coalitionId: string | null
+  coalitionLeaderId: number | null
+}
+
+export interface JuryDecision {
+  jurorId: number
+  finalistId: number
+  reason: string
 }
 
 export interface LogEntry {
@@ -43,6 +90,9 @@ export type LogType =
 
 export interface DayResult {
   logs: LogEntry[]
+  events: SimulationEvent[]
+  voteDecisions: VoteDecision[]
+  juryDecisions: JuryDecision[]
   eliminatedId: number | null
   isSeasonOver: boolean
   winnerId: number | null
@@ -80,4 +130,5 @@ export interface SimulationContext {
   merged: boolean
   weather?: WeatherDef
   mapEvents?: { ev_type: number; tile_x: number; tile_y: number }[]
+  seed?: number
 }

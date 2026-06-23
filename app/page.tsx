@@ -6,6 +6,7 @@ import DemoModeBanner from '@/components/DemoModeBanner'
 import OnboardingChecklist from '@/components/OnboardingChecklist'
 import TodayCommand from '@/components/TodayCommand'
 import ImpactReport from '@/components/ImpactReport'
+import SocialIntelPanel from '@/components/SocialIntelPanel'
 import MobileHUD from '@/components/MobileHUD'
 import DesktopLiveWorkspace from '@/components/DesktopLiveWorkspace'
 import { SUPABASE_CONFIGURED } from '@/lib/runtime'
@@ -124,6 +125,18 @@ export default async function HomePage() {
       .limit(6)).data
     : [])
 
+  const simulationEvents = season && supabase
+    ? (await supabase.from('simulation_events').select('*').eq('season_id', season.id).eq('visibility', 'public').order('id', { ascending: false }).limit(40)).data ?? []
+    : []
+
+  const audienceFocus = user && season && supabase
+    ? (await supabase.from('audience_focus').select('castaway_id, day').eq('user_id', user.id).eq('season_id', season.id).eq('day', season.current_day).maybeSingle()).data
+    : null
+
+  const signalQuestion = user && season && supabase
+    ? (await supabase.from('signal_questions').select('*').eq('user_id', user.id).eq('season_id', season.id).eq('day', season.current_day).maybeSingle()).data
+    : null
+
   const logs = (recentLogs ?? []).slice().reverse()
   const latestSummary = (summaries?.[0] as any) ?? null
   const seasonActive = season?.status === 'active'
@@ -165,6 +178,9 @@ export default async function HomePage() {
       challenges={challenges as { label: string; x: number; y: number; sort_order: number }[]}
       tribes={tribes as any[]}
       tribeResources={tribeResources as any[]}
+      simulationEvents={simulationEvents as any[]}
+      audienceFocus={audienceFocus}
+      signalQuestion={signalQuestion}
     />
 
     {/* ── DESKTOP GRID (hidden on mobile) ── */}
@@ -254,6 +270,16 @@ export default async function HomePage() {
             castaways={(castaways ?? []) as any}
             resolvedPredictions={(recentResolvedPredictions ?? []) as any}
             revealedInfluence={(revealedInfluence ?? []) as any}
+          />
+
+          <SocialIntelPanel
+            castaways={(castaways ?? []) as any[]}
+            events={simulationEvents as any[]}
+            latestSummary={latestSummary}
+            user={user}
+            isDemo={isDemo}
+            initialFocus={audienceFocus}
+            initialQuestion={signalQuestion}
           />
 
           <section id="castaway-roster" className="roster-shell intel-roster">

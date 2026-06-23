@@ -37,6 +37,10 @@ type Castaway = {
   seed: number
   tribe: number
   relationships?: Record<string, number>
+  social_state?: {
+    relationships?: Record<string, { trust?: number; fear?: number; attraction?: number; suspicion?: number; obligation?: number; respect?: number }>
+    intent?: { type: string; targetId?: number | null; reason: string }
+  }
   elimination_day?: number | null
   age?: number | null
   hometown?: string | null
@@ -288,9 +292,14 @@ export default function CastawayRoster({
 
   const selectedBonds = useMemo(() => {
     if (!selected) return []
-    return Object.entries(selected.relationships ?? {})
+    const social = selected.social_state?.relationships
+    return Object.entries(social ?? selected.relationships ?? {})
       .filter(([id]) => Number(id) !== selected.id)
-      .map(([id, score]) => ({ id, score }))
+      .map(([id, value]) => {
+        const row = typeof value === 'number' ? null : value
+        const score = row ? Number(row.trust ?? 0) + Number(row.obligation ?? 0) * .4 + Number(row.respect ?? 0) * .2 - Number(row.suspicion ?? 0) - Number(row.fear ?? 0) * .3 : Number(value)
+        return { id, score, dimensions: row }
+      })
       .sort((a, b) => b.score - a.score)
       .slice(0, 4)
   }, [selected])
@@ -482,6 +491,7 @@ export default function CastawayRoster({
               <div className="dossier-section">
                 <div className="c-green text-[10px] tracking-wider mb-1">RELATIONSHIP WEB</div>
                 <div className="grid gap-1 text-[10px]">
+                  {selected.social_state?.intent && <div className="social-intel-read"><span className="c-cyan">CURRENT INTENT · {selected.social_state.intent.type.replaceAll('_', ' ')}</span><span>{selected.social_state.intent.reason}</span></div>}
                   <div className="flex justify-between gap-2"><span className="c-dim">Closest bond</span><span className="c-green">{ally ? (nameLookup[ally.id] ?? ally.id) + ' +' + Math.round(ally.score) : 'none'}</span></div>
                   <div className="flex justify-between gap-2"><span className="c-dim">Open wound</span><span className="c-red">{enemy ? (nameLookup[enemy.id] ?? enemy.id) + ' ' + Math.round(enemy.score) : 'none'}</span></div>
                   <div className="flex flex-wrap gap-1 mt-1">
@@ -491,6 +501,7 @@ export default function CastawayRoster({
                       </span>
                     ))}
                   </div>
+                  {selectedBonds[0]?.dimensions && <div className="c-dim">Top bond: trust {Math.round(selectedBonds[0].dimensions.trust ?? 0)} · suspicion {Math.round(selectedBonds[0].dimensions.suspicion ?? 0)} · fear {Math.round(selectedBonds[0].dimensions.fear ?? 0)} · obligation {Math.round(selectedBonds[0].dimensions.obligation ?? 0)}</div>}
                 </div>
               </div>
 

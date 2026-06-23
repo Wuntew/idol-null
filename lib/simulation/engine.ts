@@ -1,4 +1,5 @@
 import type { Castaway, CastawayStats, DayResult, LogEntry, LogType, SimulationContext } from './types'
+import { assignDailyIntent, normalizeRelationship, normalizeSocialState, planVotes, simulateJury } from './social'
 import {
   ARCHETYPES, CASTAWAY_NAMES, TRAITS, INSULTS,
   GENERIC_CAMP, TRAIT_CAMP, GHOST_LINES_FRESH, GHOST_LINES_ANCIENT, HOST_LINES,
@@ -80,11 +81,11 @@ export function makeCastaway(name: string, tribe: number, seasonId: number) {
 }
 
 // ── Stat drift ───────────────────────────────────────────────────────────────
-function driftStats(c: Castaway): void {
+function driftStats(c: Castaway, random: () => number = Math.random): void {
   const bias = TRAITS[c.trait]?.bias ?? {}
   const stats = c.stats
   for (const k of Object.keys(stats)) {
-    stats[k] = clamp(stats[k] + ((bias as Record<string, number>)[k] ?? 0) + (Math.random() * 4 - 2))
+    stats[k] = clamp(stats[k] + ((bias as Record<string, number>)[k] ?? 0) + (random() * 4 - 2))
   }
   if (c.condition === 'starving') { stats.physical = clamp(stats.physical - 2); stats.paranoia = clamp(stats.paranoia + 1.5) }
   if (c.condition === 'hallucinating') { stats.gaslighting = clamp(stats.gaslighting + 1); stats.paranoia = clamp(stats.paranoia + 1) }
@@ -99,14 +100,14 @@ function driftStats(c: Castaway): void {
   if (injury >= 3) stats.physical = clamp(stats.physical - 2)
 }
 
-function updateCondition(c: Castaway): void {
-  if (c.stats.physical < 25 && chance(0.6)) { c.condition = 'starving' }
-  else if (c.stats.paranoia > 78 && chance(0.6)) { c.condition = 'hallucinating' }
-  else if (chance(0.25)) { c.condition = 'healthy' }
+function updateCondition(c: Castaway, random: () => number = Math.random): void {
+  if (c.stats.physical < 25 && random() < 0.6) { c.condition = 'starving' }
+  else if (c.stats.paranoia > 78 && random() < 0.6) { c.condition = 'hallucinating' }
+  else if (random() < 0.25) { c.condition = 'healthy' }
 }
 
 // ── Trait effects ────────────────────────────────────────────────────────────
-function applyTraitEffect(a: Castaway, b: Castaway, logs: LogEntry[]): void {
+function applyTraitEffect(a: Castaway, b: Castaway, logs: LogEntry[], random: () => number = Math.random): void {
   switch (a.trait) {
     case 'Cannibalistic':
       a.stats.moxie = clamp(a.stats.moxie + 3)
@@ -119,8 +120,8 @@ function applyTraitEffect(a: Castaway, b: Castaway, logs: LogEntry[]): void {
       break
     case 'Glitched': {
       const keys = Object.keys(a.stats) as (keyof CastawayStats)[]
-      a.stats[pick(keys)] = clamp(ri(10, 90))
-      if (chance(0.3)) logs.push({ text: `▚ ${a.name}'s stats desync without warning.`, type: 'anomaly' })
+      a.stats[keys[Math.floor(random() * keys.length)]] = clamp(Math.floor(random() * 81) + 10)
+      if (random() < 0.3) logs.push({ text: `▚ ${a.name}'s stats desync without warning.`, type: 'anomaly' })
       break
     }
     case 'Narcissistic':
@@ -140,18 +141,41 @@ function applyTraitEffect(a: Castaway, b: Castaway, logs: LogEntry[]): void {
 
 // ── Main simulation function ─────────────────────────────────────────────────
 export function simulateDay(ctx: SimulationContext): DayResult {
+  const seed = ctx.seed ?? (ctx.day * 1000003 + ctx.castaways.reduce((sum, castaway) => sum + castaway.seed, 0))
+  const random = mulberry32(seed)
+  const ri = (a: number, b: number) => Math.floor(random() * (b - a + 1)) + a
+  const pick = <T,>(rows: T[]): T => rows[Math.floor(random() * rows.length)]
+  const chance = (probability: number) => random() < probability
   const logs: LogEntry[] = []
-  const log = (text: string, type: LogType) => logs.push({ text, type })
+  const events: import('./types').SimulationEvent[] = []
+  let voteDecisions: import('./types').VoteDecision[] = []
+  let juryDecisions: import('./types').JuryDecision[] = []
+  const log = (text: string, type: LogType) => {
+    logs.push({ text, type })
+    if (type === 'fight' || type === 'romance' || type === 'betray' || type === 'gambit') {
+      const mentioned = ctx.castaways.filter(castaway => text.includes(castaway.name)).map(castaway => castaway.id)
+      events.push({
+        key: `d${ctx.day}-${type}-${events.length + 1}`,
+        phase: 'camp', type, actorIds: mentioned.slice(0, 1), targetIds: mentioned.slice(1),
+        cause: type, visibility: 'public', text,
+      })
+    }
+  }
 
   const alive = ctx.castaways.filter(c => c.status === 'alive')
   const ghosts = ctx.castaways.filter(c => c.status === 'ghost')
 
   if (alive.length < 2) {
-    return { logs, eliminatedId: null, isSeasonOver: true, winnerId: alive[0]?.id ?? null, anomalyFired: false, idolPlayed: false, castawayUpdates: ctx.castaways, challengeName: '' }
+    return { logs, events, voteDecisions, juryDecisions, eliminatedId: null, isSeasonOver: true, winnerId: alive[0]?.id ?? null, anomalyFired: false, idolPlayed: false, castawayUpdates: ctx.castaways, challengeName: '' }
   }
 
   // ── CAMP PHASE ────────────────────────────────────────────
-  alive.forEach(c => { driftStats(c); updateCondition(c) })
+  alive.forEach(c => {
+    c.socialState = normalizeSocialState(c, ctx.day)
+    c.socialState.intent = assignDailyIntent(c, alive.filter(other => other.id !== c.id))
+    driftStats(c, random)
+    updateCondition(c, random)
+  })
 
   const campCount = ri(2, 3)
   for (let i = 0; i < campCount; i++) {
@@ -162,7 +186,7 @@ export function simulateDay(ctx: SimulationContext): DayResult {
     const traitLines = TRAIT_CAMP[a.trait]
     if (traitLines && chance(0.55)) {
       log(fill(pick(traitLines), a.name, b.name), 'trait')
-      applyTraitEffect(a, b, logs)
+      applyTraitEffect(a, b, logs, random)
     } else {
       log(fill(pick(GENERIC_CAMP), a.name, b.name), 'camp')
       a.relationships[b.id] = (a.relationships[b.id] ?? 0) + ri(-1, 1)
@@ -283,7 +307,7 @@ export function simulateDay(ctx: SimulationContext): DayResult {
     const hunter = pick(alive)
     const isHunt = chance(0.55)
     if (isHunt) {
-      const success = Math.random() < (0.3 + (hunter.stats.physical / 100) * 0.5)
+      const success = random() < (0.3 + (hunter.stats.physical / 100) * 0.5)
       if (success) {
         log(fill(pick(HUNT_SUCCESS), hunter.name), 'hunt')
         hunter.hunger = clamp((hunter.hunger ?? 80) + 18)
@@ -294,7 +318,7 @@ export function simulateDay(ctx: SimulationContext): DayResult {
         hunter.stats.physical = clamp(hunter.stats.physical - 1)
       }
     } else {
-      const success = Math.random() < (0.5 + (hunter.stats.moxie / 100) * 0.3)
+      const success = random() < (0.5 + (hunter.stats.moxie / 100) * 0.3)
       if (success) {
         log(fill(pick(GATHER_SUCCESS), hunter.name), 'gather')
         hunter.hunger = clamp((hunter.hunger ?? 80) + 12)
@@ -312,8 +336,8 @@ export function simulateDay(ctx: SimulationContext): DayResult {
     let b = pick(alive); let gf = 0; while (b.id === a.id && gf++ < 6) b = pick(alive)
     if (b.id !== a.id) {
       log(fill(pick(FIGHT_LINES), a.name, b.name), 'fight')
-      const aScore = a.stats.physical + Math.random() * 20
-      const bScore = b.stats.physical + Math.random() * 20
+      const aScore = a.stats.physical + random() * 20
+      const bScore = b.stats.physical + random() * 20
       if (aScore > bScore) {
         log(fill(pick(FIGHT_OUTCOME_WIN), a.name, b.name), 'fight')
         b.stats.physical = clamp(b.stats.physical - 10)
@@ -421,7 +445,7 @@ export function simulateDay(ctx: SimulationContext): DayResult {
     } else {
       log(fill(pick(REBOOT_RESET_LINES), subject.name), 'reboot')
       for (const k of Object.keys(subject.stats)) {
-        subject.stats[k] = clamp(50 + Math.random() * 10 - 5)
+        subject.stats[k] = clamp(50 + random() * 10 - 5)
       }
       subject.condition = 'healthy'
     }
@@ -576,39 +600,24 @@ export function simulateDay(ctx: SimulationContext): DayResult {
   const threatScore = (c: Castaway) =>
     challengeScore(c, challenge.statWeights) * 0.5 + c.stats.likeability * 0.3 + c.stats.moxie * 0.2
 
-  voters.forEach(voter => {
-    const pool = candidates.filter(c => c.id !== voter.id && c.id !== immuneId)
-    if (!pool.length) return
-    let best: Castaway | null = null; let bs = -1e9
-    pool.forEach(t => {
-      const rel = voter.relationships[t.id] ?? 0
-      const score = -rel * 10 + t.stats.paranoia * 0.3 - t.stats.likeability * 0.25 + Math.random() * 16
-      if (score > bs) { bs = score; best = t }
-    })
-    const target = best as Castaway | null
-    if (!target) return
+  voteDecisions = planVotes(voters, candidates, immuneId, random, ctx.day)
+  voteDecisions.forEach(decision => {
+    const voter = voters.find(row => row.id === decision.voterId)
+    const target = candidates.find(row => row.id === decision.targetId)
+    if (!voter || !target) return
     votes[target.id] = (votes[target.id] ?? 0) + 1
-
-    // Determine speech type — romance history takes priority over current relationship value
-    const rel = voter.relationships[target.id] ?? 0
-    const tScore = threatScore(target)
-    const maxThreat = Math.max(...pool.map(threatScore))
-    const voterBond = voter.romanticBonds?.[target.id]
-    const targetWasRomantic = voterBond === 'ex' || voterBond === 'scorned' || voterBond === 'partner' || voterBond === 'poly'
-    let speech: string
-    if (targetWasRomantic) {
-      // Romance history always triggers betrayal speech regardless of current rel value
-      speech = fill(pick(VOTE_SPEECH_BETRAY), voter.name, target.name)
-    } else if (rel < -5) {
-      speech = fill(pick(VOTE_SPEECH_ENEMY), voter.name, target.name)
-    } else if (rel > 5) {
-      speech = fill(pick(VOTE_SPEECH_BETRAY), voter.name, target.name)
-    } else if (pool.length > 1 && tScore >= maxThreat * 0.82) {
-      speech = fill(pick(VOTE_SPEECH_THREAT), voter.name, target.name)
-    } else {
-      speech = fill(pick(VOTE_SPEECH_STRATEGIC), voter.name, target.name)
-    }
-    log(speech, 'vote')
+    const speechPool = decision.reason === 'betrayal' ? VOTE_SPEECH_BETRAY
+      : decision.reason === 'enemy' ? VOTE_SPEECH_ENEMY
+        : decision.reason === 'threat' ? VOTE_SPEECH_THREAT
+          : VOTE_SPEECH_STRATEGIC
+    const text = fill(pick(speechPool), voter.name, target.name)
+    log(text, 'vote')
+    events.push({
+      key: `d${ctx.day}-vote-${voter.id}`,
+      phase: 'council', type: 'vote', actorIds: [voter.id], targetIds: [target.id],
+      cause: decision.reason, visibility: 'public', text,
+      metadata: { confidence: decision.confidence, coalitionId: decision.coalitionId },
+    })
   })
 
   const ranked = Object.keys(votes)
@@ -662,16 +671,17 @@ export function simulateDay(ctx: SimulationContext): DayResult {
 
   if (stillAlive.length <= 2) {
     isSeasonOver = true
-    let winner: Castaway | null = null; let bs = -1e9
-    stillAlive.forEach(c => {
-      const s = c.stats.likeability + c.stats.moxie + c.idolCount * 12 - c.stats.paranoia * 0.4 + Math.random() * 20
-      if (s > bs) { bs = s; winner = c }
-    })
+    const ghosts = ctx.castaways.filter(c => c.status === 'ghost')
+    juryDecisions = simulateJury(ghosts, stillAlive, random)
+    const juryTotals = juryDecisions.reduce<Record<number, number>>((totals, decision) => {
+      totals[decision.finalistId] = (totals[decision.finalistId] ?? 0) + 1
+      return totals
+    }, {})
+    const winner = [...stillAlive].sort((a, b) => (juryTotals[b.id] ?? 0) - (juryTotals[a.id] ?? 0) || b.stats.moxie - a.stats.moxie)[0] ?? null
     if (winner) {
       winnerId = (winner as Castaway).id
       const w = winner as Castaway
       const finalists = stillAlive.filter(c => c.id !== winnerId)
-      const ghosts = ctx.castaways.filter(c => c.status === 'ghost')
 
       // ── Finale narrative sequence ────────────────────────────────────────
       log('▓▓ FINALE. THE ISLAND GOES QUIET. ▓▓', 'system')
@@ -684,8 +694,12 @@ export function simulateDay(ctx: SimulationContext): DayResult {
       }
 
       // Jury vote sequence
-      for (const g of ghosts) {
-        log(`${g.name} casts their jury vote from beyond.`, 'ghost')
+      for (const decision of juryDecisions) {
+        const juror = ghosts.find(row => row.id === decision.jurorId)
+        const finalist = stillAlive.find(row => row.id === decision.finalistId)
+        const text = `${juror?.name ?? 'A ghost'} votes for ${finalist?.name ?? 'the static'}: ${decision.reason}.`
+        log(text, 'ghost')
+        events.push({ key: `d${ctx.day}-jury-${decision.jurorId}`, phase: 'finale', type: 'ghost', actorIds: [decision.jurorId], targetIds: [decision.finalistId], cause: decision.reason, visibility: 'public', text })
       }
 
       // Winner reveal
@@ -700,8 +714,22 @@ export function simulateDay(ctx: SimulationContext): DayResult {
     }
   }
 
+  ctx.castaways.forEach(castaway => {
+    if (!castaway.socialState) return
+    for (const [otherId, score] of Object.entries(castaway.relationships ?? {})) {
+      const relationship = normalizeRelationship(castaway.socialState.relationships[otherId] ?? score)
+      relationship.trust = clamp(Number(score))
+      relationship.suspicion = clamp(Math.max(relationship.suspicion, -Number(score)), 0, 100)
+      relationship.obligation = clamp(relationship.obligation, 0, 100)
+      castaway.socialState.relationships[otherId] = relationship
+    }
+  })
+
   return {
     logs,
+    events,
+    voteDecisions,
+    juryDecisions,
     eliminatedId,
     isSeasonOver,
     winnerId,
@@ -740,6 +768,15 @@ export function applyInfluenceAction(
   targetB: Castaway | undefined,
   alive: Castaway[],
 ): string {
+  if (type === 'inject_anomaly') {
+    const anomalyTarget = target ?? pick(alive)
+    if (!anomalyTarget) return 'An anomaly was injected, but no living signal remained to receive it.'
+    const keys = ['paranoia', 'gaslighting', 'likeability', 'physical', 'moxie'] as const
+    const k = keys[Math.floor(Math.random() * keys.length)]
+    const delta = (Math.random() < 0.5 ? 1 : -1) * (10 + Math.floor(Math.random() * 15))
+    anomalyTarget.stats[k] = Math.max(0, Math.min(100, (anomalyTarget.stats[k] ?? 50) + delta))
+    return `An anomaly was injected near ${anomalyTarget.name}. The island recalibrated.`
+  }
   if (!target) return 'An influence action was processed — target not found.'
 
   switch (type) {
@@ -761,14 +798,6 @@ export function applyInfluenceAction(
       target.stats.paranoia = Math.min(100, (target.stats.paranoia ?? 50) + 15)
       target.stats.likeability = Math.max(0, (target.stats.likeability ?? 50) - 10)
       return `A rumor was broadcast about ${target.name}. Trust is eroding.`
-    }
-    case 'inject_anomaly': {
-      // Random stat drift on target
-      const keys = ['paranoia', 'gaslighting', 'likeability', 'physical', 'moxie'] as const
-      const k = keys[Math.floor(Math.random() * keys.length)]
-      const delta = (Math.random() < 0.5 ? 1 : -1) * (10 + Math.floor(Math.random() * 15))
-      target.stats[k] = Math.max(0, Math.min(100, (target.stats[k] ?? 50) + delta))
-      return `An anomaly was injected near ${target.name}. The island recalibrated.`
     }
     case 'ghost_boost': {
       // Boost ghost's influence on an alive target
