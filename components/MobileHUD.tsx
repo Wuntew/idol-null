@@ -8,6 +8,7 @@ import MapOverlay from './MapOverlay'
 import { isBinaryMarket, isCastawayMarket, isMarketOpen, marketTypeLabel } from '@/lib/markets'
 import TodayCommand from './TodayCommand'
 import ImpactReport from './ImpactReport'
+import SocialIntelPanel from './SocialIntelPanel'
 import {
   INFLUENCE_ACTIONS,
   castawayBootRisk,
@@ -42,6 +43,9 @@ interface Props {
   challenges?: { label: string; x: number; y: number; sort_order: number }[]
   tribes?: Tribe[]
   tribeResources?: TribeResources[]
+  simulationEvents?: any[]
+  audienceFocus?: any
+  signalQuestion?: any
 }
 
 const TABS: { id: Tab; ico: string; label: string }[] = [
@@ -58,6 +62,7 @@ export default function MobileHUD({
   userPredictions, pendingInfluence = [], recentResolvedPredictions = [], revealedInfluence = [],
   latestSummary, aliveCount, openMarketCount,
   seasonSeed = 1337, challenges = [], tribes = [], tribeResources = [],
+  simulationEvents = [], audienceFocus = null, signalQuestion = null,
 }: Props) {
   const [tab, setTab] = useState<Tab>('today')
   const [menuOpen, setMenuOpen] = useState(false)
@@ -170,7 +175,7 @@ export default function MobileHUD({
 
           {/* ── One task surface at a time ── */}
           <div className="hud-zone hud-panel panel">
-            {tab === 'today' && <TodayPanel season={season} aliveCount={aliveCount} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} latestSummary={latestSummary} logs={logs} castaways={castaways} groupedMarkets={groupedMarkets} userPredictions={userPredictions} pendingInfluence={pendingInfluence} recentResolvedPredictions={recentResolvedPredictions} revealedInfluence={revealedInfluence} onNavigate={(target: string) => chooseTab(target === 'markets' ? 'bet' : target === 'influence' ? 'influence' : 'feed')} />}
+            {tab === 'today' && <TodayPanel season={season} aliveCount={aliveCount} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} latestSummary={latestSummary} logs={logs} castaways={castaways} groupedMarkets={groupedMarkets} userPredictions={userPredictions} pendingInfluence={pendingInfluence} recentResolvedPredictions={recentResolvedPredictions} revealedInfluence={revealedInfluence} simulationEvents={simulationEvents} audienceFocus={audienceFocus} signalQuestion={signalQuestion} onNavigate={(target: string) => chooseTab(target === 'markets' ? 'bet' : target === 'influence' ? 'influence' : 'feed')} />}
             {tab === 'feed'  && <FeedPanel logs={logs} season={season} castaways={castaways} onOpenMap={() => setMapOpen(true)} onOpenDossier={openDossier} />}
             {tab === 'cast'  && <CastPanel  castaways={castaways} tribes={tribes} onOpenDossier={openDossier} season={season} />}
             {tab === 'bet'   && <BetPanel groupedMarkets={groupedMarkets} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} castaways={castaways} userPredictions={userPredictions} onOpenDossier={openDossier} />}
@@ -240,7 +245,7 @@ function FeedPanel({ logs, season, castaways, onOpenMap, onOpenDossier }: { logs
   )
 }
 
-function TodayPanel({ season, aliveCount, openMarketCount, profile, user, isDemo, latestSummary, logs, castaways, groupedMarkets, userPredictions, pendingInfluence, recentResolvedPredictions, revealedInfluence, onNavigate }: any) {
+function TodayPanel({ season, aliveCount, openMarketCount, profile, user, isDemo, latestSummary, logs, castaways, groupedMarkets, userPredictions, pendingInfluence, recentResolvedPredictions, revealedInfluence, simulationEvents, audienceFocus, signalQuestion, onNavigate }: any) {
   const markets = Object.values(groupedMarkets ?? {}).flat() as any[]
   return (
     <div className="hud-panel-inner">
@@ -272,6 +277,7 @@ function TodayPanel({ season, aliveCount, openMarketCount, profile, user, isDemo
           revealedInfluence={revealedInfluence ?? []}
           compact
         />
+        <SocialIntelPanel castaways={castaways ?? []} events={simulationEvents ?? []} latestSummary={latestSummary} user={user} isDemo={isDemo} initialFocus={audienceFocus} initialQuestion={signalQuestion} compact />
       </div>
     </div>
   )

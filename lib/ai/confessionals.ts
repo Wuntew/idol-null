@@ -12,6 +12,7 @@ type ConfessionalCastaway = {
   voiceAnchor: string | null
   // Top relationship (ally or enemy) for context
   topBond: { name: string; score: number } | null
+  intent?: { type: string; targetId: number | null; reason: string } | null
 }
 
 type ConfessionalInput = {
@@ -38,6 +39,7 @@ export function selectConfessionalSubjects(
     stats: Record<string, number>
     relationships?: Record<string, number>
     dossier?: any
+    socialState?: { intent?: { type: string; targetId: number | null; reason: string } }
   }>,
   nameLookup: Record<number, string>,
   eliminatedId: number | null,
@@ -77,6 +79,7 @@ export function selectConfessionalSubjects(
       condition: c.condition,
       voiceAnchor,
       topBond,
+      intent: c.socialState?.intent ?? null,
     }
   })
 }
@@ -98,6 +101,7 @@ export async function generateConfessionals(input: ConfessionalInput): Promise<C
     topBond: c.topBond
       ? `${c.topBond.score > 0 ? 'ally' : 'enemy'}: ${c.topBond.name} (score ${c.topBond.score})`
       : 'no strong bonds yet',
+    currentIntent: c.intent ?? 'no declared intent',
   }))
 
   const parsed = await callDeepSeekJson([
@@ -106,7 +110,7 @@ export async function generateConfessionals(input: ConfessionalInput): Promise<C
       content: [
         'You write confessional camera entries for Idol.Null, a cosmic horror reality competition.',
         'Each confessional is first-person, present tense, 1-3 sentences.',
-        'Ground each in today\'s events and the castaway\'s established voice (voiceAnchor).',
+        'Ground each in today\'s events, current intent, and the castaway\'s established voice (voiceAnchor).',
         'Tone: raw, unguarded, slightly unsettling — like a diary entry made under fluorescent lights.',
         'Return JSON only.',
       ].join(' '),

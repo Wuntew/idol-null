@@ -1,4 +1,4 @@
-import type { Castaway, LogEntry } from '@/lib/simulation/types'
+import type { Castaway, LogEntry, SimulationEvent } from '@/lib/simulation/types'
 import { callDeepSeekJson } from './deepseek'
 
 type MemoryState = {
@@ -28,12 +28,13 @@ type NarrativeInput = {
   idolPlayed: boolean
   influenceCount: number
   challengeName: string
+  structuredEvents: SimulationEvent[]
 }
 
 export type AiNarrativeResult = {
   episodeTitle: string
   episodeRecap: string
-  stylizedLogs: Array<{ text: string; type: 'narrative' | 'confessional' }>
+  stylizedLogs: Array<{ text: string; type: 'narrative' }>
   memoryUpdates: Array<{
     castawayId: number
     memory: MemoryState
@@ -67,6 +68,7 @@ function compactCastaway(c: Castaway) {
       physical: Math.round(c.stats.physical),
       moxie: Math.round(c.stats.moxie),
     },
+    intent: c.socialState?.intent ?? null,
   }
 }
 
@@ -91,7 +93,7 @@ function normalizeResult(parsed: any, input: NarrativeInput): AiNarrativeResult 
   const knownIds = new Set(input.castaways.map(c => c.id))
   const stylizedLogs = Array.isArray(parsed?.stylizedLogs)
     ? parsed.stylizedLogs
-      .filter((log: any) => typeof log?.text === 'string' && (log.type === 'narrative' || log.type === 'confessional'))
+      .filter((log: any) => typeof log?.text === 'string' && log.type === 'narrative')
       .slice(0, 6)
       .map((log: any) => ({ text: log.text.slice(0, 420), type: log.type }))
     : []
@@ -123,7 +125,7 @@ const SCHEMA_DESCRIPTION = `Return JSON with exactly these keys:
   "episodeTitle": "string — short evocative episode title",
   "episodeRecap": "string — one tight paragraph, max 300 words",
   "stylizedLogs": [
-    { "text": "string — max 420 chars", "type": "narrative" | "confessional" }
+    { "text": "string — max 420 chars", "type": "narrative" }
   ],
   "memoryUpdates": [
     {
@@ -141,7 +143,7 @@ const SCHEMA_DESCRIPTION = `Return JSON with exactly these keys:
 }
 
 Rules:
-- stylizedLogs: 2-5 items max. Confessionals must be first-person from a castaway in the input.
+- stylizedLogs: 2-5 factual narrative observations. Do not write confessionals here.
 - memoryUpdates: only update memories supported by today's facts. Max 12 entries.
 - Do NOT invent eliminations, winners, idol plays, or mechanical effects not in the facts.`
 
@@ -172,6 +174,7 @@ export async function generateAiNarrative(input: NarrativeInput): Promise<AiNarr
         castaways: input.castaways.map(compactCastaway),
         priorMemories: input.memories,
         deterministicLogs: input.logs.map(l => ({ type: l.type, text: l.text })),
+        structuredEvents: input.structuredEvents,
         schema: SCHEMA_DESCRIPTION,
       }),
     },

@@ -115,6 +115,8 @@ export async function GET(request: Request) {
     hunger: c.hunger ?? 80,
     injury: c.injury ?? 0,
     loopCount: c.loop_count ?? 0,
+    challengeWins: c.challenge_wins ?? 0,
+    socialState: c.social_state ?? undefined,
     tribe: c.tribe,
     eliminationDay: c.elimination_day ?? undefined,
   }))
@@ -169,6 +171,7 @@ export async function GET(request: Request) {
     day: nextDay,
     merged: castaways.filter(c => c.status === 'alive').every(c => c.tribe === castaways.find(x => x.status === 'alive')?.tribe),
     mapEvents: mapEventRows.map(e => ({ ev_type: e.ev_type, tile_x: e.tile_x, tile_y: e.tile_y })),
+    seed: (season.seed ?? 1337) + nextDay * 1000003,
   })
 
   const { data: memoryRows } = await supabase
@@ -198,6 +201,7 @@ export async function GET(request: Request) {
     idolPlayed: result.idolPlayed,
     influenceCount: influenceLogs.length,
     challengeName: result.challengeName,
+    structuredEvents: result.events,
   })
 
   // ── Generate confessionals ───────────────────────────────────────────────
@@ -208,11 +212,12 @@ export async function GET(request: Request) {
   ]
   const nameLookupById = Object.fromEntries(rawCastaways.map(c => [c.id, c.name]))
   const confessionalSubjects = selectConfessionalSubjects(
-    rawCastaways.map(c => ({
+    result.castawayUpdates.map(c => ({
       id: c.id, name: c.name, trait: c.trait, archetype: c.archetype,
       condition: c.condition, status: c.status, stats: c.stats,
       relationships: c.relationships ?? {},
-      dossier: c.dossier ?? null,
+      socialState: c.socialState,
+      dossier: rawCastaways.find(row => row.id === c.id)?.dossier ?? null,
     })),
     nameLookupById,
     result.eliminatedId,
@@ -263,11 +268,46 @@ export async function GET(request: Request) {
   ]
   if (logRows.length) await supabase.from('game_log').insert(logRows)
 
+  if (result.events.length) {
+    await supabase.from('simulation_events').upsert(result.events.map(event => ({
+      season_id: season.id, day: nextDay, event_key: event.key, phase: event.phase,
+      type: event.type, actor_ids: event.actorIds, target_ids: event.targetIds,
+      cause: event.cause, visibility: event.visibility, text: event.text,
+      deltas: event.deltas ?? {}, metadata: event.metadata ?? {},
+    })), { onConflict: 'season_id,event_key' })
+  }
+
+  const coalitionGroups = Object.values(result.voteDecisions.reduce<Record<string, typeof result.voteDecisions>>((groups, decision) => {
+    if (!decision.coalitionId) return groups
+    ;(groups[decision.coalitionId] ??= []).push(decision)
+    return groups
+  }, {}))
+  if (coalitionGroups.length) {
+    await supabase.from('social_alliances').upsert(coalitionGroups.map(group => ({
+      season_id: season.id, day: nextDay, alliance_key: group[0].coalitionId,
+      leader_id: group[0].coalitionLeaderId, member_ids: group.map(row => row.voterId),
+      target_id: group[0].targetId,
+      cohesion: Math.round(group.reduce((sum, row) => sum + row.confidence, 0) / group.length),
+      status: 'resolved',
+    })), { onConflict: 'season_id,day,alliance_key' })
+  }
+
   for (const update of aiNarrative.memoryUpdates) {
     await supabase.from('castaway_memories').upsert({
       season_id: season.id,
       castaway_id: update.castawayId,
-      memory: update.memory,
+      memory: (() => {
+        const prior = (memoryRows ?? []).find(row => row.castaway_id === update.castawayId)?.memory as Record<string, unknown> | undefined
+        const mergeList = (key: string) => [...new Set([
+          ...(Array.isArray(prior?.[key]) ? prior[key] as string[] : []),
+          ...(Array.isArray((update.memory as Record<string, unknown>)[key]) ? (update.memory as Record<string, unknown>)[key] as string[] : []),
+        ])].slice(-8)
+        return {
+          ...(prior ?? {}), ...(update.memory ?? {}),
+          grudges: mergeList('grudges'), fears: mergeList('fears'), bonds: mergeList('bonds'),
+          scars: mergeList('scars'), obsessions: mergeList('obsessions'),
+        }
+      })(),
     }, { onConflict: 'season_id,castaway_id' })
   }
 
@@ -279,6 +319,12 @@ export async function GET(request: Request) {
       condition: c.condition,
       idol_count: c.idolCount,
       relationships: c.relationships,
+      social_state: c.socialState,
+      romantic_bonds: c.romanticBonds,
+      hunger: c.hunger ?? 80,
+      injury: c.injury ?? 0,
+      loop_count: c.loopCount ?? 0,
+      challenge_wins: c.challengeWins ?? 0,
       elimination_day: c.eliminationDay ?? null,
     }).eq('id', c.id)
   }
@@ -330,6 +376,9 @@ export async function GET(request: Request) {
       recap: aiNarrative.episodeRecap,
       generated: true,
     } : null,
+    voteDecisions: result.voteDecisions,
+    juryDecisions: result.juryDecisions,
+    structuredEventCount: result.events.length,
   }
 
   await supabase.from('daily_summaries').insert({
