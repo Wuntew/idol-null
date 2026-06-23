@@ -65,7 +65,7 @@ export default async function PreseasonPage() {
             </div>
             <div className="panel p-purple" style={{ padding: 10 }}>
               <div className="c-dim text-[10px]">NEXT STEP</div>
-              <div className="c-dim text-[11px]">Check the main feed or leaderboard while the signal is between seasons.</div>
+              <div className="c-dim text-[11px]">Check the main feed or leaderboard while no season is active.</div>
             </div>
           </div>
         </div>
@@ -82,7 +82,7 @@ export default async function PreseasonPage() {
       <section className="panel p-purple mb-2" style={{ padding: 8 }}>
         <div className="hdr purple flex justify-between items-center">
           <span className="glitchtxt">▚▞ PRESEASON LOBBY — SEASON {season.season_number} ▞▚</span>
-          <span className="c-amber">{daysLeft} days until signal goes live</span>
+          <span className="c-amber">Season begins in {daysLeft} days // signal pending</span>
         </div>
         <div className="grid gap-2 mt-2 md:grid-cols-3">
           <div className="panel p-cyan" style={{ padding: 10 }}>

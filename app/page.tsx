@@ -1,13 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
-import GameFeed from '@/components/GameFeed'
 import CastawayRoster from '@/components/CastawayRoster'
 import InfluencePanel from '@/components/InfluencePanel'
 import PredictionMarket from '@/components/PredictionMarket'
 import DemoModeBanner from '@/components/DemoModeBanner'
-import HowToPlayPanel from '@/components/HowToPlayPanel'
-import CommandCenter from '@/components/CommandCenter'
+import OnboardingChecklist from '@/components/OnboardingChecklist'
+import TodayCommand from '@/components/TodayCommand'
+import ImpactReport from '@/components/ImpactReport'
 import MobileHUD from '@/components/MobileHUD'
-import IslandMap from '@/components/IslandMap'
+import DesktopLiveWorkspace from '@/components/DesktopLiveWorkspace'
 import { SUPABASE_CONFIGURED } from '@/lib/runtime'
 import { getDemoDashboardData } from '@/lib/demo'
 import { isMarketOpen } from '@/lib/markets'
@@ -93,6 +93,37 @@ export default async function HomePage() {
     ? (await supabase.from('predictions').select('market_id, castaway_id, choice_bool, odds, amount').eq('user_id', user.id).in('market_id', markets.map(m => m.id))).data
     : [])
 
+  const pendingInfluence = demo?.pendingInfluence ?? (user && season && supabase
+    ? (await supabase
+      .from('influence_actions')
+      .select('id, type, target_id, target_b_id, cost, status, executed_day, narrative, created_at')
+      .eq('season_id', season.id)
+      .eq('user_id', user.id)
+      .in('status', ['pending', 'executed'])
+      .order('created_at', { ascending: false })
+      .limit(8)).data
+    : [])
+
+  const recentResolvedPredictions = demo?.resolvedPredictions ?? (user && supabase
+    ? (await supabase
+      .from('predictions')
+      .select('market_id, castaway_id, choice_bool, odds, amount, payout, resolved_at, prediction_markets(label, type, day), castaways(name)')
+      .eq('user_id', user.id)
+      .not('resolved_at', 'is', null)
+      .order('resolved_at', { ascending: false })
+      .limit(6)).data
+    : [])
+
+  const revealedInfluence = demo?.revealedInfluence ?? (season && supabase
+    ? (await supabase
+      .from('influence_actions')
+      .select('id, type, target_id, target_b_id, cost, status, executed_day, narrative, created_at')
+      .eq('season_id', season.id)
+      .eq('status', 'revealed')
+      .order('created_at', { ascending: false })
+      .limit(6)).data
+    : [])
+
   const logs = (recentLogs ?? []).slice().reverse()
   const latestSummary = (summaries?.[0] as any) ?? null
   const seasonActive = season?.status === 'active'
@@ -124,6 +155,9 @@ export default async function HomePage() {
       isDemo={isDemo}
       seasonActive={seasonActive}
       userPredictions={(userPredictions ?? []) as any[]}
+      pendingInfluence={(pendingInfluence ?? []) as any[]}
+      recentResolvedPredictions={(recentResolvedPredictions ?? []) as any[]}
+      revealedInfluence={(revealedInfluence ?? []) as any[]}
       latestSummary={latestSummary}
       aliveCount={aliveCount}
       openMarketCount={openMarketCount}
@@ -134,80 +168,32 @@ export default async function HomePage() {
     />
 
     {/* ── DESKTOP GRID (hidden on mobile) ── */}
-    <main className="dashboard-grid grid gap-2 px-1 pt-1 pb-2 mobile-hide">
+    <main className="dashboard-grid mobile-hide">
       {isDemo && <DemoModeBanner />}
-      <CommandCenter
+      <TodayCommand
         season={season}
         aliveCount={aliveCount}
         openMarkets={openMarketCount}
+        markets={openMarketRows as any}
+        castaways={(castaways ?? []) as any}
+        logs={logs as any}
         points={profile?.points ?? null}
         isLoggedIn={!!user}
         isDemo={isDemo}
         latestSummary={latestSummary}
+        userPredictions={(userPredictions ?? []) as any}
+        pendingInfluence={(pendingInfluence ?? []) as any}
       />
-      <HowToPlayPanel isLoggedIn={!!user} isDemo={isDemo} seasonStatus={season?.status ?? null} />
+      <OnboardingChecklist isLoggedIn={!!user} seasonStatus={season?.status ?? null} />
 
-      {/* LEFT — roster (hidden on mobile; accessible via Cast tab) */}
-      <section id="castaway-roster" className="roster-shell mobile-hide">
-        {!season ? (
-          <div className="panel p-cyan" style={{ padding: 8 }}>
-            <div className="hdr cyan flex justify-between">
-              <span>▣ CASTAWAY ROSTER</span>
-              <span className="c-white">0 alive</span>
+      <div className="command-board">
+        <aside className="decision-rail" aria-label="Player decisions">
+          <div id="market-book" className="ds-surface markets-panel">
+            <div className="section-header section-header-amber">
+              <div><span className="section-header-title">PREDICTION MARKETS</span><span className="section-header-subtitle">// open decisions</span></div>
+              <span className="status-chip status-chip-amber">{openMarketCount} OPEN</span>
             </div>
-            <div className="c-dim p-2">// no active season. check back soon.</div>
-          </div>
-        ) : (
-          <CastawayRoster
-            castaways={(castaways ?? []) as any}
-            nameLookup={nameLookup}
-            seasonLabel={`Season ${season.season_number} · Day ${season.current_day}`}
-            memories={memoryLookup}
-          />
-        )}
-      </section>
-
-      {/* CENTER — island map + live feed stacked */}
-      <section id="live-feed" className="feed-shell" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <IslandMap
-          castaways={(castaways ?? []).map((c: any) => ({ id: c.id, name: c.name, status: c.status, tribe_id: c.tribe_id }))}
-          seasonSeed={season?.seed ?? 1337}
-          challenges={challenges as { label: string; x: number; y: number; sort_order: number }[]}
-          currentDay={season?.current_day ?? 0}
-          tribes={tribes as any[]}
-          tribeResources={tribeResources as any[]}
-        />
-        <div className="panel" style={{ display: 'flex', flexDirection: 'column' }}>
-          <div className="hdr flex justify-between items-center">
-            <span>▶ LIVE FEED // confessional log</span>
-            {season && (
-              <span className="c-dim text-[11px]">
-                S{season.season_number} · DAY {season.current_day}
-              </span>
-            )}
-          </div>
-          <GameFeed
-            initialLogs={logs}
-            seasonId={season?.id ?? null}
-          />
-        </div>
-      </section>
-
-      {/* RIGHT — influence + markets (hidden on mobile; accessible via Bet/Noise tabs) */}
-      <section className="markets-shell mobile-hide" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <div id="influence-panel">
-          <InfluencePanel
-            castaways={castaways ?? []}
-            userPoints={profile?.points ?? 0}
-            isLoggedIn={!!user}
-            seasonActive={seasonActive}
-            isDemo={isDemo}
-          />
-        </div>
-
-        <div id="market-book" className="panel p-amber markets-panel" style={{ display: 'flex', flexDirection: 'column' }}>
-          <div className="hdr amber">◈ PREDICTION MARKETS</div>
-          <div className="scroll p-2" style={{ maxHeight: '78vh' }}>
+            <div className="scroll decision-scroll">
             {!user && (
               <div className="c-dim text-[11px] p-1">
                 {isDemo ? 'Predictions are disabled in offline preview.' : <><a href="/login" className="c-amber underline">Sign in</a> to place predictions.</>}
@@ -235,38 +221,58 @@ export default async function HomePage() {
                 ))}
               </div>
             )})}
+            </div>
           </div>
+
+          <div id="influence-panel">
+            <InfluencePanel
+              castaways={castaways ?? []}
+              userPoints={profile?.points ?? 0}
+              isLoggedIn={!!user}
+              seasonActive={seasonActive}
+              isDemo={isDemo}
+              pendingActions={pendingInfluence ?? []}
+            />
+          </div>
+        </aside>
+
+        <div id="live-feed" className="feed-shell">
+          <DesktopLiveWorkspace
+            logs={logs}
+            season={season}
+            castaways={(castaways ?? []) as any[]}
+            seasonSeed={season?.seed ?? 1337}
+            challenges={challenges as { label: string; x: number; y: number; sort_order: number }[]}
+            tribes={tribes as any[]}
+            tribeResources={tribeResources as any[]}
+          />
         </div>
 
-        {latestSummary?.summary_data && (
-          <div id="day-archive" className="archive-card panel p-purple" style={{ padding: 8 }}>
-            <div className="hdr purple" style={{ margin: '-8px -8px 8px', borderBottom: '3px double var(--purple)' }}>
-              DAY {latestSummary.day} // ARCHIVE
-            </div>
-            {latestSummary.summary_data.aiNarrative && (
-              <div className="panel p-cyan mb-2" style={{ padding: 8, borderWidth: 2 }}>
-                <div className="c-cyan text-[11px] tracking-wider">
-                  {latestSummary.summary_data.aiNarrative.title ?? 'SIGNAL NARRATIVE'}
-                </div>
-                <div className="c-dim text-[10px] mt-1">
-                  {latestSummary.summary_data.aiNarrative.recap}
-                </div>
+        <aside className="intel-rail" aria-label="Cast and outcome intelligence">
+          <ImpactReport
+            latestSummary={latestSummary}
+            castaways={(castaways ?? []) as any}
+            resolvedPredictions={(recentResolvedPredictions ?? []) as any}
+            revealedInfluence={(revealedInfluence ?? []) as any}
+          />
+
+          <section id="castaway-roster" className="roster-shell intel-roster">
+            {!season ? (
+              <div className="ds-surface">
+                <div className="section-header"><span className="section-header-title">CAST INTELLIGENCE</span></div>
+                <div className="c-dim p-2">// no active season. check back soon.</div>
               </div>
+            ) : (
+              <CastawayRoster
+                castaways={(castaways ?? []) as any}
+                nameLookup={nameLookup}
+                seasonLabel={`Season ${season.season_number} · Day ${season.current_day}`}
+                memories={memoryLookup}
+              />
             )}
-            <div className="c-dim text-[10px]">
-              {latestSummary.summary_data.seasonOver
-                ? `Season ended. Winner: ${latestSummary.summary_data.winnerName ?? 'unknown'}.`
-                : `Eliminated: ${latestSummary.summary_data.eliminatedName ?? 'none'}.`}
-            </div>
-            <div className="flex flex-wrap gap-2 mt-2 text-[10px]">
-              <span className="tag c-cyan">events {latestSummary.summary_data.events}</span>
-              <span className="tag c-amber">alive {latestSummary.summary_data.aliveCount}</span>
-              <span className="tag c-purple">anomaly {latestSummary.summary_data.anomalyFired ? 'YES' : 'NO'}</span>
-              <span className="tag c-yellow">idol {latestSummary.summary_data.idolPlayed ? 'YES' : 'NO'}</span>
-            </div>
-          </div>
-        )}
-      </section>
+          </section>
+        </aside>
+      </div>
     </main>
     </>
   )

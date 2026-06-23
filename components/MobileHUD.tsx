@@ -1,13 +1,25 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import GameFeed from './GameFeed'
 import IslandMap from './IslandMap'
 import type { Tribe, TribeResources } from './IslandMap'
 import MapOverlay from './MapOverlay'
 import { isBinaryMarket, isCastawayMarket, isMarketOpen, marketTypeLabel } from '@/lib/markets'
+import TodayCommand from './TodayCommand'
+import ImpactReport from './ImpactReport'
+import {
+  INFLUENCE_ACTIONS,
+  castawayBootRisk,
+  marketCloseContext,
+  previewOddsForMarket,
+  type InfluenceActionType,
+} from '@/lib/game-ui'
+import { useGamePreferences } from '@/lib/use-game-preferences'
+import StatusToast from './StatusToast'
+import { trackGameEvent } from '@/lib/telemetry'
 
-type Tab = 'feed' | 'cast' | 'bet' | 'noise' | 'more'
+type Tab = 'today' | 'feed' | 'cast' | 'bet' | 'influence'
 
 interface Props {
   logs: any[]
@@ -20,6 +32,9 @@ interface Props {
   isDemo: boolean
   seasonActive: boolean
   userPredictions: any[]
+  pendingInfluence?: any[]
+  recentResolvedPredictions?: any[]
+  revealedInfluence?: any[]
   latestSummary: any
   aliveCount: number
   openMarketCount: number
@@ -30,24 +45,32 @@ interface Props {
 }
 
 const TABS: { id: Tab; ico: string; label: string }[] = [
+  { id: 'today', ico: '▤', label: 'TODAY' },
   { id: 'feed',  ico: '▶', label: 'FEED'  },
   { id: 'cast',  ico: '▣', label: 'CAST'  },
-  { id: 'bet',   ico: '◈', label: 'BET'   },
-  { id: 'noise', ico: '⛧', label: 'NOISE' },
-  { id: 'more',  ico: '≡', label: 'MORE'  },
+  { id: 'bet',   ico: '◈', label: 'MARKETS' },
+  { id: 'influence', ico: '⛧', label: 'INFLUENCE' },
 ]
 
 export default function MobileHUD({
   logs, castaways, markets, groupedMarkets,
   season, profile, user, isDemo, seasonActive,
-  userPredictions, latestSummary, aliveCount, openMarketCount,
+  userPredictions, pendingInfluence = [], recentResolvedPredictions = [], revealedInfluence = [],
+  latestSummary, aliveCount, openMarketCount,
   seasonSeed = 1337, challenges = [], tribes = [], tribeResources = [],
 }: Props) {
-  const [tab, setTab] = useState<Tab>('feed')
+  const [tab, setTab] = useState<Tab>('today')
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
   const [mapOpen, setMapOpen] = useState(false)
   const [dossier, setDossier] = useState<any>(null)
   const [dossierList, setDossierList] = useState<any[]>([])
   const [archive, setArchive] = useState<{ season: any; castaways: any[]; tribes: any[]; logs: any[]; resources: any[]; challenges: any[]; mapEvents: any[] } | null>(null)
+  const { preferences, updatePreferences, markOnboardingStep } = useGamePreferences()
+
+  useEffect(() => {
+    setTab(preferences.mobileTab)
+  }, [preferences.mobileTab])
 
   const tribeColor: Record<number, string> = Object.fromEntries(
     (tribes ?? []).map((t: any) => [t.id, t.color ?? 'var(--cyan)'])
@@ -56,6 +79,16 @@ export default function MobileHUD({
   function openDossier(c: any, list?: any[]) {
     setDossier(c)
     setDossierList(list ?? castaways ?? [])
+    updatePreferences({ selectedCastawayId: c.id })
+    markOnboardingStep('dossier')
+    trackGameEvent('castaway_dossier_opened', { source: tab })
+  }
+
+  function chooseTab(next: Tab) {
+    setTab(next)
+    updatePreferences({ mobileTab: next })
+    if (next === 'bet') markOnboardingStep('market')
+    if (next === 'influence') markOnboardingStep('influence')
   }
 
   async function openArchive(seasonId: number) {
@@ -63,7 +96,22 @@ export default function MobileHUD({
     if (data) setArchive(data)
   }
 
-  const statusLabel = season?.status ? String(season.status).toUpperCase() : 'NO SIGNAL'
+  function closeMenu() {
+    setMenuOpen(false)
+    requestAnimationFrame(() => menuButtonRef.current?.focus())
+  }
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMenuOpen(false)
+        requestAnimationFrame(() => menuButtonRef.current?.focus())
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [menuOpen])
 
   return (
     <main className={`mobile-hud mobile-hud-${tab}`} aria-label="Idol.Null mobile game HUD">
@@ -114,56 +162,35 @@ export default function MobileHUD({
               <span className="hud-status-k">PTS</span>
               <span className="hud-status-v c-yellow">{profile?.points ?? 0}</span>
             </div>
-            <div className="hud-status-wide">
-              <span className="hud-status-k">STATUS</span>
-              <span className={`hud-status-v ${season?.status === 'active' ? 'c-green' : season?.status === 'preseason' ? 'c-amber' : 'c-dim'}`}>{statusLabel}</span>
-            </div>
+            <button ref={menuButtonRef} type="button" className="hud-menu-trigger" onClick={() => setMenuOpen(true)} aria-label="Open archive, account, and more options">
+              <span aria-hidden="true">≡</span>
+              <span>MENU</span>
+            </button>
           </section>
 
-          {/* ── TOP zone — Island Map + Live Feed ── */}
-          <div className="hud-zone hud-feed panel" style={{
-            display: 'flex', flexDirection: 'column',
-            borderTopWidth: 3,
-            borderTopColor: season?.status === 'active' ? 'var(--green)' : season?.status === 'preseason' ? 'var(--amber)' : '#1a2a1a',
-          }}>
-            <div
-              onClick={() => setMapOpen(true)}
-              onKeyDown={event => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  setMapOpen(true)
-                }
-              }}
-              role="button"
-              tabIndex={0}
-              aria-label="Open full island map"
-              style={{ cursor: 'pointer', flexShrink: 0, position: 'relative' }}
-              title="Tap to open full map"
-            >
-              <IslandMap
-                castaways={(castaways ?? []).map((c: any) => ({ id: c.id, name: c.name, status: c.status, tribe_id: c.tribe_id }))}
-                seasonSeed={seasonSeed}
-                challenges={challenges}
-                currentDay={season?.current_day ?? 0}
-                tribes={tribes}
-                tribeResources={tribeResources}
-                compact
-              />
-              <div className="hud-map-chip">TAP MAP</div>
-            </div>
-            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <GameFeed initialLogs={logs} seasonId={season?.id ?? null} />
-            </div>
+          {/* ── One task surface at a time ── */}
+          <div className="hud-zone hud-panel panel">
+            {tab === 'today' && <TodayPanel season={season} aliveCount={aliveCount} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} latestSummary={latestSummary} logs={logs} castaways={castaways} groupedMarkets={groupedMarkets} userPredictions={userPredictions} pendingInfluence={pendingInfluence} recentResolvedPredictions={recentResolvedPredictions} revealedInfluence={revealedInfluence} onNavigate={(target: string) => chooseTab(target === 'markets' ? 'bet' : target === 'influence' ? 'influence' : 'feed')} />}
+            {tab === 'feed'  && <FeedPanel logs={logs} season={season} castaways={castaways} onOpenMap={() => setMapOpen(true)} onOpenDossier={openDossier} />}
+            {tab === 'cast'  && <CastPanel  castaways={castaways} tribes={tribes} onOpenDossier={openDossier} season={season} />}
+            {tab === 'bet'   && <BetPanel groupedMarkets={groupedMarkets} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} castaways={castaways} userPredictions={userPredictions} onOpenDossier={openDossier} />}
+            {tab === 'influence' && <MobileInfluencePanel castaways={castaways} profile={profile} user={user} seasonActive={seasonActive} isDemo={isDemo} pendingActions={pendingInfluence} />}
           </div>
 
-          {/* ── BOTTOM — Tab Panel ── */}
-          <div className="hud-zone hud-panel panel">
-            {tab === 'feed'  && <FeedPanel  season={season} aliveCount={aliveCount} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} latestSummary={latestSummary} />}
-            {tab === 'cast'  && <CastPanel  castaways={castaways} tribes={tribes} onOpenDossier={openDossier} season={season} />}
-            {tab === 'bet'   && <BetPanel   groupedMarkets={groupedMarkets} openMarketCount={openMarketCount} profile={profile} user={user} isDemo={isDemo} castaways={castaways} userPredictions={userPredictions} />}
-            {tab === 'noise' && <NoisePanel castaways={castaways} profile={profile} user={user} seasonActive={seasonActive} isDemo={isDemo} />}
-            {tab === 'more'  && <MorePanel  season={season} aliveCount={aliveCount} profile={profile} user={user} isDemo={isDemo} onOpenArchive={openArchive} onSwitchTab={setTab} />}
-          </div>
+          {menuOpen && (
+            <div className="hud-menu-sheet" role="dialog" aria-modal="true" aria-label="More options">
+              <button type="button" className="hud-menu-close" onClick={closeMenu} aria-label="Close menu" autoFocus>×</button>
+              <MorePanel
+                season={season}
+                aliveCount={aliveCount}
+                profile={profile}
+                user={user}
+                isDemo={isDemo}
+                onOpenArchive={(id: number) => { setMenuOpen(false); openArchive(id) }}
+                onSwitchTab={(next: Tab) => { setMenuOpen(false); chooseTab(next) }}
+              />
+            </div>
+          )}
         </>
       )}
 
@@ -173,7 +200,7 @@ export default function MobileHUD({
           <button
             key={t.id}
             className={`hud-tab${tab === t.id ? ' active' : ''}`}
-            onClick={() => { setTab(t.id); setDossier(null); setArchive(null) }}
+            onClick={() => { chooseTab(t.id); setMenuOpen(false); setDossier(null); setArchive(null) }}
             aria-pressed={tab === t.id}
           >
             <span className="hud-tab-ico" aria-hidden="true">{t.ico}</span>
@@ -187,48 +214,64 @@ export default function MobileHUD({
 }
 
 /* ─────────────────────────────────────────────
-   FEED TAB — season status + last narrative
+   FEED TAB — full-height activity stream
 ───────────────────────────────────────────── */
-function FeedPanel({ season, aliveCount, openMarketCount, profile, user, isDemo, latestSummary }: any) {
+function FeedPanel({ logs, season, castaways, onOpenMap, onOpenDossier }: { logs: any[]; season: any; castaways: any[]; onOpenMap: () => void; onOpenDossier: (castaway: any) => void }) {
   return (
     <div className="hud-panel-inner">
       <div className="hdr hud-hdr">
-        <span>◉ SIGNAL STATUS</span>
+        <span>▶ LIVE FEED // incoming signal</span>
+        <button type="button" className="hud-header-action" onClick={onOpenMap} aria-label="Open island map">
+          ◈ MAP
+        </button>
       </div>
-      <div className="hud-panel-body">
-        {/* AI Narrative — top position */}
-        {latestSummary?.summary_data?.aiNarrative && (
-          <div className="panel" style={{ margin: '8px 8px 0', padding: '10px 10px', borderColor: 'var(--cyan)', borderWidth: 1, borderStyle: 'solid' }}>
-            <div style={{ color: 'var(--cyan)', fontSize: 13, letterSpacing: '.1em', fontWeight: 'bold', marginBottom: 6 }}>
-              {latestSummary.summary_data.aiNarrative.title ?? '◉ SIGNAL NARRATIVE'}
-            </div>
-            <div className="c-white" style={{ fontSize: 13, lineHeight: 1.65 }}>
-              {latestSummary.summary_data.aiNarrative.recap}
-            </div>
-          </div>
-        )}
+      <div className="hud-feed-content">
+        <GameFeed
+          initialLogs={logs}
+          seasonId={season?.id ?? null}
+          castaways={castaways}
+          onOpenCastaway={ref => {
+            const castaway = castaways.find(c => c.id === ref.id)
+            if (castaway) onOpenDossier(castaway)
+          }}
+        />
+      </div>
+    </div>
+  )
+}
 
-        {/* 2 × 2 stat grid */}
-        <div className="hud-stat-grid">
-          <div className="panel p-cyan hud-stat">
-            <div className="c-dim hud-stat-lbl">ALIVE</div>
-            <div className="c-cyan hud-stat-val">{aliveCount}</div>
-          </div>
-          <div className="panel p-amber hud-stat">
-            <div className="c-dim hud-stat-lbl">MARKETS</div>
-            <div className="c-amber hud-stat-val">{openMarketCount}</div>
-          </div>
-          <div className="panel hud-stat">
-            <div className="c-dim hud-stat-lbl">DAY</div>
-            <div className="c-green hud-stat-val">{season?.current_day ?? '—'}</div>
-          </div>
-          <div className="panel p-yellow hud-stat">
-            <div className="c-dim hud-stat-lbl">POINTS</div>
-            <div className="c-yellow hud-stat-val">{profile?.points ?? 0}</div>
-          </div>
-        </div>
-
-
+function TodayPanel({ season, aliveCount, openMarketCount, profile, user, isDemo, latestSummary, logs, castaways, groupedMarkets, userPredictions, pendingInfluence, recentResolvedPredictions, revealedInfluence, onNavigate }: any) {
+  const markets = Object.values(groupedMarkets ?? {}).flat() as any[]
+  return (
+    <div className="hud-panel-inner">
+      <div className="hdr hud-hdr">
+        <span>▤ TODAY COMMAND</span>
+        <span className="c-dim" style={{ fontSize: 13, fontWeight: 'normal' }}>decision surface</span>
+      </div>
+      <div className="hud-panel-body today-panel-body">
+        <TodayCommand
+          season={season}
+          points={profile?.points ?? null}
+          aliveCount={aliveCount}
+          openMarkets={openMarketCount}
+          markets={markets}
+          castaways={castaways ?? []}
+          logs={logs ?? []}
+          latestSummary={latestSummary}
+          userPredictions={userPredictions ?? []}
+          pendingInfluence={pendingInfluence ?? []}
+          isLoggedIn={!!user}
+          isDemo={isDemo}
+          compact
+          onNavigate={onNavigate}
+        />
+        <ImpactReport
+          latestSummary={latestSummary}
+          castaways={castaways ?? []}
+          resolvedPredictions={recentResolvedPredictions ?? []}
+          revealedInfluence={revealedInfluence ?? []}
+          compact
+        />
       </div>
     </div>
   )
@@ -248,7 +291,7 @@ function castThreat(c: any) {
   if (s >= 76) return { label: 'Finalist', cls: 'c-yellow' }
   if (s >= 62) return { label: 'Dangerous', cls: 'c-amber' }
   if (s >= 48) return { label: 'Unstable', cls: 'c-purple' }
-  return { label: 'Low signal', cls: 'c-dim' }
+  return { label: 'Low threat', cls: 'c-dim' }
 }
 function castBoot(c: any) {
   if (c.status !== 'alive') return { label: 'Out', cls: 'c-dim' }
@@ -265,7 +308,7 @@ function castWinner(c: any) {
   return { label: 'Long shot', cls: 'c-dim' }
 }
 
-function CastCard({ c, tribeColor, onSelect, season }: { c: any; tribeColor: Record<number,string>; onSelect: (c: any) => void; season?: any }) {
+function CastCard({ c, tribeColor, onSelect, season, favorite, onToggleFavorite }: { c: any; tribeColor: Record<number,string>; onSelect: (c: any) => void; season?: any; favorite: boolean; onToggleFavorite: () => void }) {
   const isAlive = c.status === 'alive'
   const isGhost = c.status === 'ghost'
   const isConsumed = c.status === 'consumed'
@@ -282,48 +325,69 @@ function CastCard({ c, tribeColor, onSelect, season }: { c: any; tribeColor: Rec
     : undefined
   const nameColor = isAlive ? (isAwakened ? 'var(--yellow)' : 'var(--green)') : isGhost ? 'var(--purple)' : '#3a2a2a'
   return (
-    <button
-      onClick={() => onSelect(c)}
-      aria-label={`Open ${c.name} profile`}
-      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', width: '100%', minWidth: 0 }}
-    >
-      <div
-        className="hud-cast-card panel"
-        style={{ borderColor: cardBorder, opacity: cardOpacity }}
+    <div className="hud-cast-card-wrap">
+      <button
+        onClick={() => onSelect(c)}
+        aria-label={`Open ${c.name} profile`}
+        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', width: '100%', minWidth: 0 }}
       >
-        {c.portrait_file ? (
-          <img src={`/portraits/${c.portrait_file}`} alt={c.name} className="hud-cast-portrait"
-            style={{ borderColor: portraitBorder, filter: imgFilter }} />
-        ) : (
-          <div className="hud-cast-portrait" style={{ borderColor: portraitBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold', color: portraitBorder }}>
-            {c.name[0]}
+        <div className="hud-cast-card panel" style={{ borderColor: cardBorder, opacity: cardOpacity }}>
+          {c.portrait_file ? (
+            <img src={`/portraits/${c.portrait_file}`} alt={c.name} className="hud-cast-portrait"
+              style={{ borderColor: portraitBorder, filter: imgFilter }} />
+          ) : (
+            <div className="hud-cast-portrait" style={{ borderColor: portraitBorder, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 'bold', color: portraitBorder }}>
+              {c.name[0]}
+            </div>
+          )}
+          <div className="hud-cast-name" style={{ color: nameColor }}>
+            {c.name}
           </div>
-        )}
-        <div className="hud-cast-name" style={{ color: nameColor }}>
-          {c.name}
+          {isAwakened && <div style={{ fontSize: 11, color: 'var(--yellow)', textAlign: 'center', letterSpacing: '.06em' }}>⚡ AWAKE</div>}
+          {isConsumed && <div style={{ fontSize: 11, color: 'var(--red)', textAlign: 'center', letterSpacing: '.05em' }}>CONSUMED</div>}
+          {isRunnerUp && <div style={{ fontSize: 11, color: 'var(--amber)', textAlign: 'center', letterSpacing: '.05em' }}>RUNNER-UP</div>}
         </div>
-        {isAwakened && <div style={{ fontSize: 11, color: 'var(--yellow)', textAlign: 'center', letterSpacing: '.06em' }}>⚡ AWAKE</div>}
-        {isConsumed && <div style={{ fontSize: 11, color: 'var(--red)', textAlign: 'center', letterSpacing: '.05em' }}>CONSUMED</div>}
-        {isRunnerUp && <div style={{ fontSize: 11, color: 'var(--amber)', textAlign: 'center', letterSpacing: '.05em' }}>RUNNER-UP</div>}
-      </div>
-    </button>
+      </button>
+      <button type="button" className={`favorite-button hud-favorite${favorite ? ' active' : ''}`} onClick={onToggleFavorite} aria-label={favorite ? `Unpin ${c.name}` : `Pin ${c.name}`}>★</button>
+    </div>
   )
 }
 
 function CastPanel({ castaways, tribes, onOpenDossier, season }: any) {
   const all = castaways ?? []
   const alive = all.filter((c: any) => c.status === 'alive').length
+  const { preferences, updatePreferences, toggleFavorite, markOnboardingStep } = useGamePreferences()
   const tribeList: any[] = tribes ?? []
   const tribeColor: Record<number, string> = Object.fromEntries(
     tribeList.map((t: any) => [t.id, t.color ?? 'var(--cyan)'])
   )
 
+  const visibleCastaways = [...all].filter((c: any) => {
+    if (preferences.castFilter === 'all') return true
+    if (preferences.castFilter === 'alive') return c.status === 'alive'
+    if (preferences.castFilter === 'ghost') return c.status === 'ghost'
+    return c.status !== 'alive' && c.status !== 'ghost'
+  }).sort((a: any, b: any) => {
+    if (preferences.castSort === 'tribe') return (a.tribe_id ?? a.tribe ?? 0) - (b.tribe_id ?? b.tribe ?? 0)
+    const threat = (c: any) => castStat(c,'gaslighting')*.22 + castStat(c,'likeability')*.2 + castStat(c,'physical')*.18 + castStat(c,'moxie')*.22 + castStat(c,'paranoia')*.18 + c.idol_count*8
+    const boot = (c: any) => castStat(c,'paranoia')*.38 + (100-castStat(c,'likeability'))*.28 + (100-castStat(c,'moxie'))*.18 - c.idol_count*10
+    const winner = (c: any) => castStat(c,'likeability')*.32 + castStat(c,'moxie')*.28 + castStat(c,'gaslighting')*.18 + castStat(c,'physical')*.12 - castStat(c,'paranoia')*.18 + c.idol_count*8
+    if (preferences.castSort === 'winner') return winner(b) - winner(a)
+    if (preferences.castSort === 'threat') return threat(b) - threat(a)
+    return boot(b) - boot(a)
+  })
+
   const tribeGroups: { tribe: any; members: any[] }[] = tribeList.map(t => ({
     tribe: t,
-    members: all.filter((c: any) => c.tribe_id === t.id),
+    members: visibleCastaways.filter((c: any) => c.tribe_id === t.id),
   })).filter(g => g.members.length > 0)
 
-  const ungrouped = all.filter((c: any) => !tribeList.find((t: any) => t.id === c.tribe_id))
+  const ungrouped = visibleCastaways.filter((c: any) => !tribeList.find((t: any) => t.id === c.tribe_id))
+
+  function inspect(c: any) {
+    markOnboardingStep('dossier')
+    onOpenDossier(c)
+  }
 
   return (
     <div className="hud-panel-inner">
@@ -332,6 +396,16 @@ function CastPanel({ castaways, tribes, onOpenDossier, season }: any) {
         <span className="c-dim" style={{ fontSize: 13, fontWeight: 'normal' }}>{alive} alive</span>
       </div>
       <div className="hud-panel-body" style={{ padding: 0 }}>
+        <div className="cast-toolbar mobile-cast-toolbar">
+          <div className="segmented-control" aria-label="Cast status filter">
+            {(['alive', 'ghost', 'out', 'all'] as const).map(filter => (
+              <button key={filter} type="button" className={preferences.castFilter === filter ? 'active' : ''} onClick={() => updatePreferences({ castFilter: filter })}>{filter.toUpperCase()}</button>
+            ))}
+          </div>
+          <select value={preferences.castSort} onChange={event => updatePreferences({ castSort: event.target.value as any })} aria-label="Sort castaways">
+            <option value="boot">Boot risk</option><option value="winner">Winner upside</option><option value="threat">Threat</option><option value="tribe">Tribe</option>
+          </select>
+        </div>
         <div className="hud-cast-tribes">
           {tribeGroups.map(({ tribe, members }) => (
             <div key={tribe.id} className="hud-tribe-box" style={{ borderColor: tribe.color ?? 'var(--cyan)' }}>
@@ -340,7 +414,7 @@ function CastPanel({ castaways, tribes, onOpenDossier, season }: any) {
               </div>
               <div className="hud-cast-grid">
                 {members.map((c: any) => (
-                  <CastCard key={c.id} c={c} tribeColor={tribeColor} onSelect={onOpenDossier} season={season} />
+                  <CastCard key={c.id} c={c} tribeColor={tribeColor} onSelect={inspect} season={season} favorite={preferences.favoriteCastawayIds.includes(c.id)} onToggleFavorite={() => toggleFavorite(c.id)} />
                 ))}
               </div>
             </div>
@@ -350,7 +424,7 @@ function CastPanel({ castaways, tribes, onOpenDossier, season }: any) {
               <div className="hud-tribe-name" style={{ color: 'var(--dim)', borderBottom: '1px solid var(--dim)' }}>JURY / OUT</div>
               <div className="hud-cast-grid">
                 {ungrouped.map((c: any) => (
-                  <CastCard key={c.id} c={c} tribeColor={tribeColor} onSelect={onOpenDossier} season={season} />
+                  <CastCard key={c.id} c={c} tribeColor={tribeColor} onSelect={inspect} season={season} favorite={preferences.favoriteCastawayIds.includes(c.id)} onToggleFavorite={() => toggleFavorite(c.id)} />
                 ))}
               </div>
             </div>
@@ -640,7 +714,7 @@ function FullDossier({ castaway: c, tribeColor, onBack, castaways, onNavigate }:
 /* ─────────────────────────────────────────────
    BET TAB — markets summary + link
 ───────────────────────────────────────────── */
-function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, castaways, userPredictions }: any) {
+function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, castaways, userPredictions, onOpenDossier }: any) {
   const groups = Object.entries(groupedMarkets ?? {}) as [string, any[]][]
   const alive = (castaways ?? []).filter((c: any) => c.status === 'alive')
   const [expandedId, setExpandedId] = useState<number | null>(null)
@@ -649,18 +723,47 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, cast
   const [betBool, setBetBool] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [betResults, setBetResults] = useState<Record<number, 'ok' | 'err'>>({})
+  const [betReceipt, setBetReceipt] = useState<Record<number, string>>({})
+  const [toast, setToast] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
+  const [currentPoints, setCurrentPoints] = useState<number>(profile?.points ?? 0)
+  const { preferences, markOnboardingStep } = useGamePreferences()
+
+  const activeMarket = groups.flatMap(([, markets]) => markets).find(market => market.id === expandedId)
+  const activeUsesBinary = activeMarket ? isBinaryMarket(activeMarket.type) : false
+  const activeSelection = activeMarket
+    ? activeUsesBinary ? betBool : betTarget ? parseInt(betTarget, 10) : null
+    : null
+  const activePreviewOdds = activeMarket ? previewOddsForMarket(activeMarket, alive, activeSelection) : null
+  const activeAmount = parseInt(betAmt, 10) || 0
+  const activePotential = activePreviewOdds ? Math.round(activeAmount * activePreviewOdds) : null
 
   async function submitBet(m: any) {
     if (submitting) return
     const amt = parseInt(betAmt, 10)
     if (!amt || amt < 1) return
+    if (!user || isDemo) {
+      setToast({ tone: 'error', message: 'Sign in to lock this prediction.' })
+      return
+    }
     setSubmitting(true)
+    trackGameEvent('prediction_submit_started', { marketType: m.type, amount: amt, surface: 'mobile' })
     const body: any = { market_id: m.id, amount: amt }
     if (isBinaryMarket(m.type)) body.choice_bool = betBool
     else { body.castaway_id = parseInt(betTarget, 10); if (!body.castaway_id) { setSubmitting(false); return } }
     const res = await fetch('/api/predictions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const data = await res.json().catch(() => null)
     setBetResults(prev => ({ ...prev, [m.id]: res.ok ? 'ok' : 'err' }))
-    if (res.ok) setExpandedId(null)
+    if (res.ok) {
+      setBetReceipt(prev => ({ ...prev, [m.id]: `Locked @ x${Number(data?.odds ?? 0).toFixed(1)} · potential ${data?.potential ?? 0} pts` }))
+      setCurrentPoints(points => Math.max(0, points - amt))
+      setToast({ tone: 'success', message: `Prediction locked. ${Math.max(0, currentPoints - amt)} points remain.` })
+      markOnboardingStep('market')
+      trackGameEvent('prediction_locked', { marketType: m.type, amount: amt, surface: 'mobile' })
+      setExpandedId(null)
+    } else {
+      setToast({ tone: 'error', message: data?.error ?? 'Prediction failed.' })
+      trackGameEvent('prediction_submit_failed', { marketType: m.type, reason: res.status, surface: 'mobile' })
+    }
     setSubmitting(false)
   }
 
@@ -669,7 +772,7 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, cast
       <div className="hdr hud-hdr">
         <span>◈ MARKETS</span>
         <span className="c-dim" style={{ fontSize: 13, fontWeight: 'normal' }}>
-          {openMarketCount} open&nbsp;·&nbsp;<span className="c-yellow">{profile?.points ?? 0}pts</span>
+          {openMarketCount} open&nbsp;·&nbsp;<span className="c-yellow">{currentPoints}pts</span>
         </span>
       </div>
       <div className="hud-panel-body" style={{ padding: 0 }}>
@@ -678,7 +781,7 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, cast
         )}
         {(isDemo || !user) && openMarketCount > 0 && (
           <div style={{ padding: '5px 10px', background: '#0a1a0a', borderBottom: '1px solid #1a2a1a' }}>
-            <span className="c-amber" style={{ fontSize: 12 }}>Sign in to place bets.</span>
+            <span className="c-amber" style={{ fontSize: 12 }}>Inspect every market. Sign in only when you are ready to lock a prediction.</span>
           </div>
         )}
         {groups.map(([group, ms]) => (
@@ -689,24 +792,32 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, cast
               const expanded = expandedId === m.id
               const result = betResults[m.id]
               const userPick = (userPredictions ?? []).find((p: any) => p.market_id === m.id)
-              const canBet = isOpen && !!user && !isDemo && !userPick
+              const canInspect = isOpen && !userPick
               const usesBinaryChoice = isBinaryMarket(m.type)
               const usesCastawayChoice = isCastawayMarket(m.type)
+              const selected = usesBinaryChoice ? betBool : betTarget ? parseInt(betTarget, 10) : null
+              const previewOdds = expanded ? previewOddsForMarket(m, alive, selected) : null
+              const amount = parseInt(betAmt, 10) || 0
+              const previewPotential = previewOdds ? Math.round(amount * previewOdds) : null
+              const riskBoard = usesCastawayChoice
+                ? alive.map((c: any) => ({ id: c.id, name: c.name, risk: Math.round(castawayBootRisk(c)) })).sort((a: any, b: any) => b.risk - a.risk).slice(0, 3)
+                : []
               return (
                 <div key={m.id} style={{ borderBottom: '1px solid #0a1a0a' }}>
-                  <button type="button" className="hud-mkt-row" disabled={!canBet}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: canBet ? 'pointer' : 'default',
+                  <button type="button" className="hud-mkt-row" disabled={!canInspect}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: canInspect ? 'pointer' : 'default',
                       width: '100%', background: 'none', border: 'none', color: 'inherit', textAlign: 'left', fontFamily: 'monospace' }}
-                    onClick={() => { if (!canBet) return; setExpandedId(expanded ? null : m.id); setBetTarget(''); setBetBool(true) }}>
+                    onClick={() => { if (!canInspect) return; setExpandedId(expanded ? null : m.id); setBetTarget(''); setBetBool(true); markOnboardingStep('market'); trackGameEvent('market_viewed', { marketType: m.type, surface: 'mobile' }) }}>
                     <span className="hud-mkt-label" style={{ flex: 1 }}>{m.label}</span>
                     <span className={`tag hud-mkt-type ${usesBinaryChoice ? 'c-cyan' : 'c-amber'}`} style={{ fontSize: 11 }}>
                       {marketTypeLabel(m.type)}
                     </span>
+                    <span className="c-dim" style={{ fontSize: 11 }}>{marketCloseContext(m)}</span>
                     {userPick && <span className="c-green" style={{ fontSize: 12 }}>LOCKED</span>}
                     {!isOpen && !userPick && <span className="c-dim" style={{ fontSize: 12 }}>CLOSED</span>}
                     {result === 'ok' && <span className="c-green" style={{ fontSize: 12 }}>✓</span>}
                     {result === 'err' && <span className="c-red" style={{ fontSize: 12 }}>✗</span>}
-                    {canBet && !result && <span style={{ color: 'var(--cyan)', fontSize: 13 }}>{expanded ? '▲' : '▼'}</span>}
+                    {canInspect && !result && <span style={{ color: 'var(--cyan)', fontSize: 13 }}>{expanded ? '▲' : '▼'}</span>}
                   </button>
                   {expanded && (
                     <div style={{ padding: '8px 10px 10px', background: '#050d05', borderTop: '1px solid #0a1a0a' }}>
@@ -729,24 +840,34 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, cast
                           style={{ width: '100%', background: '#050d05', border: '1px solid #1a3a1a', color: 'var(--white)',
                             fontFamily: 'monospace', fontSize: 12, padding: '4px', marginBottom: 8 }}>
                           <option value="">— pick castaway —</option>
-                          {alive.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          {alive.map((c: any) => <option key={c.id} value={c.id}>{preferences.favoriteCastawayIds.includes(c.id) ? '★ ' : ''}{c.name}</option>)}
                         </select>
                       ) : (
                         <div className="c-red" style={{ fontSize: 13, marginBottom: 8 }}>Unsupported market type.</div>
                       )}
-                      <div className="hud-bet-submit-row">
-                        <input type="number" value={betAmt} onChange={e => setBetAmt(e.target.value)} min={1} max={profile?.points ?? 0}
-                          style={{ flex: 1, background: '#050d05', border: '1px solid #1a3a1a', color: 'var(--amber)',
-                            fontFamily: 'monospace', fontSize: 13, padding: '4px 6px', minWidth: 0 }} />
-                        <span className="c-dim" style={{ fontSize: 12 }}>pts</span>
-                        <button onClick={() => submitBet(m)} disabled={submitting || (usesCastawayChoice && !betTarget) || (!usesBinaryChoice && !usesCastawayChoice)}
-                          className="hud-submit-button"
-                          style={{ background: 'none', border: '1px solid var(--cyan)',
-                            color: submitting ? 'var(--dim)' : 'var(--cyan)', cursor: submitting ? 'default' : 'pointer',
-                            flexShrink: 0 }}>
-                          {submitting ? '...' : 'BET ▶'}
-                        </button>
+                      {riskBoard.length > 0 && (
+                        <div className="risk-board">
+                          {riskBoard.map((row: any) => (
+                            <button key={row.id} type="button" className={`risk-chip${preferences.favoriteCastawayIds.includes(row.id) ? ' favorite' : ''}`} onClick={() => {
+                              const castaway = castaways.find((c: any) => c.id === row.id)
+                              if (castaway) onOpenDossier(castaway)
+                            }}>
+                              {preferences.favoriteCastawayIds.includes(row.id) ? '★ ' : ''}{row.name} <b>{row.risk}</b>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <div className="c-dim" style={{ fontSize: 12, marginTop: 8 }}>
+                        {previewPotential !== null
+                          ? `Preview x${previewOdds?.toFixed(1)} · potential ${previewPotential} pts. Odds lock at submit.`
+                          : 'Pick an outcome to preview odds and payout.'}
                       </div>
+                    </div>
+                  )}
+                  {betReceipt[m.id] && (
+                    <div className="queue-receipt" style={{ margin: 8 }}>
+                      <div className="terminal-card-label">BET RECEIPT</div>
+                      <div className="c-green" style={{ fontSize: 12 }}>{betReceipt[m.id]}</div>
                     </div>
                   )}
                 </div>
@@ -754,52 +875,93 @@ function BetPanel({ groupedMarkets, openMarketCount, profile, user, isDemo, cast
             })}
           </div>
         ))}
+        {activeMarket && (
+          <aside className="mobile-transaction-tray" aria-label="Prediction slip">
+            <div className="mobile-transaction-head">
+              <div>
+                <span className="terminal-card-label">PREDICTION SLIP</span>
+                <strong>{activeMarket.label}</strong>
+              </div>
+              <button type="button" className="icon-button" onClick={() => setExpandedId(null)} aria-label="Close prediction slip">×</button>
+            </div>
+            <div className="mobile-stake-presets" aria-label="Stake amount">
+              {[25, 50, 100].map(value => (
+                <button key={value} type="button" className={betAmt === String(value) ? 'on' : ''} onClick={() => setBetAmt(String(value))} disabled={!!user && value > currentPoints}>{value}</button>
+              ))}
+              <label><span className="sr-only">Custom stake</span><input type="number" min="1" max={user ? currentPoints : undefined} value={betAmt} onChange={event => setBetAmt(event.target.value)} /></label>
+            </div>
+            <div className="mobile-transaction-summary">
+              <span>{activeSelection === null ? 'Choose an outcome' : `Preview x${activePreviewOdds?.toFixed(1) ?? '--'}`}</span>
+              <strong className="c-green">{activePotential === null ? '--' : `${activePotential} pts`}</strong>
+            </div>
+            {!user || isDemo ? (
+              <a href="/login" className="decision-button">SIGN IN TO LOCK</a>
+            ) : (
+              <button type="button" className="decision-button" disabled={submitting || activeSelection === null || activeAmount < 1 || activeAmount > currentPoints} onClick={() => submitBet(activeMarket)}>
+                {submitting ? 'LOCKING...' : `LOCK ${activeAmount} PTS`}
+              </button>
+            )}
+          </aside>
+        )}
+        {toast && <StatusToast tone={toast.tone} message={toast.message} onDismiss={() => setToast(null)} />}
       </div>
     </div>
   )
 }
 
 /* ─────────────────────────────────────────────
-   NOISE TAB — influence bars + link
+   INFLUENCE TAB — audience interference controls
 ───────────────────────────────────────────── */
-const INFLUENCE_ACTIONS = [
-  { type: 'gift_idol',           cost: 150, label: 'Gift Idol',         desc: "Force an idol into target's pocket",    twoTarget: false, noTarget: false },
-  { type: 'broadcast_rumor',     cost: 100, label: 'Broadcast Rumor',   desc: 'Spike paranoia, tank likeability',       twoTarget: false, noTarget: false },
-  { type: 'poison_relationship', cost:  75, label: 'Poison Bond',       desc: 'Corrode alliance between two players',   twoTarget: true,  noTarget: false },
-  { type: 'confessional_leak',   cost:  50, label: 'Leak Confessional', desc: 'Expose secrets, drop likeability',       twoTarget: false, noTarget: false },
-  { type: 'ghost_boost',         cost: 200, label: 'Ghost Boost',       desc: 'Ghost haunts a target, spikes paranoia', twoTarget: true,  noTarget: false },
-  { type: 'inject_anomaly',      cost: 300, label: 'Inject Anomaly',    desc: 'Fire a random anomaly into the season',  twoTarget: false, noTarget: true  },
-] as const
-
-function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
+function MobileInfluencePanel({ castaways, profile, user, seasonActive, isDemo, pendingActions = [] }: any) {
   const alive = (castaways ?? []).filter((c: any) => c.status === 'alive')
   const ghosts = (castaways ?? []).filter((c: any) => c.status === 'ghost')
-  const [expandedAction, setExpandedAction] = useState<string | null>(null)
+  const [expandedAction, setExpandedAction] = useState<InfluenceActionType | null>(null)
   const [targetA, setTargetA] = useState('')
   const [targetB, setTargetB] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [actionResult, setActionResult] = useState<Record<string, 'ok' | 'err'>>({})
-  const pts = profile?.points ?? 0
+  const [actionReceipt, setActionReceipt] = useState<Record<string, string>>({})
+  const [toast, setToast] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
+  const [pts, setPts] = useState<number>(profile?.points ?? 0)
+  const { markOnboardingStep } = useGamePreferences()
 
   async function submitAction(act: typeof INFLUENCE_ACTIONS[number]) {
     if (submitting) return
-    if (pts < act.cost) return
-    if (!act.noTarget && !targetA) return
-    if (act.twoTarget && !targetB) return
+    if (!user || isDemo) { setToast({ tone: 'error', message: 'Sign in to queue influence.' }); return }
+    if (pts < act.cost) { setToast({ tone: 'error', message: 'Not enough points for this action.' }); return }
+    if (!act.noTarget && !targetA) { setToast({ tone: 'error', message: 'Choose a target first.' }); return }
+    if (act.needsSecondTarget && !targetB) { setToast({ tone: 'error', message: 'Choose a second target.' }); return }
     setSubmitting(true)
+    trackGameEvent('influence_submit_started', { actionType: act.type, cost: act.cost, surface: 'mobile' })
     const body: any = { type: act.type }
     if (!act.noTarget) body.target_id = parseInt(targetA, 10)
-    if (act.twoTarget) body.target_b_id = parseInt(targetB, 10)
+    if (act.needsSecondTarget) body.target_b_id = parseInt(targetB, 10)
     const res = await fetch('/api/influence', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const data = await res.json().catch(() => null)
     setActionResult(prev => ({ ...prev, [act.type]: res.ok ? 'ok' : 'err' }))
-    if (res.ok) setExpandedAction(null)
+    if (res.ok) {
+      const a = castaways.find((c: any) => String(c.id) === targetA)?.name
+      const b = castaways.find((c: any) => String(c.id) === targetB)?.name
+      setActionReceipt(prev => ({
+        ...prev,
+        [act.type]: `${act.label} queued on ${[a, b].filter(Boolean).join(' / ') || 'island'} · ${data?.remaining ?? 0} pts remain · resolves next tick`,
+      }))
+      setPts(data?.remaining ?? Math.max(0, pts - act.cost))
+      setToast({ tone: 'success', message: `${act.label} queued. Resolves next tick.` })
+      markOnboardingStep('influence')
+      trackGameEvent('influence_queued', { actionType: act.type, cost: act.cost, surface: 'mobile' })
+      setExpandedAction(null)
+    } else {
+      setToast({ tone: 'error', message: data?.error ?? 'Influence failed.' })
+      trackGameEvent('influence_submit_failed', { actionType: act.type, reason: res.status, surface: 'mobile' })
+    }
     setSubmitting(false)
   }
 
   return (
     <div className="hud-panel-inner">
       <div className="hdr hud-hdr">
-        <span>⛧ NOISE</span>
+        <span>⛧ INFLUENCE // inject noise</span>
         <span className="c-dim" style={{ fontSize: 13, fontWeight: 'normal' }}>
           <span className="c-yellow">{pts}</span> pts
         </span>
@@ -811,8 +973,64 @@ function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
           </div>
         ) : (
           <>
-            {/* Cast influence bars */}
-            <div style={{ padding: '6px 10px 4px' }}>
+            {pendingActions.length > 0 && (
+              <div className="pending-decision-strip" style={{ margin: '8px 10px 0' }}>{pendingActions.length} queued action{pendingActions.length === 1 ? '' : 's'} resolve next tick</div>
+            )}
+
+            {(!user || isDemo) && (
+              <div className="market-gate-note" style={{ margin: '8px 10px 0' }}>Explore every action. Sign in only when you are ready to queue one.</div>
+            )}
+
+            {INFLUENCE_ACTIONS.map(act => {
+              const canAfford = pts >= act.cost
+              const expanded = expandedAction === act.type
+              const result = actionResult[act.type]
+              const targetAOptions = act.targetKind === 'ghost' ? ghosts : alive
+              const targetBOptions = alive.filter((c: any) => String(c.id) !== targetA)
+              return (
+                <div key={act.type} style={{ borderBottom: '1px solid #0a1a0a' }}>
+                  <button type="button" className="hud-action-row"
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', background: 'none', border: 'none', color: 'inherit', textAlign: 'left', fontFamily: 'monospace', cursor: 'pointer', opacity: canAfford || !user ? 1 : 0.65 }}
+                    onClick={() => { setExpandedAction(expanded ? null : act.type); setTargetA(''); setTargetB(''); markOnboardingStep('influence'); trackGameEvent('influence_action_viewed', { actionType: act.type, cost: act.cost, surface: 'mobile' }) }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: 'var(--cyan)' }}>{act.label}</div>
+                      <div className="c-dim" style={{ fontSize: 11, marginTop: 1 }}>{act.effect} · resolves next tick</div>
+                    </div>
+                    {result === 'ok' && <span className="c-green">✓</span>}
+                    {result === 'err' && <span className="c-red">✗</span>}
+                    <span className={canAfford ? 'c-amber' : 'c-red'} style={{ fontSize: 12 }}>{act.cost}pt</span>
+                    <span className="c-cyan">{expanded ? '▲' : '▼'}</span>
+                  </button>
+                  {expanded && (
+                    <div className="mobile-action-detail">
+                      <p className="c-dim">{act.help}</p>
+                      {!act.noTarget && (
+                        <select value={targetA} onChange={event => setTargetA(event.target.value)}>
+                          <option value="">{act.targetKind === 'ghost' ? '— pick ghost —' : '— pick target —'}</option>
+                          {targetAOptions.map((castaway: any) => <option key={castaway.id} value={castaway.id}>{castaway.name}</option>)}
+                        </select>
+                      )}
+                      {act.needsSecondTarget && (
+                        <select value={targetB} onChange={event => setTargetB(event.target.value)}>
+                          <option value="">— pick second target —</option>
+                          {targetBOptions.map((castaway: any) => <option key={castaway.id} value={castaway.id}>{castaway.name}</option>)}
+                        </select>
+                      )}
+                      {!user || isDemo ? <a href="/login" className="decision-button">SIGN IN TO QUEUE</a> : (
+                        <button type="button" onClick={() => submitAction(act)} disabled={submitting || !canAfford || !seasonActive} className="decision-button">
+                          {submitting ? 'QUEUING...' : `QUEUE · ${act.cost} PTS`}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {actionReceipt[act.type] && <div className="queue-receipt" style={{ margin: 8 }}><div className="terminal-card-label">QUEUE RECEIPT</div><div className="c-purple" style={{ fontSize: 12 }}>{actionReceipt[act.type]}</div></div>}
+                </div>
+              )
+            })}
+
+            <details className="influence-board-details">
+              <summary>CAST INFLUENCE BOARD</summary>
+              <div style={{ padding: '6px 10px 4px' }}>
               {(() => {
                 const maxInfluence = Math.max(1, ...alive.map((c: any) => c.influence_points ?? 0))
                 return alive.map((c: any) => {
@@ -831,72 +1049,9 @@ function NoisePanel({ castaways, profile, user, seasonActive, isDemo }: any) {
                   )
                 })
               })()}
-            </div>
-
-            <div style={{ borderTop: '1px solid #1a2a1a' }} />
-
-            {(!user || isDemo) && (
-              <div style={{ padding: '6px 10px' }}>
-                <span className="c-amber" style={{ fontSize: 12 }}>Sign in to influence the game.</span>
               </div>
-            )}
-
-            {(user && !isDemo) && INFLUENCE_ACTIONS.map(act => {
-              const canAfford = pts >= act.cost
-              const expanded = expandedAction === act.type
-              const result = actionResult[act.type]
-              const targetAOptions = act.type === 'ghost_boost' ? ghosts : alive
-              const targetBOptions = alive.filter((c: any) => String(c.id) !== targetA)
-              return (
-                <div key={act.type} style={{ borderBottom: '1px solid #0a1a0a' }}>
-                  <button type="button" className="hud-action-row" disabled={!canAfford}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', background: 'none', border: 'none',
-                      color: 'inherit', textAlign: 'left', fontFamily: 'monospace',
-                    cursor: canAfford ? 'pointer' : 'default', opacity: canAfford ? 1 : 0.45 }}
-                    onClick={() => {
-                      if (!canAfford) return
-                      setExpandedAction(expanded ? null : act.type)
-                      setTargetA(''); setTargetB('')
-                    }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, color: canAfford ? 'var(--cyan)' : 'var(--dim)' }}>{act.label}</div>
-                      <div className="c-dim" style={{ fontSize: 11, marginTop: 1 }}>{act.desc}</div>
-                    </div>
-                    {result === 'ok' && <span className="c-green" style={{ fontSize: 12 }}>✓</span>}
-                    {result === 'err' && <span className="c-red" style={{ fontSize: 12 }}>✗</span>}
-                    <span style={{ color: canAfford ? 'var(--amber)' : 'var(--dim)', fontSize: 12, flexShrink: 0 }}>{act.cost}pt</span>
-                    {canAfford && !result && <span style={{ color: 'var(--cyan)', fontSize: 13 }}>{expanded ? '▲' : '▼'}</span>}
-                  </button>
-                  {expanded && (
-                    <div style={{ padding: '6px 10px 10px', background: '#050d05', borderTop: '1px solid #0a1a0a' }}>
-                      {!act.noTarget && (
-                        <select value={targetA} onChange={e => setTargetA(e.target.value)}
-                          style={{ width: '100%', background: '#050d05', border: '1px solid #1a3a1a', color: 'var(--white)',
-                            fontFamily: 'monospace', fontSize: 12, padding: '4px', marginBottom: act.twoTarget ? 6 : 10 }}>
-                          <option value="">{act.type === 'ghost_boost' ? '— pick ghost —' : '— pick target —'}</option>
-                          {targetAOptions.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                      )}
-                      {act.twoTarget && (
-                        <select value={targetB} onChange={e => setTargetB(e.target.value)}
-                          style={{ width: '100%', background: '#050d05', border: '1px solid #1a3a1a', color: 'var(--white)',
-                            fontFamily: 'monospace', fontSize: 12, padding: '4px', marginBottom: 10 }}>
-                          <option value="">— pick second target —</option>
-                          {targetBOptions.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                      )}
-                      <button onClick={() => submitAction(act)} disabled={submitting}
-                        className="hud-submit-button"
-                        style={{ width: '100%', background: 'none', border: '1px solid var(--purple)',
-                          color: submitting ? 'var(--dim)' : 'var(--purple)', cursor: submitting ? 'default' : 'pointer',
-                          letterSpacing: '.08em' }}>
-                        {submitting ? '...' : `DEPLOY · ${act.cost}pts`}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+            </details>
+            {toast && <StatusToast tone={toast.tone} message={toast.message} onDismiss={() => setToast(null)} />}
           </>
         )}
       </div>
@@ -963,7 +1118,7 @@ function MorePanel({ season, aliveCount, profile, user, isDemo, onOpenArchive, o
         {([
           { action: () => onSwitchTab('cast'),  label: '▣ CASTAWAYS',   cls: 'c-green' },
           { action: () => onSwitchTab('bet'),   label: '◈ MARKETS',     cls: 'c-amber' },
-          { action: () => onSwitchTab('noise'), label: '⛧ INFLUENCE',   cls: 'c-purple' },
+          { action: () => onSwitchTab('influence'), label: '⛧ INFLUENCE', cls: 'c-purple' },
         ] as { action: () => void; label: string; cls: string }[]).map(l => (
           <button key={l.label} onClick={l.action} className={`hud-more-link ${l.cls}`} style={{ background: 'none', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'monospace' }}>
             {l.label}

@@ -1,8 +1,10 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import CastawayCard from './CastawayCard'
 import Portrait from './Portrait'
+import { OPEN_CASTAWAY_EVENT } from '@/lib/ui-events'
+import { useGamePreferences, type CastFilter, type CastSort } from '@/lib/use-game-preferences'
 
 type IntakeInterview = {
   on_strategy: string
@@ -100,7 +102,7 @@ function getThreat(c: Castaway) {
   if (score >= 76) return { label: 'Finalist Energy', className: 'c-yellow', score }
   if (score >= 62) return { label: 'Dangerous', className: 'c-amber', score }
   if (score >= 48) return { label: 'Unstable', className: 'c-purple', score }
-  return { label: 'Low Signal', className: 'c-dim', score }
+  return { label: 'Low Threat', className: 'c-dim', score }
 }
 
 function getBootRisk(c: Castaway) {
@@ -135,7 +137,7 @@ function getPlaystyle(c: Castaway) {
   if (top === 'physical') return 'Challenge weapon'
   if (top === 'paranoia') return 'Paranoia engine'
   if (top === 'moxie') return 'Clutch survivor'
-  return 'Unclear signal'
+  return 'Unclear outlook'
 }
 
 function getPlayerRead(c: Castaway) {
@@ -145,7 +147,7 @@ function getPlayerRead(c: Castaway) {
   const strength = STAT_NAMES[extremes.strongest?.key ?? ''] ?? 'unknown'
   const liability = STAT_NAMES[extremes.weakest?.key ?? ''] ?? 'unknown'
   if (c.status === 'ghost') return `${c.name} is out of the vote but still contaminates the season through memory, hauntings, and unresolved bonds.`
-  if (c.status === 'consumed') return `${c.name} has been consumed; only the absence remains useful as signal evidence.`
+  if (c.status === 'consumed') return `${c.name} has been consumed; only the absence remains useful as game evidence.`
   return `${c.name} plays as a ${getPlaystyle(c).toLowerCase()}: strength ${strength}, liability ${liability}, ${boot.label.toLowerCase()}, ${winner.label.toLowerCase()}.`
 }
 
@@ -262,6 +264,25 @@ export default function CastawayRoster({
   const initial = castaways.find(c => c.status === 'alive') ?? castaways[0] ?? null
   const defaultId = defaultSelectedId ?? initial?.id ?? null
   const [selectedId, setSelectedId] = useState<number | null>(defaultId)
+  const { preferences, updatePreferences, toggleFavorite, markOnboardingStep } = useGamePreferences()
+
+  useEffect(() => {
+    if (preferences.selectedCastawayId && castaways.some(c => c.id === preferences.selectedCastawayId)) {
+      setSelectedId(preferences.selectedCastawayId)
+    }
+  }, [castaways, preferences.selectedCastawayId])
+
+  useEffect(() => {
+    const openFromElsewhere = (event: Event) => {
+      const castawayId = (event as CustomEvent<{ castawayId: number }>).detail.castawayId
+      if (!castaways.some(c => c.id === castawayId)) return
+      setSelectedId(castawayId)
+      updatePreferences({ selectedCastawayId: castawayId })
+      document.getElementById('castaway-roster')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+    window.addEventListener(OPEN_CASTAWAY_EVENT, openFromElsewhere)
+    return () => window.removeEventListener(OPEN_CASTAWAY_EVENT, openFromElsewhere)
+  }, [castaways, updatePreferences])
 
   const selected = useMemo(() => castaways.find(c => c.id === selectedId) ?? initial, [castaways, selectedId, initial])
 
@@ -283,9 +304,32 @@ export default function CastawayRoster({
   } : null
   const ally = selectedBonds.find(rel => rel.score > 0)
   const enemy = [...selectedBonds].reverse().find(rel => rel.score < 0)
+  const filteredCastaways = useMemo(() => {
+    const filtered = castaways.filter(c => {
+      if (preferences.castFilter === 'all') return true
+      if (preferences.castFilter === 'alive') return c.status === 'alive'
+      if (preferences.castFilter === 'ghost') return c.status === 'ghost'
+      return c.status !== 'alive' && c.status !== 'ghost'
+    })
+    return [...filtered].sort((a, b) => {
+      if (preferences.castSort === 'tribe') return a.tribe - b.tribe || a.name.localeCompare(b.name)
+      if (preferences.castSort === 'winner') {
+        const score = (c: Castaway) => stat(c, 'likeability') * .32 + stat(c, 'moxie') * .28 + stat(c, 'gaslighting') * .18 + stat(c, 'physical') * .12 - stat(c, 'paranoia') * .18 + c.idol_count * 8
+        return score(b) - score(a)
+      }
+      if (preferences.castSort === 'threat') return getThreat(b).score - getThreat(a).score
+      return getBootRisk(b).score - getBootRisk(a).score
+    })
+  }, [castaways, preferences.castFilter, preferences.castSort])
+
+  function selectCastaway(id: number) {
+    setSelectedId(id)
+    updatePreferences({ selectedCastawayId: id })
+    markOnboardingStep('dossier')
+  }
 
   return (
-    <div className="panel p-cyan" style={{ display: 'flex', flexDirection: 'column' }}>
+    <div className="ds-surface p-cyan" style={{ display: 'flex', flexDirection: 'column' }}>
       <div className="hdr cyan flex justify-between">
         <span>▣ CASTAWAY ROSTER</span>
         <span className="c-white">{castaways.filter(c => c.status === 'alive').length} alive</span>
@@ -307,7 +351,16 @@ export default function CastawayRoster({
                       </div>
                     )}
                   </div>
-                  {profile && <span className={`tag ${profile.threat.className}`}>{profile.threat.label}</span>}
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      className={`favorite-button${preferences.favoriteCastawayIds.includes(selected.id) ? ' active' : ''}`}
+                      onClick={() => toggleFavorite(selected.id)}
+                      aria-label={preferences.favoriteCastawayIds.includes(selected.id) ? `Unpin ${selected.name}` : `Pin ${selected.name}`}
+                      title="Pin up to three favorites"
+                    >★</button>
+                    {profile && <span className={`tag ${profile.threat.className}`}>{profile.threat.label}</span>}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-1 mt-1 text-[10px]">
                   <span className="tag c-cyan">{selected.archetype}</span>
@@ -356,7 +409,7 @@ export default function CastawayRoster({
 
               {selected.dossier?.background_signal ? (
                 <div className="dossier-section dossier-section-wide">
-                  <div className="c-amber text-[10px] tracking-wider mb-1">BACKGROUND SIGNAL</div>
+                  <div className="c-amber text-[10px] tracking-wider mb-1">BACKGROUND RECORD</div>
                   <div className="c-dim text-[10px]" style={{ lineHeight: 1.5 }}>{selected.dossier.background_signal}</div>
                 </div>
               ) : (
@@ -393,7 +446,7 @@ export default function CastawayRoster({
               )}
 
               <div className="dossier-section">
-                <div className="c-cyan text-[10px] tracking-wider mb-1">SIGNAL READ</div>
+                <div className="c-cyan text-[10px] tracking-wider mb-1">STRATEGIC READ</div>
                 <div className="grid gap-1">
                   <div className="flex justify-between gap-2 text-[10px]"><span className="c-dim">Playstyle</span><span className="c-white">{getPlaystyle(selected)}</span></div>
                   {profile && <div className="flex justify-between gap-2 text-[10px]"><span className="c-dim">Threat</span><span className={profile.threat.className}>{profile.threat.score}/100</span></div>}
@@ -510,13 +563,30 @@ export default function CastawayRoster({
         )}
       </div>
 
-      <div className="scroll p-1" style={{ maxHeight: 124 }}>
-        {castaways.map(c => (
+      <div className="cast-toolbar">
+        <div className="segmented-control" aria-label="Cast status filter">
+          {(['alive', 'ghost', 'out', 'all'] as CastFilter[]).map(filter => (
+            <button key={filter} type="button" className={preferences.castFilter === filter ? 'active' : ''} onClick={() => updatePreferences({ castFilter: filter })}>{filter.toUpperCase()}</button>
+          ))}
+        </div>
+        <label>
+          <span>SORT</span>
+          <select value={preferences.castSort} onChange={event => updatePreferences({ castSort: event.target.value as CastSort })}>
+            <option value="boot">Boot risk</option>
+            <option value="winner">Winner upside</option>
+            <option value="threat">Threat</option>
+            <option value="tribe">Tribe</option>
+          </select>
+        </label>
+      </div>
+
+      <div className="scroll p-1" style={{ maxHeight: 164 }}>
+        {filteredCastaways.map(c => (
           <CastawayCard
             key={c.id}
             castaway={c}
             selected={c.id === selected?.id}
-            onSelect={() => setSelectedId(c.id)}
+            onSelect={() => selectCastaway(c.id)}
           />
         ))}
       </div>
