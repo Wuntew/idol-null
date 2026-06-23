@@ -1,315 +1,76 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Idol.Null — UI refresh concepts</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Idol.Null - SIM.EXE UI Target</title>
 <style>
-  * { box-sizing: border-box; }
-  body { margin:0; background:#050505; font-family:'Courier New',monospace; }
-  .tabs { display:flex; gap:8px; padding:16px; background:#000; border-bottom:1px solid #222; }
-  .tabs button { background:#141414; color:#999; border:1px solid #333; padding:9px 18px; cursor:pointer; font-family:inherit; font-size:12px; letter-spacing:.05em; }
-  .tabs button.active { color:#fff; border-color:#888; background:#1f1f1f; }
-  .concept { display:none; padding:28px; }
-  .concept.active { display:block; }
-  .caption { color:#777; font-size:11px; letter-spacing:.05em; margin-bottom:16px; font-family:'Courier New',monospace; }
-
-  /* A — analog horror */
-  .a-frame{background:#000;color:#9fd89f;font-family:'Courier New',monospace;padding:18px;border:1px solid #1a1a1a;position:relative;overflow:hidden;}
-  .a-frame::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,0.025) 0px,rgba(255,255,255,0.025) 1px,transparent 2px,transparent 3px);pointer-events:none;}
-  .a-chrome{display:flex;gap:18px;font-size:11px;color:#6a9a6a;letter-spacing:.1em;margin-bottom:14px;position:relative;}
-  .a-rec{color:#e23b3b;}
-  .a-blink{animation:ablink 1s steps(2) infinite;}
-  @keyframes ablink{50%{opacity:.2}}
-  .a-nav{display:flex;gap:20px;align-items:center;border-bottom:1px solid #1a3a1a;padding-bottom:10px;margin-bottom:18px;font-size:12px;letter-spacing:.15em;position:relative;}
-  .a-logo{font-size:16px;color:#cfe9cf;text-shadow:-1px 0 #e23b3b, 1px 0 #3bb6e2;}
-  .a-dot{color:#e23b3b;}
-  .a-tag{font-size:10px;color:#e2b13b;letter-spacing:.2em;margin-bottom:10px;position:relative;}
-  .a-title{font-size:42px;line-height:1.05;margin:0 0 10px;letter-spacing:.05em;text-shadow:-1.5px 0 rgba(226,59,59,.7), 1.5px 0 rgba(59,182,226,.7), 0 0 18px rgba(159,216,159,.35);position:relative;}
-  .a-sub{font-size:13px;color:#5a8a5a;max-width:480px;margin:0 0 20px;position:relative;}
-  .a-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;position:relative;}
-  .a-card{border:1px solid #234023;padding:10px;background:rgba(255,255,255,.015);}
-  .a-card-head{font-size:10px;color:#5a8a5a;letter-spacing:.15em;margin-bottom:6px;}
-  .a-card-name{font-size:15px;color:#cfe9cf;letter-spacing:.05em;}
-  .a-card-meta{font-size:10px;color:#5a8a5a;margin:4px 0 8px;}
-  .a-card-bar{height:4px;background:#0a1a0a;margin-bottom:8px;}
-  .a-card-bar i{display:block;height:100%;background:#9fd89f;}
-  .a-card-foot{font-size:10px;color:#3a6a6a;}
-
-  /* B — classified dossier */
-  .b-frame{background:#161310;padding:24px;font-family:'Courier New',monospace;}
-  .b-tabs{display:flex;gap:4px;margin-bottom:0;}
-  .b-tab{background:#3a3328;color:#c9bda0;padding:6px 14px;font-size:11px;letter-spacing:.1em;border-radius:4px 4px 0 0;display:inline-block;}
-  .b-tab-active{background:#e8e2d0;color:#1c1812;}
-  .b-card{background:#e8e2d0;color:#1c1812;padding:18px;position:relative;box-shadow:0 6px 0 rgba(0,0,0,.3);}
-  .b-stamp{position:absolute;top:14px;right:18px;border:2px solid #8a1f1f;color:#8a1f1f;padding:3px 10px;font-size:11px;letter-spacing:.15em;transform:rotate(-6deg);font-weight:bold;}
-  .b-title{font-size:21px;letter-spacing:.04em;margin:0 0 4px;}
-  .b-meta{font-size:11px;color:#5a5142;margin-bottom:14px;border-bottom:1px dashed #b6ab90;padding-bottom:10px;}
-  .b-redacted{background:#1c1812;color:#1c1812;padding:0 4px;}
-  .b-section-title{font-size:10px;letter-spacing:.15em;color:#7a6f50;margin:12px 0 4px;}
-  .b-folder-row{display:flex;gap:12px;margin-top:16px;}
-  .b-folder{background:#d8d0b8;color:#1c1812;padding:10px;flex:1;border-top:6px solid #b6ab90;}
-
-  /* C — cursed broadcast */
-  .c-frame{background:#07080b;padding:24px;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;color:#e7e9ee;border-radius:6px;}
-  .c-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;}
-  .c-logo{font-size:15px;font-weight:600;letter-spacing:.02em;}
-  .c-dot{color:#ff3b6b;}
-  .c-links{display:flex;gap:22px;font-size:13px;color:#8b8f9c;}
-  .c-live{display:flex;align-items:center;gap:6px;font-size:11px;color:#ff3b6b;letter-spacing:.1em;}
-  .c-live i{width:7px;height:7px;border-radius:50%;background:#ff3b6b;display:inline-block;animation:cpulse 1.2s ease-in-out infinite;}
-  @keyframes cpulse{50%{opacity:.3}}
-  .c-hero h1{font-size:40px;font-weight:600;margin:0 0 10px;letter-spacing:-.01em;}
-  .c-hero h1 span{color:#36e2c4;text-shadow:0 0 24px rgba(54,226,196,.45);}
-  .c-hero p{font-size:14px;color:#9aa0ae;max-width:460px;margin:0 0 18px;}
-  .c-pill{display:inline-flex;background:#36e2c4;color:#04332b;font-size:12px;font-weight:600;padding:8px 16px;border-radius:999px;margin-right:8px;}
-  .c-pill-ghost{background:transparent;color:#e7e9ee;border:1px solid #2a2d36;}
-  .c-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-  .c-card{background:#0f1117;border:1px solid #1e212b;border-radius:16px;padding:16px;box-shadow:0 0 0 1px rgba(54,226,196,.06);}
-  .c-card-label{font-size:11px;color:#8b8f9c;letter-spacing:.08em;margin-bottom:8px;}
-  .c-card-name{font-size:17px;font-weight:600;margin-bottom:4px;}
-  .c-card-stat{font-family:'Courier New',monospace;font-size:22px;color:#36e2c4;}
-  .c-ticker{margin-top:18px;border-top:1px solid #1e212b;padding-top:10px;font-size:11px;color:#6d717d;font-family:'Courier New',monospace;white-space:nowrap;overflow:hidden;}
-
-  /* D — field kit */
-  .d-frame{background:#161310;padding:20px;font-family:'Courier New',monospace;color:#e7decb;}
-  .d-toolbar{display:flex;gap:8px;margin-bottom:18px;align-items:center;}
-  .d-corner-label{font-size:11px;letter-spacing:.15em;color:#8a7a5a;margin-right:10px;}
-  .d-switch{background:#2a241c;border:2px solid #4a4030;padding:6px 12px;font-size:11px;letter-spacing:.08em;color:#b3a787;box-shadow:inset 0 -3px 0 rgba(0,0,0,.35);}
-  .d-switch-on{background:#4a4030;color:#e7decb;box-shadow:inset 0 3px 0 rgba(0,0,0,.35);}
-  .d-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-  .d-card{position:relative;background:#1f1b14;border:1px solid #3a3324;padding:14px;}
-  .d-corner{position:absolute;width:9px;height:9px;border-color:#8a6bbf;}
-  .d-corner.tl{top:-1px;left:-1px;border-top:2px solid;border-left:2px solid;}
-  .d-corner.tr{top:-1px;right:-1px;border-top:2px solid;border-right:2px solid;}
-  .d-corner.bl{bottom:-1px;left:-1px;border-bottom:2px solid;border-left:2px solid;}
-  .d-corner.br{bottom:-1px;right:-1px;border-bottom:2px solid;border-right:2px solid;}
-  .d-folder-head{font-size:10px;letter-spacing:.15em;color:#8a7a5a;margin-bottom:10px;border-bottom:1px dashed #3a3324;padding-bottom:8px;}
-  .d-avatar-row{display:flex;gap:10px;align-items:center;margin-bottom:12px;}
-  .d-pixel-avatar{width:32px;height:32px;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);border:1px solid #4a4030;}
-  .d-pixel-avatar i:nth-child(odd){background:#5a6a3a;}
-  .d-pixel-avatar i:nth-child(even){background:#7a5a3a;}
-  .d-pixel-avatar i:nth-child(6),.d-pixel-avatar i:nth-child(11){background:#8a6bbf;}
-  .d-name{font-size:14px;color:#e7decb;letter-spacing:.04em;}
-  .d-sub{font-size:10px;color:#8a7a5a;margin-top:2px;}
-  .d-pip-row{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:#8a7a5a;margin-bottom:6px;letter-spacing:.06em;}
-  .d-pips{display:flex;gap:3px;}
-  .d-pips i{width:9px;height:9px;border:1px solid #4a4030;display:inline-block;}
-  .d-pips i.on{background:#8a6bbf;border-color:#8a6bbf;}
-  .d-tag-row{display:flex;gap:6px;margin-top:10px;}
-  .d-tag{font-size:10px;border:1px solid #4a4030;color:#b3a787;padding:2px 7px;}
-  .d-tag-eldritch{border-color:#8a6bbf;color:#bda6e0;}
-  .d-stamp-row{display:flex;gap:10px;}
-  .d-stamp{font-family:inherit;font-size:12px;letter-spacing:.1em;padding:10px 16px;border:2px solid;background:transparent;cursor:pointer;transform:rotate(-1deg);font-weight:bold;}
-  .d-stamp-approve{color:#7a9a4a;border-color:#7a9a4a;}
-  .d-stamp-deny{color:#a05050;border-color:#a05050;}
-
-  /* E — sim.exe (refines A per feedback: less horror-coded, late-80s sim-gone-wrong) */
-  .e-frame{background:#0a0c0a;color:#b9c4b3;font-family:'Courier New',monospace;padding:20px;border:1px solid #1a1f1a;position:relative;}
-  .e-frame::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,0.012) 0px,rgba(255,255,255,0.012) 1px,transparent 2px,transparent 3px);pointer-events:none;}
-  .e-status{font-size:11px;color:#8a9a86;letter-spacing:.05em;margin-bottom:4px;position:relative;}
-  .e-status b{color:#b9c4b3;font-weight:normal;}
-  .e-ok{color:#8a9a86;}
-  .e-prompt{font-size:12px;color:#9fb89a;margin:14px 0 18px;position:relative;}
-  .e-cursor{animation:ablink 1s steps(2) infinite;}
-  .e-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;position:relative;}
-  .e-box{border:1px solid #2a332a;padding:0;font-size:12px;line-height:1.7;}
-  .e-box-head{border-bottom:1px solid #2a332a;padding:6px 12px;color:#8a9a86;letter-spacing:.1em;font-size:11px;}
-  .e-box-body{padding:10px 12px;}
-  .e-row{display:flex;justify-content:space-between;}
-  .e-row span:first-child{color:#7a8a76;}
-  .e-ghost{color:#b9c4b3;opacity:.16;font-size:12px;margin:-4px 0 0;letter-spacing:.02em;}
-  .e-query{font-size:13px;margin:10px 0 14px;}
-  .e-query b{color:#d9c98a;}
-  .e-btns{display:flex;gap:10px;margin-bottom:14px;}
-  .e-btn{border:1px solid #3a443a;color:#9fb89a;padding:6px 18px;font-size:11px;letter-spacing:.1em;display:inline-block;}
-  .e-foot{margin-top:16px;padding-top:10px;border-top:1px solid #1a1f1a;font-size:10px;color:#5a6a56;display:flex;justify-content:space-between;position:relative;}
-  .e-wrong{color:#7a5a4a;}
+*{box-sizing:border-box}body{margin:0;background:#050605;color:#b9c4b3;font-family:"Courier New",monospace}.wrap{display:grid;gap:24px;padding:24px}.caption{color:#7f927d;font-size:11px;letter-spacing:.08em}.frame{background:#0a0c0a;border:1px solid rgba(127,184,184,.45);padding:16px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.02)}.status{color:#7f927d;font-size:11px;letter-spacing:.04em}.status b{color:#d7dfd0;font-weight:400}.tags{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.tag{border:1px solid currentColor;padding:2px 6px;font-size:10px}.cyan{color:#7fb8b8}.green{color:#8fb58a}.amber{color:#c09058}.yellow{color:#c1b66a}.purple{color:#a48ad6}.red{color:#d06f6f}.dim{color:#7f927d}.white{color:#d7dfd0}.title{font-size:48px;line-height:.95;letter-spacing:.08em;margin:0}.next{color:#d7dfd0;font-size:16px;margin:10px 0 0}.grid{display:grid;gap:10px}.desktop{grid-template-columns:1.35fr .65fr}.cards{grid-template-columns:repeat(2,1fr);margin-top:14px}.card{border:1px solid rgba(143,181,138,.22);background:rgba(0,0,0,.34);padding:10px;min-height:82px}.card.hot{border-color:rgba(192,144,88,.55)}.label{font-size:10px;color:#7f927d;letter-spacing:.14em;margin-bottom:6px}.card-title{color:#d7dfd0;font-size:13px;line-height:1.35}.meta{display:flex;gap:8px;flex-wrap:wrap;color:#7f927d;font-size:11px;margin-top:7px}.stats{grid-template-columns:repeat(2,1fr)}.stat{border:1px solid rgba(127,184,184,.28);background:rgba(0,0,0,.38);padding:9px;min-height:72px;display:flex;flex-direction:column;justify-content:space-between}.stat span{font-size:10px;color:#7f927d;letter-spacing:.12em}.stat b{font-size:24px}.mobile{width:390px;max-width:100%;margin:auto}.tabs{display:grid;grid-template-columns:repeat(6,1fr);border-top:2px solid #7fb8b8;margin-top:8px}.tab{text-align:center;padding:9px 2px;font-size:10px;color:#2f5b55}.tab.on{color:#7fb8b8}.market{grid-template-columns:1fr 1fr}.btn{border:1px solid currentColor;padding:8px 10px;text-align:center;font-size:12px}.receipt{border:1px solid rgba(164,138,214,.45);background:rgba(9,6,12,.58);padding:9px;margin-top:8px}.row{display:flex;justify-content:space-between;border-bottom:1px dotted rgba(143,181,138,.15);padding:4px 0;font-size:12px}@media(max-width:760px){.desktop{grid-template-columns:1fr}.cards,.stats,.market{grid-template-columns:1fr}.title{font-size:32px}}
+.tabs{grid-template-columns:repeat(5,1fr)}
 </style>
 </head>
 <body>
-<div class="tabs">
-  <button class="active" data-target="a">A — ANALOG HORROR</button>
-  <button data-target="b">B — CLASSIFIED DOSSIER</button>
-  <button data-target="c">C — CURSED BROADCAST</button>
-  <button data-target="d">D — FIELD KIT</button>
-  <button data-target="e">E — SIM.EXE</button>
-</div>
-
-<div id="a" class="concept active">
-  <div class="caption">// intensifies the current CRT/terminal direction: camcorder surveillance, tracking errors, chromatic aberration</div>
-  <div class="a-frame">
-    <div class="a-chrome">
-      <span class="a-rec">● <span class="a-blink">REC</span></span>
-      <span>CH 13</span>
-      <span>00:14:32:07</span>
-      <span>BATT ▮▮▯</span>
-    </div>
-    <div class="a-nav">
-      <span class="a-logo">IDOL<span class="a-dot">.</span>NULL</span>
-      <span>FEED</span><span>CAST</span><span>MARKETS</span><span>NOISE</span>
-    </div>
-    <div class="a-tag">SIGNAL ACTIVE — DO NOT ADJUST</div>
-    <div class="a-title">SEASON 7<br>DAY 14</div>
-    <div class="a-sub">Choose a market, pick an outcome, lock a stake before the next tracking error.</div>
-    <div class="a-cards">
-      <div class="a-card">
-        <div class="a-card-head">SUBJECT 04 <span class="a-blink">●</span></div>
-        <div class="a-card-name">MARA VOSS</div>
-        <div class="a-card-meta">THE SKEPTIC / PARANOID</div>
-        <div class="a-card-bar"><i style="width:71%"></i></div>
-        <div class="a-card-foot">tracking error in 00:04</div>
-      </div>
-      <div class="a-card">
-        <div class="a-card-head">MARKET</div>
-        <div class="a-card-name">WHO GOES DARK NEXT?</div>
-        <div class="a-card-meta">CLOSES BEFORE DAY 15</div>
-        <div class="a-card-foot">4 souls watching</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="b" class="concept">
-  <div class="caption">// pivots to physical evidence: case files, redactions, stamped paper inside a dark records room</div>
-  <div class="b-frame">
-    <div class="b-tabs">
-      <span class="b-tab b-tab-active">CASE FILE</span>
-      <span class="b-tab">MARKETS</span>
-      <span class="b-tab">INFLUENCE</span>
-    </div>
-    <div class="b-card">
-      <div class="b-stamp">EYES ONLY</div>
-      <div class="b-title">SEASON 07 — DAY 14 INCIDENT LOG</div>
-      <div class="b-meta">FILED UNDER ANOMALY CONTAINMENT / STATUS: ACTIVE</div>
-      <div class="b-section-title">SUBJECT</div>
-      <p style="margin:0 0 10px;font-size:13px;">MARA VOSS, THE SKEPTIC. Diagnosed <span class="b-redacted">XXXXXXXXXXXXXX</span> after intake. Trait on file: PARANOID.</p>
-      <div class="b-section-title">LAST OBSERVED</div>
-      <p style="margin:0;font-size:13px;">Subject was seen <span class="b-redacted">XXXXXXXXXXXXXXXXXXXX</span> near the tree line before count was lost.</p>
-    </div>
-    <div class="b-folder-row">
-      <div class="b-folder">
-        <div class="b-section-title" style="color:#5a5142;">OPEN MARKET</div>
-        <div style="font-size:13px;">Who goes dark next?</div>
-      </div>
-      <div class="b-folder">
-        <div class="b-section-title" style="color:#5a5142;">INFLUENCE LOG</div>
-        <div style="font-size:13px;">3 actions queued, unresolved.</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="c" class="concept">
-  <div class="caption">// pivots to a modern prestige-streaming dashboard: clean sans-serif, generous space, glow used sparingly</div>
-  <div class="c-frame">
-    <div class="c-nav">
-      <span class="c-logo">IDOL<span class="c-dot">.</span>NULL</span>
-      <div class="c-links"><span>Feed</span><span>Cast</span><span>Markets</span><span>Influence</span></div>
-      <span class="c-live"><i></i> LIVE</span>
-    </div>
-    <div class="c-hero">
-      <h1>Season 7 <span>· Day 14</span></h1>
-      <p>Mara Voss is unraveling on camera. Pick a market, lock a stake before the next tick.</p>
-      <span class="c-pill">View markets</span>
-      <span class="c-pill c-pill-ghost">Read feed</span>
-    </div>
-    <div class="c-cards">
-      <div class="c-card">
-        <div class="c-card-label">SUBJECT</div>
-        <div class="c-card-name">Mara Voss</div>
-        <div class="c-card-stat">71 PAR</div>
-      </div>
-      <div class="c-card">
-        <div class="c-card-label">OPEN MARKET</div>
-        <div class="c-card-name">Who goes dark next?</div>
-        <div class="c-card-stat">x2.4</div>
-      </div>
-    </div>
-    <div class="c-ticker">⛧ paranoia spike detected near tribe 2 ⛧ idol still unaccounted for ⛧ anomaly risk rising ⛧</div>
-  </div>
-</div>
-
-<div id="d" class="concept">
-  <div class="caption">// synthesis from your reference list: tactile field-kit chrome (Papers Please / Home Safety Hotline), icon-pip stats (Into the Breach / Wilmot's Warehouse), card-and-stamp interactions (Dice of Kalma / He Is Coming), muted palette with one eldritch accent (Arco / Pathway / Loop Hero). Horror stays in the content, not in glitch effects.</div>
-  <div class="d-frame">
-    <div class="d-toolbar">
-      <span class="d-corner-label">FIELD KIT</span>
-      <span class="d-switch d-switch-on">FEED</span>
-      <span class="d-switch">CAST</span>
-      <span class="d-switch">MARKETS</span>
-      <span class="d-switch">NOISE</span>
-    </div>
-    <div class="d-row">
-      <div class="d-card d-folder">
-        <div class="d-corner tl"></div><div class="d-corner tr"></div><div class="d-corner bl"></div><div class="d-corner br"></div>
-        <div class="d-folder-head">SUBJECT FILE 04</div>
-        <div class="d-avatar-row">
-          <div class="d-pixel-avatar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-          <div><div class="d-name">MARA VOSS</div><div class="d-sub">THE SKEPTIC</div></div>
-        </div>
-        <div class="d-pip-row"><span class="d-pip-label">PARANOIA</span><span class="d-pips"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span></div>
-        <div class="d-pip-row"><span class="d-pip-label">LIKEABILITY</span><span class="d-pips"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span></div>
-        <div class="d-tag-row"><span class="d-tag d-tag-eldritch">PARANOID</span><span class="d-tag">T1</span></div>
-      </div>
-      <div class="d-card d-slip">
-        <div class="d-corner tl"></div><div class="d-corner tr"></div><div class="d-corner bl"></div><div class="d-corner br"></div>
-        <div class="d-folder-head">INSPECTION SLIP — DAY 14</div>
-        <div class="d-sub" style="margin-bottom:10px;">Does an anomaly fire today?</div>
-        <div class="d-stamp-row">
-          <button class="d-stamp d-stamp-approve">APPROVE</button>
-          <button class="d-stamp d-stamp-deny">DENY</button>
+<main class="wrap">
+  <section>
+    <div class="caption">// Desktop Today Command - default player surface</div>
+    <div class="frame desktop grid">
+      <div>
+        <div class="status">SIM CORE v2.3 &nbsp; RUNTIME <b>5,223,487</b> &nbsp; STATUS <span class="green">NOMINAL</span></div>
+        <div class="tags"><span class="tag cyan">TODAY COMMAND</span><span class="tag green">ACTIVE</span><span class="tag dim">PLAYER ACTIVE</span></div>
+        <h1 class="title">S3 / DAY 5</h1>
+        <p class="next">Review live markets before the next simulation tick.</p>
+        <div class="cards grid">
+          <div class="card hot"><div class="label">URGENT</div><div class="card-title">Who gets voted out on Day 6?</div><div class="meta"><span class="red">DAILY BOOT</span><span>Closes in 6h</span></div></div>
+          <div class="card"><div class="label">LOCKED</div><div class="row"><span>Mara</span><span class="yellow">50 @ x4.2</span></div><div class="row"><span>YES</span><span class="yellow">25 @ x2.1</span></div></div>
+          <div class="card"><div class="label">QUEUED INFLUENCE</div><div class="row"><span>Poison Bond</span><span class="purple">Mara / Niko</span></div></div>
+          <div class="card"><div class="label">LATEST EVENT</div><div class="card-title red">The matrix tallies. Sable is voted out.</div><div class="meta">VOTE</div></div>
         </div>
       </div>
-    </div>
-  </div>
-</div>
-
-<div id="e" class="concept">
-  <div class="caption">// refines A per your note: less horror-coded, dialed back from camcorder/VHS toward a late-80s simulation console that insists everything is fine. The wrongness lives in small details (a duplicated readout, an impossible uptime) rather than visual effects.</div>
-  <div class="e-frame">
-    <div class="e-status">SIM CORE v2.3 — BUILD 88.214 — PARTICIPANT MODULE</div>
-    <div class="e-status">RUNTIME <b>00:14:32:07</b>&nbsp;&nbsp;&nbsp;ALLOC <b>638K/640K</b>&nbsp;&nbsp;&nbsp;STATUS <span class="e-ok">NOMINAL</span></div>
-    <div class="e-prompt">C:\ISLAND&gt;RUN DAY14.SIM<span class="e-cursor">_</span></div>
-    <div class="e-cols">
-      <div class="e-box">
-        <div class="e-box-head">PARTICIPANT RECORD</div>
-        <div class="e-box-body">
-          <div class="e-row"><span>NAME</span><span>MARA VOSS</span></div>
-          <div class="e-ghost">M4RA V0SS</div>
-          <div class="e-row"><span>ROLE</span><span>THE SKEPTIC</span></div>
-          <div class="e-row"><span>PARANOIA</span><span>71%</span></div>
-          <div class="e-row"><span>LIKEABILITY</span><span>34%</span></div>
-          <div class="e-row"><span>STATUS</span><span>ACTIVE</span></div>
+      <div class="grid">
+        <div class="stats grid">
+          <div class="stat"><span>ALIVE</span><b class="green">5</b></div>
+          <div class="stat"><span>MARKETS</span><b class="amber">3</b></div>
+          <div class="stat"><span>POINTS</span><b class="yellow">725</b></div>
+          <div class="stat"><span>NEXT CLOSE</span><b class="cyan">6h</b></div>
         </div>
-      </div>
-      <div class="e-box">
-        <div class="e-box-head">QUERY</div>
-        <div class="e-box-body">
-          <div class="e-query">WILL <b>ENTITY_04</b> TERMINATE TODAY?</div>
-          <div class="e-btns">
-            <span class="e-btn">YES</span>
-            <span class="e-btn">NO</span>
-          </div>
-          <div style="font-size:10px;color:#5a6a56;">4 OBSERVERS CONNECTED</div>
-        </div>
+        <div class="card"><div class="label">DAY 4 RECAP</div><div class="card-title dim">The island rewarded paranoia, punished softness, and left one ghost watching the vote.</div></div>
       </div>
     </div>
-    <div class="e-foot">
-      <span>SESSION UPTIME: 14,302,991 CYCLES</span>
-      <span class="e-wrong">LAST RESTART: NEVER</span>
-    </div>
-  </div>
-</div>
+  </section>
 
-<script>
-document.querySelectorAll('.tabs button').forEach(function(btn){
-  btn.addEventListener('click', function(){
-    document.querySelectorAll('.tabs button').forEach(function(b){ b.classList.remove('active'); });
-    document.querySelectorAll('.concept').forEach(function(c){ c.classList.remove('active'); });
-    btn.classList.add('active');
-    document.getElementById(btn.dataset.target).classList.add('active');
-  });
-});
-</script>
+  <section>
+    <div class="caption">// Mobile Today tab - decision-first instead of compressed desktop</div>
+    <div class="frame mobile">
+      <div class="status">IDOL.NULL &nbsp; S3 D5 &nbsp; <span class="yellow">725 PTS</span></div>
+      <div class="tags"><span class="tag cyan">TODAY</span><span class="tag amber">2 MARKETS CLOSE</span></div>
+      <h1 class="title" style="font-size:26px">S3 / DAY 5</h1>
+      <p class="next" style="font-size:13px">Lock decisions before the next tick.</p>
+      <div class="cards grid" style="grid-template-columns:1fr;margin-top:10px">
+        <div class="card hot"><div class="label">URGENT</div><div class="card-title">Who leaves next?</div><div class="meta"><span>Closes in 6h</span></div></div>
+        <div class="card"><div class="label">PENDING</div><div class="row"><span>Poison Bond</span><span class="purple">next tick</span></div></div>
+      </div>
+      <div class="tabs"><div class="tab on">TODAY</div><div class="tab">FEED</div><div class="tab">CAST</div><div class="tab">MARKETS</div><div class="tab">INFLUENCE</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="caption">// Enhanced market and influence card states</div>
+    <div class="frame grid market">
+      <div class="card hot">
+        <div class="label">MARKET</div>
+        <div class="card-title">Who gets voted out on Day 6?</div>
+        <div class="meta"><span class="red">Mara 74</span><span class="amber">Niko 61</span><span class="dim">Vela 42</span></div>
+        <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:10px"><div class="btn amber">25</div><div class="btn amber">50</div><div class="btn yellow">100</div></div>
+        <div class="meta"><span>Preview x3.2</span><span class="green">Potential 320 pts</span></div>
+      </div>
+      <div class="card">
+        <div class="label">INFLUENCE</div>
+        <div class="card-title">Poison Bond</div>
+        <div class="meta"><span class="purple">-trust / alliance instability</span><span>resolves next tick</span></div>
+        <div class="receipt"><div class="label">QUEUE RECEIPT</div><div class="row"><span>Mara / Niko</span><span class="yellow">75 pts</span></div><div class="row"><span>Remaining</span><span class="green">650 pts</span></div></div>
+      </div>
+    </div>
+  </section>
+</main>
 </body>
 </html>

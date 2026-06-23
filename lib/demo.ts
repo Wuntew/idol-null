@@ -139,13 +139,25 @@ export function getDemoDashboardData() {
     { market_id: 2, castaway_id: null, choice_bool: true, odds: 2.1, amount: 25 },
   ]
 
+  const pendingInfluence = [
+    { id: 1, user_id: 'demo', season_id: 1, type: 'poison_relationship', target_id: 1, target_b_id: 4, cost: 75, status: 'pending', executed_day: null, narrative: null, created_at: nowIso() },
+  ]
+
+  const resolvedPredictions = [
+    { market_id: 99, castaway_id: 5, choice_bool: null, odds: 3.4, amount: 50, payout: 170, resolved_at: nowIso(), prediction_markets: { label: 'Who left on Day 4?', type: 'daily_boot', day: 4 }, castaways: { name: 'Sable' } },
+  ]
+
+  const revealedInfluence = [
+    { id: 2, user_id: 'demo', season_id: 1, type: 'broadcast_rumor', target_id: 4, target_b_id: null, cost: 100, status: 'revealed', executed_day: 4, narrative: 'A rumor bent Niko toward panic.', created_at: nowIso() },
+  ]
+
   const leaderboard = [
     { id: 'u1', username: 'signal.eater', points: 1280, predictions_won: 8, predictions_total: 12, total_earned: 920 },
     { id: 'u2', username: 'rotatingghost', points: 1140, predictions_won: 6, predictions_total: 10, total_earned: 640 },
     { id: 'u3', username: 'mosscut', points: 980, predictions_won: 5, predictions_total: 9, total_earned: 480 },
   ]
 
-  return { season, castaways, recentLogs, markets, summaries, profile, userPredictions, leaderboard, memories }
+  return { season, castaways, recentLogs, markets, summaries, profile, userPredictions, pendingInfluence, resolvedPredictions, revealedInfluence, leaderboard, memories }
 }
 
 export function getDemoPreseasonData() {

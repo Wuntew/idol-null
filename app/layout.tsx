@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import Nav from '@/components/Nav'
+import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 
 export const metadata: Metadata = {
   title: 'IDOL.NULL // cosmic horror survivor',
@@ -20,6 +22,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div id="crt" />
         <Nav />
         {children}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )

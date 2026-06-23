@@ -2,6 +2,11 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { isBinaryMarket, isMarketOpen, marketTypeLabel } from '@/lib/markets'
+import { castawayBootRisk, marketCloseContext, previewOddsForMarket } from '@/lib/game-ui'
+import { useGamePreferences } from '@/lib/use-game-preferences'
+import { requestOpenCastaway } from '@/lib/ui-events'
+import StatusToast from './StatusToast'
+import { trackGameEvent } from '@/lib/telemetry'
 
 const AMOUNTS = [25, 50, 100, 250]
 const WRONGNESS_THRESHOLD = 70
@@ -26,6 +31,7 @@ export default function PredictionMarket({ market, castaways, userPoints, userPi
   isDemo?: boolean
 }) {
   const router = useRouter()
+  const { preferences, markOnboardingStep } = useGamePreferences()
   const [selected, setSelected] = useState<number | boolean | null>(null)
   const [amount, setAmount] = useState(25)
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
@@ -33,7 +39,6 @@ export default function PredictionMarket({ market, castaways, userPoints, userPi
 
   const isYesNo = isBinaryMarket(market.type)
   const alive = castaways.filter(c => c.status === 'alive')
-  const closes = new Date(market.closes_at)
   const isOpen = isMarketOpen(market)
   const selectedLabel = selected === null
     ? null
@@ -41,6 +46,15 @@ export default function PredictionMarket({ market, castaways, userPoints, userPi
       ? selected ? 'YES' : 'NO'
       : castaways.find(c => c.id === selected)?.name ?? 'UNKNOWN'
   const canAfford = amount <= userPoints
+  const previewOdds = previewOddsForMarket(market, castaways, selected)
+  const previewPotential = previewOdds ? Math.round(amount * previewOdds) : null
+  const riskBoard = useMemo(() => {
+    if (isYesNo) return []
+    return alive
+      .map(c => ({ id: c.id, name: c.name, risk: Math.round(castawayBootRisk(c)) }))
+      .sort((a, b) => b.risk - a.risk)
+      .slice(0, 3)
+  }, [alive, isYesNo])
   const disabledReason = isDemo
     ? 'Predictions are disabled in offline preview.'
     : !isLoggedIn
@@ -78,6 +92,8 @@ export default function PredictionMarket({ market, castaways, userPoints, userPi
       return
     }
     setStatus('loading')
+    markOnboardingStep('market')
+    trackGameEvent('prediction_submit_started', { marketType: market.type, amount })
     const res = await fetch('/api/predictions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -88,13 +104,21 @@ export default function PredictionMarket({ market, castaways, userPoints, userPi
       ),
     })
     const data = await res.json()
-    if (!res.ok) { setStatus('error'); setMsg(data.error); return }
-    setStatus('done'); setMsg(`Locked in. Potential: ${data.potential} pts at x${data.odds}`)
+    if (!res.ok) {
+      setStatus('error')
+      setMsg(data.error)
+      trackGameEvent('prediction_submit_failed', { marketType: market.type, reason: res.status })
+      return
+    }
+    setStatus('done')
+    setMsg(`Locked in. Potential: ${data.potential} pts at x${data.odds}`)
+    trackGameEvent('prediction_locked', { marketType: market.type, amount })
     router.refresh()
   }
 
   function choose(next: number | boolean) {
     setSelected(next)
+    trackGameEvent('market_outcome_selected', { marketType: market.type, choiceKind: typeof next === 'boolean' ? 'binary' : 'castaway' })
     setStatus('idle')
     setMsg('')
   }
@@ -105,15 +129,12 @@ export default function PredictionMarket({ market, castaways, userPoints, userPi
     setMsg('')
   }
 
-  const daysLeft = Math.ceil((closes.getTime() - Date.now()) / 86400000)
   const closeLabel = !isOpen
     ? 'Closed'
-    : market.day === null
-      ? `Closes before season start (${daysLeft}d)`
-      : `Closes before Day ${market.day + 1} simulation (${daysLeft}d)`
+    : marketCloseContext(market)
 
   return (
-    <div className="panel mb-2 market-card">
+    <div className="terminal-card mb-2 market-card">
       <div className="flex justify-between items-start gap-2 mb-1">
         <div className="min-w-0">
           <div className="flex flex-wrap gap-1 mb-1">
@@ -126,10 +147,20 @@ export default function PredictionMarket({ market, castaways, userPoints, userPi
       </div>
 
       <div className="c-dim text-[10px] mb-2">{marketMeta.hint}</div>
+      {riskBoard.length > 0 && (
+        <div className="risk-board">
+          {riskBoard.map(row => (
+            <button key={row.id} type="button" className={`risk-chip${preferences.favoriteCastawayIds.includes(row.id) ? ' favorite' : ''}`} onClick={() => requestOpenCastaway(row.id)}>
+              {preferences.favoriteCastawayIds.includes(row.id) ? '★ ' : ''}{row.name} <b>{row.risk}</b>
+            </button>
+          ))}
+        </div>
+      )}
       {!userPick && (
         <div className="flex flex-wrap gap-2 mb-2 text-[10px]">
           <span className="tag c-yellow">balance {userPoints} pts</span>
-          <span className="tag c-dim">odds lock at submit</span>
+          <span className="tag c-dim">{previewOdds ? `preview x${previewOdds.toFixed(1)}` : 'odds lock at submit'}</span>
+          {previewPotential !== null && <span className="tag c-green">potential {previewPotential} pts</span>}
         </div>
       )}
 
@@ -139,11 +170,7 @@ export default function PredictionMarket({ market, castaways, userPoints, userPi
           <b>{userPick.choice_bool === null
             ? (castaways.find(c => c.id === userPick.castaway_id)?.name ?? 'UNKNOWN')
             : (userPick.choice_bool ? 'YES' : 'NO')}</b>
-          {' '}@ x{userPick.odds}
-        </div>
-      ) : disabledReason && selected === null ? (
-        <div className="c-dim text-[10px]">
-          {isDemo ? disabledReason : !isLoggedIn ? <><a href="/login" className="c-amber underline">Sign in</a> to predict.</> : disabledReason}
+          {' '}@ x{userPick.odds} · possible {Math.round(userPick.amount * Number(userPick.odds))} pts
         </div>
       ) : (
         <>
@@ -163,7 +190,7 @@ export default function PredictionMarket({ market, castaways, userPoints, userPi
                 return (
                   <button key={c.id} onClick={() => choose(c.id)}
                     className={`btn choice-button text-[11px] ${selected === c.id ? 'on' : ''}`}>
-                    {c.name}
+                    {preferences.favoriteCastawayIds.includes(c.id) ? '★ ' : ''}{c.name}
                     {tag && <span className="c-wrong" style={{ marginLeft: 6 }}>{tag}</span>}
                   </button>
                 )
@@ -176,7 +203,7 @@ export default function PredictionMarket({ market, castaways, userPoints, userPi
               {AMOUNTS.map(a => (
                 <button key={a} onClick={() => chooseAmount(a)}
                   className={`btn amber text-[11px] ${amount === a ? 'on' : ''}`}
-                  disabled={a > userPoints}>
+                  disabled={isLoggedIn && a > userPoints}>
                   {a} pts
                 </button>
               ))}
@@ -189,15 +216,19 @@ export default function PredictionMarket({ market, castaways, userPoints, userPi
 
           <div className="c-dim text-[10px] mt-2">
             {selectedLabel
-              ? `Selection: ${selectedLabel}. Stake: ${amount} pts. ${disabledReason ?? 'Submit to lock this prediction.'}`
+              ? `Selection: ${selectedLabel}. Stake: ${amount} pts.${previewPotential !== null ? ` Preview: ${previewPotential} pts at x${previewOdds?.toFixed(1)}.` : ''} ${disabledReason ?? 'Submit to lock this prediction.'}`
               : isYesNo
                 ? 'Choose yes or no, then choose a stake.'
                 : 'Choose a living castaway, then choose a stake.'}
           </div>
 
-          {msg && (
-            <div className={`text-[10px] mt-1 ${status === 'error' ? 'c-red' : 'c-green'}`}>{msg}</div>
+          {disabledReason && (
+            <div className="market-gate-note">
+              {isDemo ? disabledReason : !isLoggedIn ? <><a href="/login" className="c-amber underline">Sign in</a> when you are ready to lock this prediction.</> : disabledReason}
+            </div>
           )}
+
+          {msg && <StatusToast tone={status === 'error' ? 'error' : 'success'} message={msg} onDismiss={() => setMsg('')} />}
         </>
       )}
     </div>

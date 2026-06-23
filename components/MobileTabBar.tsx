@@ -6,7 +6,7 @@ const TABS = [
   { href: '/', label: 'Feed', glyph: '▶' },
   { href: '/castaways', label: 'Cast', glyph: '▣' },
   { href: '/markets', label: 'Bet', glyph: '◈' },
-  { href: '/influence', label: 'Noise', glyph: '⛧' },
+  { href: '/influence', label: 'Influence', glyph: '⛧' },
   { href: '/more', label: 'More', glyph: '▤' },
 ]
 

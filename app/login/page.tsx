@@ -33,7 +33,7 @@ export default function LoginPage() {
   return (
     <main className="flex items-center justify-center" style={{ minHeight: '80vh' }}>
       <div className="panel p-cyan" style={{ maxWidth: 360, width: 'calc(100% - 32px)', padding: 16 }}>
-        <div className="hdr cyan mb-3">⛧ {mode === 'login' ? 'ACCESS THE SIGNAL' : 'REGISTER A SOUL'}</div>
+        <div className="hdr cyan mb-3">⛧ {mode === 'login' ? 'PLAYER ACCESS // connect to signal' : 'CREATE ACCOUNT // register observer'}</div>
 
         <div className="flex gap-2 mb-4">
           <button className={`btn ${mode === 'login' ? 'on' : ''}`} onClick={() => setMode('login')}>LOGIN</button>
